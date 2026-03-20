@@ -47,5 +47,7 @@ contextBridge.exposeInMainWorld('electron', {
   onUpdater:               (cb: (data: any) => void) => ipcRenderer.on('updater', (_e, d) => cb(d)),
   removeUpdaterListener:   () => ipcRenderer.removeAllListeners('updater'),
 
+  getVersion: (): Promise<string> => ipcRenderer.invoke('get-version'),
+
   platform: process.platform,
 });

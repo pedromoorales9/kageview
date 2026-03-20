@@ -30,6 +30,7 @@ declare global {
         close: () => void;
       };
       platform: string;
+      getVersion: () => Promise<string>;
       
       updaterCheck: () => Promise<void>;
       updaterDownload: () => Promise<void>;

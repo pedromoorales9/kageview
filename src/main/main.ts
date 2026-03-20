@@ -62,6 +62,9 @@ function handleDeepLink(url: string): void {
   }
 }
 
+ipcMain.handle('get-version', () => app.getVersion());
+
+// ─── OAuth ──────────────────────────────────────────────
 // ─── Crear ventana ────────────────────────────────────────
 async function createWindow(): Promise<void> {
   mainWindow = new BrowserWindow({

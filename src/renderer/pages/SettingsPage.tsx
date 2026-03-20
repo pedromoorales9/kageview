@@ -30,6 +30,11 @@ export default function SettingsPage() {
   const { logout } = useAniList();
 
   const [checkingProviders, setCheckingProviders] = useState(false);
+  const [version, setVersion] = useState<string>('');
+
+  useEffect(() => {
+    window.electron.getVersion?.().then(setVersion);
+  }, []);
 
   // Comprobar estado de providers al montar
   useEffect(() => {
@@ -161,7 +166,7 @@ export default function SettingsPage() {
                   "
                 >
                   <span className="material-symbols-outlined text-[14px]">code_blocks</span>
-                  Código (v1.0.2)
+                  Código (v{version || '...'})
                 </button>
                 <button
                   onClick={() => window.electron?.updaterCheck()}
