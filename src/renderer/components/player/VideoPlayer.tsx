@@ -27,6 +27,7 @@ export default function VideoPlayer({
   onProgress,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const webviewRef = useRef<any>(null);
   const hlsRef = useRef<Hls | null>(null);
   const controlsTimerRef = useRef<number | null>(null);
   const progressTimerRef = useRef<number | null>(null);
@@ -43,6 +44,83 @@ export default function VideoPlayer({
   const [showSkipOutro, setShowSkipOutro] = useState(false);
 
   const episodeTitle = `${anime.title.english || anime.title.romaji} — Episode ${episodeNumber}`;
+
+  // ─── Inyectar ad-blocker en webview ─────────────────────
+  useEffect(() => {
+    const wv = webviewRef.current;
+    if (!wv || source.type !== 'iframe') return;
+
+    const onDomReady = () => {
+      // Inyectar script para bloquear publicidad
+      wv.executeJavaScript(`
+        (function() {
+          // 1. Bloquear window.open completamente
+          window.open = function() { return null; };
+
+          // 2. Bloquear popups vía eventos
+          document.addEventListener('click', function(e) {
+            const a = e.target.closest('a');
+            if (a && a.target === '_blank') {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }, true);
+
+          // 3. Selectores comunes de overlays/banners publicitarios
+          const adSelectors = [
+            'iframe[src*="ad"]', 'iframe[src*="pop"]', 'iframe[src*="banner"]',
+            'div[class*="ad-"]', 'div[class*="ads-"]', 'div[class*="popup"]',
+            'div[class*="overlay"]', 'div[id*="ad-"]', 'div[id*="ads-"]',
+            'div[id*="popup"]', 'div[class*="banner"]',
+            'a[target="_blank"]', '.pop-up', '#overlay',
+            'div[style*="z-index: 9999"]', 'div[style*="z-index:9999"]',
+            'div[style*="z-index: 99999"]', 'div[style*="z-index:99999"]',
+          ];
+
+          function removeAds() {
+            adSelectors.forEach(function(sel) {
+              document.querySelectorAll(sel).forEach(function(el) {
+                // No borrar el video principal ni su contenedor
+                if (el.tagName === 'IFRAME' && el.closest('.jw-media, .plyr, .video-js, #player')) return;
+                if (el.tagName === 'DIV' && el.querySelector('video, .jw-media, .plyr')) return;
+                el.remove();
+              });
+            });
+          }
+
+          // Ejecutar inmediatamente y con observer
+          removeAds();
+          var observer = new MutationObserver(function() { removeAds(); });
+          observer.observe(document.body, { childList: true, subtree: true });
+
+          // 4. Bloquear creación de nuevos iframes de ads
+          var origCreate = document.createElement.bind(document);
+          document.createElement = function(tag) {
+            var el = origCreate(tag);
+            if (tag.toLowerCase() === 'iframe') {
+              var origSetAttr = el.setAttribute.bind(el);
+              el.setAttribute = function(name, value) {
+                if (name === 'src' && typeof value === 'string') {
+                  var low = value.toLowerCase();
+                  if (low.includes('ad') || low.includes('pop') || low.includes('banner') ||
+                      low.includes('track') || low.includes('click')) {
+                    return;
+                  }
+                }
+                origSetAttr(name, value);
+              };
+            }
+            return el;
+          };
+        })();
+      `).catch(() => {});
+    };
+
+    wv.addEventListener('dom-ready', onDomReady);
+    return () => {
+      wv.removeEventListener('dom-ready', onDomReady);
+    };
+  }, [source]);
 
   // ─── Inicializar HLS o MP4 ──────────────────────────────
   useEffect(() => {
@@ -286,10 +364,10 @@ export default function VideoPlayer({
       {/* Webview Element for external providers */}
       {source.type === 'iframe' ? (
         React.createElement('webview', {
+          ref: webviewRef,
           src: source.url,
           className: 'w-full h-full bg-black border-0',
-          allowpopups: 'true',
-          webpreferences: 'contextIsolation=yes, javascript=yes'
+          webpreferences: 'contextIsolation=no, javascript=yes'
         })
       ) : (
         <video
@@ -312,12 +390,18 @@ export default function VideoPlayer({
 
       {/* Controls or minimal back button for iframes */}
       {source.type === 'iframe' ? (
-        <div className="absolute top-0 left-0 p-4 z-[90]">
+        <div className="absolute top-0 left-0 p-4 z-[90] flex items-center gap-2">
           <button
             onClick={onExit}
             className="w-10 h-10 rounded-lg bg-black/60 backdrop-blur-md flex items-center justify-center text-white/80 hover:text-white transition-all hover:bg-black/90 shadow-lg"
           >
             <span className="material-symbols-outlined">arrow_back</span>
+          </button>
+          <button
+            onClick={onNextEpisode}
+            className="w-10 h-10 rounded-lg bg-black/60 backdrop-blur-md flex items-center justify-center text-white/80 hover:text-white transition-all hover:bg-black/90 shadow-lg"
+          >
+            <span className="material-symbols-outlined">skip_next</span>
           </button>
         </div>
       ) : (

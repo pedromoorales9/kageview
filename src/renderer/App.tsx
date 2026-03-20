@@ -260,6 +260,7 @@ export default function App() {
         <EpisodeNotFound
           episodeNumber={playerConfig.episode}
           onBack={handleExitPlayer}
+          onNextEpisode={handleNextEpisode}
         />
       )}
 

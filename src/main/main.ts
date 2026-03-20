@@ -127,7 +127,22 @@ async function createWindow(): Promise<void> {
     { urls: ['*://*/*'] },
     (details: any, callback: any) => {
       const url = details.url.toLowerCase();
-      
+
+      // ─── Bloquear dominios de publicidad conocidos ────────
+      const adDomains = [
+        'doubleclick.net', 'googlesyndication.com', 'googleadservices.com',
+        'adnxs.com', 'popads.net', 'popcash.net', 'juicyads.com',
+        'exoclick.com', 'trafficjunky.net', 'clickadu.com',
+        'propellerads.com', 'adsterra.com', 'hilltopads.net',
+        'monetag.com', 'pushground.com', 'a-ads.com',
+        'syndication.twitter.com', 'ad.mail.ru',
+        'mc.yandex.ru', 'top.mail.ru',
+      ];
+      if (adDomains.some(d => url.includes(d))) {
+        callback({ cancel: true });
+        return;
+      }
+
       // Siempre inyectar el User-Agent limpio
       details.requestHeaders['User-Agent'] = genericUserAgent;
 
@@ -194,6 +209,30 @@ async function createWindow(): Promise<void> {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  // ─── Bloquear popups/ads de webviews (reproductores embed) ───
+  mainWindow.webContents.on('did-attach-webview' as any, (_event: any, webContents: any) => {
+    // Bloquear TODOS los intentos de abrir ventanas nuevas (ads)
+    webContents.setWindowOpenHandler(() => {
+      return { action: 'deny' };
+    });
+
+    // Bloquear navegación a dominios de publicidad
+    const adDomainPatterns = [
+      'doubleclick', 'googlesyndication', 'googleadservices',
+      'adservice', 'adsense', 'ad-delivery', 'adnxs', 'ads.',
+      'popads', 'popcash', 'popunder', 'juicyads', 'exoclick',
+      'trafficjunky', 'clickadu', 'propellerads', 'adsterra',
+      'hilltopads', 'monetag', 'a-ads', 'pushground',
+    ];
+
+    webContents.on('will-navigate', (e: any, url: string) => {
+      const lower = url.toLowerCase();
+      if (adDomainPatterns.some(p => lower.includes(p))) {
+        e.preventDefault();
+      }
+    });
   });
 }
 

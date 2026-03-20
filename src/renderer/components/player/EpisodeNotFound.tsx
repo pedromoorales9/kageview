@@ -2,10 +2,11 @@ import React from 'react';
 
 interface EpisodeNotFoundProps {
   onBack: () => void;
+  onNextEpisode: () => void;
   episodeNumber?: number;
 }
 
-export default function EpisodeNotFound({ onBack, episodeNumber }: EpisodeNotFoundProps) {
+export default function EpisodeNotFound({ onBack, onNextEpisode, episodeNumber }: EpisodeNotFoundProps) {
   return (
     <main className="fixed inset-0 z-[80] bg-background text-on-background font-body flex items-center justify-center overflow-hidden">
       {/* Background Layer */}
@@ -68,6 +69,16 @@ export default function EpisodeNotFound({ onBack, episodeNumber }: EpisodeNotFou
                 <span className="material-symbols-outlined text-sm">explore</span>
               </span>
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary to-primary-dim opacity-0 group-hover:opacity-100 transition-opacity" />
+            </button>
+
+            <button
+              onClick={onNextEpisode}
+              className="group relative flex items-center justify-center px-10 py-4 bg-surface-container-highest/60 backdrop-blur-md rounded-full text-on-surface font-headline font-bold uppercase tracking-widest text-sm transition-all duration-300 hover:scale-105 active:scale-95 border border-primary/20 hover:border-primary/50 hover:shadow-[0_0_24px_0_rgba(203,151,255,0.15)]"
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                Siguiente Episodio
+                <span className="material-symbols-outlined text-sm">skip_next</span>
+              </span>
             </button>
 
             <button
