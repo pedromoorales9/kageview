@@ -8,6 +8,7 @@ import {
 import path from 'path';
 import axios from 'axios';
 import Store from 'electron-store';
+import { version } from '../../package.json';
 import { initUpdater } from './updater';
 import { buildMenu } from './menu';
 
@@ -62,7 +63,7 @@ function handleDeepLink(url: string): void {
   }
 }
 
-ipcMain.handle('get-version', () => app.getVersion());
+ipcMain.handle('get-version', () => version);
 
 // ─── OAuth ──────────────────────────────────────────────
 // ─── Crear ventana ────────────────────────────────────────
