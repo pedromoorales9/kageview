@@ -153,7 +153,7 @@ export default function SettingsPage() {
               </div>
               <div className="flex gap-2 w-full mt-2">
                 <button
-                  onClick={() => window.electron?.openExternal('https://github.com')}
+                  onClick={() => window.electron?.openExternal('https://github.com/pedromoorales9/KageView')}
                   className="
                     flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/5
                     bg-surface-container-high text-on-surface text-[11px] font-label font-bold uppercase tracking-wider
@@ -161,7 +161,18 @@ export default function SettingsPage() {
                   "
                 >
                   <span className="material-symbols-outlined text-[14px]">code_blocks</span>
-                  GitHub
+                  Código (v1.0.2)
+                </button>
+                <button
+                  onClick={() => window.electron?.updaterCheck()}
+                  className="
+                    flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-primary/20
+                    bg-primary/10 text-primary text-[11px] font-label font-bold uppercase tracking-wider
+                    hover:bg-primary/20 transition-colors
+                  "
+                >
+                  <span className="material-symbols-outlined text-[14px]">sync</span>
+                  Buscar Update
                 </button>
               </div>
             </div>
