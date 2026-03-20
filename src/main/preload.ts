@@ -41,5 +41,11 @@ contextBridge.exposeInMainWorld('electron', {
     close: () => ipcRenderer.send('window-close'),
   },
 
+  updaterCheck:            () => ipcRenderer.invoke('updater-check'),
+  updaterDownload:         () => ipcRenderer.invoke('updater-download'),
+  updaterInstall:          () => ipcRenderer.invoke('updater-install'),
+  onUpdater:               (cb: (data: any) => void) => ipcRenderer.on('updater', (_e, d) => cb(d)),
+  removeUpdaterListener:   () => ipcRenderer.removeAllListeners('updater'),
+
   platform: process.platform,
 });

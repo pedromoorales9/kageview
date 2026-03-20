@@ -16,6 +16,7 @@ import VideoPlayer from './components/player/VideoPlayer';
 import EpisodeNotFound from './components/player/EpisodeNotFound';
 import Spinner from './components/ui/Spinner';
 import SplashScreen from './components/ui/SplashScreen';
+import { UpdaterModal } from './components/UpdaterModal';
 
 type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings';
 
@@ -261,6 +262,9 @@ export default function App() {
           onBack={handleExitPlayer}
         />
       )}
+
+      {/* Actualizador Modal Global */}
+      <UpdaterModal />
     </div>
   );
 }

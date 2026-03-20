@@ -8,7 +8,7 @@ import {
 import path from 'path';
 import axios from 'axios';
 import Store from 'electron-store';
-import { checkForUpdates } from './updater';
+import { initUpdater } from './updater';
 import { buildMenu } from './menu';
 
 // ─── Electron Store ───────────────────────────────────────
@@ -90,6 +90,9 @@ async function createWindow(): Promise<void> {
   } else {
     await mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
+
+  // Inicializar auto-updater con la ventana creada
+  initUpdater(mainWindow);
 
   // ─── Capturar errores del renderer en terminal ─────────
   mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
@@ -289,10 +292,7 @@ app.whenReady().then(async () => {
     handleDeepLink(url);
   });
 
-  // Auto-update en producción
-  if (!isDev) {
-    checkForUpdates();
-  }
+  // El auto-update ya se inicializó en createWindow()
 });
 
 app.on('window-all-closed', () => {

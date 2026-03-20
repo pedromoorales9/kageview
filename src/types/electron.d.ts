@@ -30,6 +30,23 @@ declare global {
         close: () => void;
       };
       platform: string;
+      
+      updaterCheck: () => Promise<void>;
+      updaterDownload: () => Promise<void>;
+      updaterInstall: () => Promise<void>;
+      onUpdater: (cb: (data: UpdaterEvent) => void) => void;
+      removeUpdaterListener: () => void;
     };
   }
+}
+
+export interface UpdaterEvent {
+  type: 'checking' | 'available' | 'not-available' | 'progress' | 'downloaded' | 'error';
+  version?: string;
+  releaseNotes?: string | null;
+  percent?: number;
+  bytesPerSecond?: number;
+  transferred?: number;
+  total?: number;
+  message?: string;
 }

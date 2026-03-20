@@ -1,24 +1,57 @@
-// Auto-update con electron-updater (solo en producción)
-export function checkForUpdates(): void {
-  try {
-    // Importar dinámicamente para evitar errores en desarrollo
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { autoUpdater } = require('electron-updater');
+import { autoUpdater } from 'electron-updater';
+import { BrowserWindow, ipcMain } from 'electron';
+import log from 'electron-log';
 
-    autoUpdater.checkForUpdatesAndNotify();
+export function initUpdater(mainWindow: BrowserWindow) {
+  autoUpdater.logger = log;
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
 
-    autoUpdater.on('update-available', () => {
-      console.log('[KageView] Actualización disponible');
-    });
-
-    autoUpdater.on('update-downloaded', () => {
-      console.log('[KageView] Actualización descargada. Se instalará al reiniciar.');
-    });
-
-    autoUpdater.on('error', (err: Error) => {
-      console.error('[KageView] Error en auto-update:', err.message);
-    });
-  } catch (err) {
-    console.warn('[KageView] electron-updater no disponible:', err);
+  if (process.env.NODE_ENV === 'production') {
+    autoUpdater.checkForUpdates();
   }
+
+  autoUpdater.on('checking-for-update', () => {
+    mainWindow.webContents.send('updater', { type: 'checking' });
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    mainWindow.webContents.send('updater', {
+      type: 'available',
+      version: info.version,
+      releaseNotes: info.releaseNotes ?? null,
+    });
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    mainWindow.webContents.send('updater', { type: 'not-available' });
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    mainWindow.webContents.send('updater', {
+      type: 'progress',
+      percent: Math.round(progress.percent),
+      bytesPerSecond: progress.bytesPerSecond,
+      transferred: progress.transferred,
+      total: progress.total,
+    });
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    mainWindow.webContents.send('updater', {
+      type: 'downloaded',
+      version: info.version,
+    });
+  });
+
+  autoUpdater.on('error', (err) => {
+    mainWindow.webContents.send('updater', {
+      type: 'error',
+      message: err.message,
+    });
+  });
+
+  ipcMain.handle('updater-check',    () => autoUpdater.checkForUpdates());
+  ipcMain.handle('updater-download', () => autoUpdater.downloadUpdate());
+  ipcMain.handle('updater-install',  () => autoUpdater.quitAndInstall(false, true));
 }
