@@ -46,12 +46,12 @@ KageView conecta múltiples fuentes y cambia automáticamente si una falla:
 |----------|--------|-----|-----|--------|
 | 🟢 AnimeFLV | 🇪🇸 Español | ✅ | ✅ | Activo |
 | 🟢 JKAnime | 🇪🇸 Español | ✅ | ✅ | Activo |
-| 🟢 HiAnime | 🇺🇸 Inglés | ✅ | ✅ | Activo |
-| 🟡 Gogoanime | 🇺🇸 Inglés | ✅ | ✅ | Inestable |
-| 🟢 AnimePahe | 🇺🇸 Inglés | ✅ | ✅ | Activo |
+| 🟢 HiAnime | 🇺🇸 Inglés | ✅ | ✅ | Inactivo |
+| 🟡 Gogoanime | 🇺🇸 Inglés | ✅ | ✅ | Inactivo |
+| 🟢 AnimePahe | 🇺🇸 Inglés | ✅ | ✅ | Inactivo |
 
 > Cuando seleccionas **español** como idioma de audio, KageView prioriza AnimeFLV y JKAnime automáticamente.
-
+> Por ahora los servicios en el idioma ingles estan desactivados!
 ---
 
 ## ⬇️ Descarga
