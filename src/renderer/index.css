@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════
+   KageView — Cinematic Shadow Design System
+   Variables CSS globales + overrides
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  --color-primary: #cb97ff;
+  --color-primary-dim: #be83fa;
+  --color-secondary: #f673b7;
+  --color-tertiary: #47c4ff;
+  --color-background: #0e0e13;
+  --color-surface: #0e0e13;
+  --color-surface-container: #19191f;
+  --color-on-surface: #f8f5fd;
+  --color-on-surface-variant: #acaab1;
+  --glow-primary: rgba(203, 151, 255, 0.25);
+  --glow-secondary: rgba(246, 115, 183, 0.2);
+  --transition-default: 250ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* ─── Base Reset ──────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--color-background);
+  color: var(--color-on-surface);
+  font-family: 'Inter', sans-serif;
+}
+
+/* ─── Custom Scrollbar ────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #25252c;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a45;
+}
+
+/* ─── Material Symbols Config ─────────────────────────────── */
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+  user-select: none;
+}
+
+.material-symbols-outlined.filled {
+  font-variation-settings:
+    'FILL' 1,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+}
+
+/* ─── Transitions ─────────────────────────────────────────── */
+.transition-default {
+  transition: all var(--transition-default);
+}
+
+/* ─── Glow Effects ────────────────────────────────────────── */
+.glow-primary {
+  box-shadow: 0 0 22px var(--glow-primary);
+}
+
+.glow-secondary {
+  box-shadow: 0 0 22px var(--glow-secondary);
+}
+
+/* ─── Gradient Backgrounds ────────────────────────────────── */
+.gradient-primary {
+  background: linear-gradient(135deg, #cb97ff, #c185fd);
+}
+
+.gradient-progress {
+  background: linear-gradient(90deg, #cb97ff, #f673b7);
+}
+
+/* ─── Skeleton Loader ─────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #19191f 25%,
+    #25252c 50%,
+    #19191f 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+/* ─── Video Player Progress Bar ───────────────────────────── */
+.progress-glow {
+  box-shadow: 0 0 8px var(--glow-primary), 0 0 16px var(--glow-secondary);
+}
+
+/* ─── Fade Animations ─────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 300ms ease-out;
+}
+
+.animate-fade-in-scale {
+  animation: fadeInScale 250ms ease-out;
+}
+
+/* ─── Titlebar drag region (frameless window) ──────────────── */
+.titlebar-drag {
+  -webkit-app-region: drag;
+}
+
+.titlebar-no-drag {
+  -webkit-app-region: no-drag;
+}
