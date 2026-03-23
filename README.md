@@ -60,7 +60,7 @@ KageView conecta múltiples fuentes y cambia automáticamente si una falla:
 |---------|---------|--|
 | Windows 10/11 | `KageView.Setup.1.0.0.exe` | [Descargar](../../releases/latest) |
 | Linux (Universal) | `KageView-1.0.0.AppImage` | Proximamente! |
-| Linux (Debian/Ubuntu) | `kageview_1.0.0_amd64.deb` | Proximamente! |
+| MacOS | `kageview_1.0.0_amd64.dmg` | Proximamente! |
 
 ---
 
