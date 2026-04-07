@@ -26,9 +26,7 @@ export const useAppStore = create<AppState>((set) => ({
   isLoading: false,
   error: null,
   providerStatus: {
-    hianime: 'offline',
-    gogoanime: 'offline',
-    animepahe: 'offline',
+    animeav1: 'offline',
     animeflv: 'offline',
     jkanime: 'offline',
   },

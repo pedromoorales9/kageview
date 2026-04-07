@@ -64,8 +64,11 @@ function formatCountdown(unixSec: number): string {
 
 export default function CalendarPage({ onSelectAnime, onNotificationsChange }: CalendarPageProps) {
   const token = useAppStore((s) => s.token);
-  const { getUserList } = useAniList();
+  const { getUserList, getGlobalSchedule } = useAniList();
 
+  const [activeTab, setActiveTab] = useState<'mine' | 'all'>('mine');
+  const [globalSchedule, setGlobalSchedule] = useState<AniListAnime[]>([]);
+  
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDay, setSelectedDay] = useState<Date>(new Date());
   const [airingList, setAiringList] = useState<AniListAnime[]>([]);
@@ -116,6 +119,41 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
     return () => { cancelled = true; };
   }, [token, getUserList]);
 
+  // ─── Cargar horario global ───────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    async function loadGlobal() {
+      setLoading(true);
+      try {
+        const startUnix = Math.floor(weekDays[0].getTime() / 1000);
+        const endUnix = Math.floor(weekDays[6].getTime() / 1000) + 86400;
+
+        const data = await getGlobalSchedule(startUnix, endUnix, 1, 50);
+        if (cancelled) return;
+
+        const animes = data.map((schedule) => ({
+          ...schedule.media,
+          nextAiringEpisode: {
+            episode: schedule.episode,
+            timeUntilAiring: schedule.airingAt - Math.floor(Date.now() / 1000),
+          },
+        }));
+
+        // Podrían emitirse 2 episodios la misma semana, nos quedamos con el primero
+        const unique = Array.from(new Map(animes.map((a) => [a.id, a])).values());
+        setGlobalSchedule(unique as AniListAnime[]);
+      } catch (err) {
+        console.error('[CalendarPage] Error loading global schedule:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    if (activeTab === 'all') {
+      loadGlobal();
+    }
+  }, [activeTab, weekOffset, getGlobalSchedule]);
+
   // ─── Leer estado de notificaciones ────────────────────────
   useEffect(() => {
     if (!window.electron?.getNotificationsEnabled) return;
@@ -123,11 +161,13 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
   }, []);
 
   // ─── Countdown en tiempo real ──────────────────────────────
+  const currentList = activeTab === 'mine' ? airingList : globalSchedule;
+
   useEffect(() => {
-    if (airingList.length === 0) return;
+    if (currentList.length === 0) return;
     const updateCountdowns = () => {
       const newCountdown: Record<number, string> = {};
-      for (const anime of airingList) {
+      for (const anime of currentList) {
         if (anime.nextAiringEpisode) {
           const airingAt = Math.floor(Date.now() / 1000) + anime.nextAiringEpisode.timeUntilAiring;
           newCountdown[anime.id] = formatCountdown(airingAt);
@@ -138,7 +178,7 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
     updateCountdowns();
     const interval = setInterval(updateCountdowns, 30_000);
     return () => clearInterval(interval);
-  }, [airingList]);
+  }, [currentList]);
 
   // ─── Toggle notificaciones ────────────────────────────────
   const toggleNotifications = useCallback(async () => {
@@ -157,7 +197,7 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
   }, [notifEnabled, onNotificationsChange]);
 
   // ─── Animes del día seleccionado ──────────────────────────
-  const animesBySelectedDay = airingList.filter((anime) => {
+  const animesBySelectedDay = currentList.filter((anime) => {
     if (!anime.nextAiringEpisode) return false;
     const airingAt = Math.floor(Date.now() / 1000) + anime.nextAiringEpisode.timeUntilAiring;
     const airingDate = new Date(airingAt * 1000);
@@ -168,7 +208,7 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
   const animesByDay: Record<string, AniListAnime[]> = {};
   for (const d of weekDays) {
     const key = d.toDateString();
-    animesByDay[key] = airingList.filter((anime) => {
+    animesByDay[key] = currentList.filter((anime) => {
       if (!anime.nextAiringEpisode) return false;
       const airingAt = Math.floor(Date.now() / 1000) + anime.nextAiringEpisode.timeUntilAiring;
       const airingDate = new Date(airingAt * 1000);
@@ -197,10 +237,25 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-5 flex-shrink-0">
         <div>
-          <h1 className="font-headline text-xl font-bold text-on-surface">Calendario de Emisión</h1>
-          <p className="text-xs text-on-surface-variant mt-0.5">
-            Animes que estás viendo — próximos episodios
-          </p>
+          <h1 className="font-headline text-xl font-bold text-on-surface">Horario</h1>
+          <div className="flex items-center gap-4 mt-2">
+            <button
+              onClick={() => setActiveTab('mine')}
+              className={`text-xs font-semibold uppercase tracking-wider pb-1 transition-colors border-b-2 ${
+                activeTab === 'mine' ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-on-surface'
+              }`}
+            >
+              Mis Animes
+            </button>
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`text-xs font-semibold uppercase tracking-wider pb-1 transition-colors border-b-2 ${
+                activeTab === 'all' ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-on-surface'
+              }`}
+            >
+              Todos (Global)
+            </button>
+          </div>
         </div>
 
         {/* Botón de notificaciones */}
@@ -452,7 +507,7 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
       </div>
 
       {/* ── Summary bar ── */}
-      {!loading && airingList.length > 0 && (
+      {!loading && currentList.length > 0 && (
         <div
           className="
             flex-shrink-0 mt-3 pt-3
@@ -462,7 +517,7 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
           "
         >
           <span>
-            <span className="text-primary font-semibold">{airingList.length}</span> animes en emisión
+            <span className="text-primary font-semibold">{currentList.length}</span> animes en emisión
           </span>
           <span>
             Esta semana: <span className="text-primary font-semibold">

@@ -57,14 +57,19 @@ export class AnimeFlvProvider implements IProvider {
 
   private parseSearch(html: string, _dubbed: boolean): ProviderAnime[] {
     const results: ProviderAnime[] = [];
-    const regex = /href="\/anime\/([^"]+)"[^>]*>[\s\S]*?<h3[^>]*class="[^"]*Title[^"]*"[^>]*>([^<]+)<\/h3>/g;
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(html)) !== null) {
-      results.push({
-        id: match[1],
-        title: match[2].trim(),
-        url: `${this.baseUrl}/anime/${match[1]}`,
-      });
+    const articles = html.split('<article');
+    for (let i = 1; i < articles.length; i++) {
+      const article = articles[i];
+      const linkMatch = article.match(/href="\/anime\/([^"]+)"/);
+      const titleMatch = article.match(/<h3[^>]*>([^<]+)<\/h3>/);
+      
+      if (linkMatch && titleMatch) {
+        results.push({
+          id: linkMatch[1],
+          title: titleMatch[1].trim(),
+          url: `${this.baseUrl}/anime/${linkMatch[1]}`,
+        });
+      }
     }
     return results;
   }

@@ -183,13 +183,13 @@ export default function DiscoverPage({ onSelectAnime }: DiscoverPageProps) {
           <h2 className="font-headline text-lg font-bold text-on-surface mb-4">
             En Tendencia
           </h2>
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
-            {trending.slice(1).map((anime: AniListAnime) => (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-4">
+            {trending.slice(1, 13).map((anime: AniListAnime) => (
               <AnimeCard
                 key={anime.id}
                 anime={anime}
                 onClick={() => onSelectAnime(anime)}
-                className="w-44 flex-none"
+                className="w-full"
               />
             ))}
           </div>
@@ -213,13 +213,13 @@ export default function DiscoverPage({ onSelectAnime }: DiscoverPageProps) {
               </p>
             </div>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin relative z-10 px-2">
-            {recommended.anime.map((anime: AniListAnime) => (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-4 px-2 relative z-10">
+            {recommended.anime.slice(0, 12).map((anime: AniListAnime) => (
               <AnimeCard
                 key={anime.id}
                 anime={anime}
                 onClick={() => onSelectAnime(anime)}
-                className="w-44 flex-none transition-transform hover:-translate-y-1"
+                className="w-full transition-transform hover:-translate-y-1"
               />
             ))}
           </div>
@@ -232,13 +232,13 @@ export default function DiscoverPage({ onSelectAnime }: DiscoverPageProps) {
           <h2 className="font-headline text-lg font-bold text-on-surface mb-4">
             Nuevos de Temporada
           </h2>
-          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
-            {seasonal.map((anime: AniListAnime) => (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-4">
+            {seasonal.slice(0, 12).map((anime: AniListAnime) => (
               <AnimeCard
                 key={anime.id}
                 anime={anime}
                 onClick={() => onSelectAnime(anime)}
-                className="w-44 flex-none"
+                className="w-full"
               />
             ))}
           </div>
@@ -251,7 +251,7 @@ export default function DiscoverPage({ onSelectAnime }: DiscoverPageProps) {
           <h2 className="font-headline text-lg font-bold text-on-surface mb-4">
             Mejor Valorados
           </h2>
-          <div className="grid grid-cols-4 grid-rows-2 gap-3 h-[420px]">
+          <div className="grid grid-cols-4 grid-rows-2 gap-3 h-[300px] xl:h-[420px]">
             {topRated.slice(0, 5).map((anime: AniListAnime, idx: number) => (
               <button
                 key={anime.id}

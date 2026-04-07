@@ -23,9 +23,17 @@ const GENRE_I18N: Record<string, string> = {
 
 export default function AnimeModal({ anime: initialAnime, onClose, onPlay }: AnimeModalProps) {
   const [anime, setAnime] = useState<AniListAnime>(initialAnime);
+  const [lastWatchedEp, setLastWatchedEp] = useState<number | null>(null);
   const { episodes, loading } = useAnimeInfo(anime.id);
   const { updateListStatus } = useAniList();
   const token = useAppStore((s) => s.token);
+
+  // Cargar último episodio visto desde local storage vía IPC
+  useEffect(() => {
+    if (window.electron?.getWatchProgress) {
+      window.electron.getWatchProgress(anime.id).then(setLastWatchedEp);
+    }
+  }, [anime.id]);
 
   const studio = anime.studios?.nodes?.find((s) => s.isAnimationStudio)?.name;
   const cleanDescription = anime.description?.replace(/<[^>]*>/g, '') || 'Sin descripción disponible.';
@@ -146,21 +154,38 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay }: Ani
 
             {/* CTA Buttons */}
             <div className="flex items-center gap-3 mt-5">
-              <button
-                id="modal-watch-sub"
-                onClick={() => onPlay(1, 'sub')}
-                className="
-                  flex items-center gap-2 px-6 py-2.5
-                  gradient-primary rounded-full
-                  text-on-primary font-headline font-semibold text-sm
-                  transition-all duration-200
-                  hover:shadow-[0_0_22px_rgba(203,151,255,0.35)]
-                  hover:scale-[1.02]
-                "
-              >
-                <span className="material-symbols-outlined filled text-lg">play_arrow</span>
-                VER SUBTITULADO
-              </button>
+              {lastWatchedEp ? (
+                <button
+                  onClick={() => onPlay(lastWatchedEp, 'sub')}
+                  className="
+                    flex items-center gap-2 px-6 py-2.5
+                    gradient-primary rounded-full
+                    text-on-primary font-headline font-semibold text-sm
+                    transition-all duration-200
+                    hover:shadow-[0_0_22px_rgba(203,151,255,0.35)]
+                    hover:scale-[1.02]
+                  "
+                >
+                  <span className="material-symbols-outlined filled text-lg">play_arrow</span>
+                  CONTINUAR EP. {lastWatchedEp}
+                </button>
+              ) : (
+                <button
+                  id="modal-watch-sub"
+                  onClick={() => onPlay(1, 'sub')}
+                  className="
+                    flex items-center gap-2 px-6 py-2.5
+                    gradient-primary rounded-full
+                    text-on-primary font-headline font-semibold text-sm
+                    transition-all duration-200
+                    hover:shadow-[0_0_22px_rgba(203,151,255,0.35)]
+                    hover:scale-[1.02]
+                  "
+                >
+                  <span className="material-symbols-outlined filled text-lg">play_arrow</span>
+                  VER SUBTITULADO
+                </button>
+              )}
               
               {/* Dropdown para estado en la lista AniList */}
               {token && (
@@ -231,11 +256,12 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay }: Ani
                     <button
                       key={ep.episodeNumber}
                       onClick={() => onPlay(ep.episodeNumber, 'sub')}
-                      className="
+                      className={`
                         group w-full flex flex-col text-left rounded-lg overflow-hidden
                         bg-surface-container-high hover:bg-surface-container-highest
                         transition-all duration-200
-                      "
+                        ${ep.episodeNumber === lastWatchedEp ? 'ring-2 ring-primary ring-inset' : ''}
+                      `}
                     >
                       <div className="relative aspect-video bg-surface-container">
                         <img
@@ -256,8 +282,8 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay }: Ani
                         </div>
                       </div>
                       <div className="p-2">
-                        <p className="text-xs font-label font-medium text-on-surface">
-                          Episodio {ep.episodeNumber}
+                        <p className={`text-xs font-label font-medium ${ep.episodeNumber === lastWatchedEp ? 'text-primary' : 'text-on-surface'}`}>
+                          Episodio {ep.episodeNumber} {ep.episodeNumber === lastWatchedEp && '(Último visto)'}
                         </p>
                         {ep.title?.en && (
                           <p className="text-[11px] text-on-surface-variant line-clamp-1 mt-0.5">

@@ -23,7 +23,7 @@ export default function HeroBanner({ anime, onClick }: HeroBannerProps) {
     <div
       id="hero-banner"
       className="
-        relative w-full h-[380px] rounded-2xl overflow-hidden
+        relative w-full h-[300px] xl:h-[380px] rounded-xl xl:rounded-2xl overflow-hidden
         cursor-pointer group
       "
       onClick={onClick}

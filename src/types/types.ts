@@ -80,7 +80,7 @@ export interface SubtitleTrack {
   label: string;
 }
 
-export type ProviderId = 'animeflv' | 'jkanime';
+export type ProviderId = 'animeflv' | 'jkanime' | 'animeav1';
 export type AudioLang = 'ja' | 'en' | 'es';
 export type SubLang = 'en' | 'es' | 'off';
 export type PlayMode = 'sub' | 'dub';
@@ -172,6 +172,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   providersEnabled: {
     animeflv: true,
     jkanime: true,
+    animeav1: true,
   },
   notificationsEnabled: false,
 };

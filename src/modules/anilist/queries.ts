@@ -153,3 +153,29 @@ export const QUERY_TOP_RATED = `
     }
   }
 `;
+
+/** Horario global de episodios en emisión (AiringSchedule) */
+export const QUERY_AIRING_SCHEDULE = `
+  query AiringSchedule($page: Int, $perPage: Int, $airingAt_greater: Int, $airingAt_lesser: Int) {
+    Page(page: $page, perPage: $perPage) {
+      pageInfo {
+        total
+        currentPage
+        lastPage
+        hasNextPage
+      }
+      airingSchedules(
+        airingAt_greater: $airingAt_greater, 
+        airingAt_lesser: $airingAt_lesser, 
+        sort: TIME
+      ) {
+        id
+        airingAt
+        episode
+        media {
+          ${ANIME_FRAGMENT}
+        }
+      }
+    }
+  }
+`;

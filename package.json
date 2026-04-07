@@ -1,6 +1,6 @@
 {
   "name": "kageview",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "KageView — Anime Desktop Streaming App",
   "main": "dist/main/main.js",
   "author": "Sh4Dow",
@@ -16,6 +16,7 @@
     "build:renderer": "cross-env NODE_ENV=production webpack --config .erb/configs/webpack.config.renderer.prod.ts",
     "package": "npm run build && electron-builder build --publish never",
     "dist:win": "npm run build && electron-builder build --win --publish never",
+    "dist:mac": "npm run build && electron-builder build --mac --publish never",
     "dist:linux": "npm run build && electron-builder build --linux --publish never",
     "lint": "eslint src/ --ext .ts,.tsx",
     "typecheck": "tsc --noEmit"
@@ -44,6 +45,14 @@
       ],
       "icon": "assets/icon.png",
       "category": "Video"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "assets/icon.png",
+      "category": "public.app-category.entertainment"
     },
     "protocols": [
       {

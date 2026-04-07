@@ -298,6 +298,16 @@ ipcMain.handle('set-notifications-enabled', (_event, val: boolean) => {
   }
 });
 
+// ─── Progreso de Episodios ────────────────────────────────
+// Guarda el último episodio visto por anime (persistido entre sesiones)
+ipcMain.handle('get-watch-progress', (_event, animeId: number) => {
+  return store.get(`watch-progress-${animeId}`, null) as number | null;
+});
+
+ipcMain.handle('set-watch-progress', (_event, animeId: number, episode: number) => {
+  store.set(`watch-progress-${animeId}`, episode);
+});
+
 // Almacenar animes en emision para el daemon
 let airingAnimes: Array<{ id: number; title: string; nextEpisode: number; airingAt: number }> = [];
 

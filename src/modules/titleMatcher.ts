@@ -45,7 +45,11 @@ export function findBestMatch(
 
   for (const result of results) {
     for (const title of titles) {
-      const score = titleSimilarity(title, result.title);
+      let score = titleSimilarity(title, result.title);
+      
+      // Bonus enorme para match exacto
+      if (normalizeTitle(title) === normalizeTitle(result.title)) score += 0.5;
+
       if (score > bestScore) {
         bestScore = score;
         best = result;

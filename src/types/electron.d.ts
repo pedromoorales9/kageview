@@ -43,6 +43,10 @@ declare global {
       getNotificationsEnabled: () => Promise<boolean>;
       setNotificationsEnabled: (val: boolean) => Promise<void>;
       setAiringAnimes: (entries: AiringEntry[]) => Promise<void>;
+
+      // Progreso de episodios persistido
+      getWatchProgress: (animeId: number) => Promise<number | null>;
+      setWatchProgress: (animeId: number, episode: number) => Promise<void>;
     };
   }
 }

@@ -120,6 +120,11 @@ export default function App() {
       setCurrentEpisode(episode);
       setModalAnime(null);
 
+      // Guardar progreso en electron-store
+      if (window.electron?.setWatchProgress) {
+        window.electron.setWatchProgress(modalAnime.id, episode);
+      }
+
       // Cargar source de streaming
       await loadSource(modalAnime, episode, mode);
 
@@ -151,6 +156,12 @@ export default function App() {
 
     setPlayerConfig({ ...playerConfig, episode: nextEp });
     setCurrentEpisode(nextEp);
+
+    // Guardar progreso local
+    if (window.electron?.setWatchProgress) {
+      window.electron.setWatchProgress(playerConfig.anime.id, nextEp);
+    }
+
     await loadSource(playerConfig.anime, nextEp, playerConfig.mode);
 
     if (playerConfig.anime.idMal) {
@@ -169,6 +180,12 @@ export default function App() {
 
     setPlayerConfig({ ...playerConfig, episode: prevEp });
     setCurrentEpisode(prevEp);
+
+    // Guardar progreso local
+    if (window.electron?.setWatchProgress) {
+      window.electron.setWatchProgress(playerConfig.anime.id, prevEp);
+    }
+
     await loadSource(playerConfig.anime, prevEp, playerConfig.mode);
 
     if (playerConfig.anime.idMal) {

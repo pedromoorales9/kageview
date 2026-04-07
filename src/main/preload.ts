@@ -62,5 +62,12 @@ contextBridge.exposeInMainWorld('electron', {
   setAiringAnimes: (entries: Array<{ id: number; title: string; nextEpisode: number; airingAt: number }>): Promise<void> =>
     ipcRenderer.invoke('set-airing-animes', entries),
 
+  // ─── Progreso de Episodios ───────────────────────────────
+  getWatchProgress: (animeId: number): Promise<number | null> =>
+    ipcRenderer.invoke('get-watch-progress', animeId),
+
+  setWatchProgress: (animeId: number, episode: number): Promise<void> =>
+    ipcRenderer.invoke('set-watch-progress', animeId, episode),
+
   platform: process.platform,
 });

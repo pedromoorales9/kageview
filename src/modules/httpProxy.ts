@@ -48,7 +48,13 @@ export async function proxyGet<T = unknown>(
     ? `${url}?${new URLSearchParams(config.params as Record<string, string>).toString()}`
     : url;
   const resp = await fetch(fullUrl, { headers: config.headers as HeadersInit });
-  const data = await resp.json();
+  const text = await resp.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = text;
+  }
   return { status: resp.status, data: data as T, headers: {} };
 }
 

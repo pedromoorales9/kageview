@@ -13,6 +13,7 @@ import {
   QUERY_USER_LIST,
   QUERY_VIEWER,
   QUERY_TOP_RATED,
+  QUERY_AIRING_SCHEDULE,
 } from '../../modules/anilist/queries';
 import { MUTATION_SAVE_PROGRESS, MUTATION_SAVE_SCORE } from '../../modules/anilist/mutations';
 import { clientData } from '../../modules/clientData';
@@ -33,6 +34,20 @@ interface PageResult {
 
 interface DetailResult {
   Media: AniListAnime;
+}
+
+interface ScheduleResult {
+  Page: {
+    pageInfo: {
+      hasNextPage: boolean;
+    };
+    airingSchedules: Array<{
+      id: number;
+      airingAt: number;
+      episode: number;
+      media: AniListAnime;
+    }>;
+  };
 }
 
 interface ViewerResult {
@@ -70,6 +85,24 @@ export default function useAniList() {
         token || undefined
       );
       return data.Page.media;
+    },
+    [token]
+  );
+
+  /** Obtener el horario global de emisión de todos los animes */
+  const getGlobalSchedule = useCallback(
+    async (
+      airingAt_greater: number,
+      airingAt_lesser: number,
+      page = 1,
+      perPage = 50
+    ): Promise<ScheduleResult['Page']['airingSchedules']> => {
+      const data = await gqlRequest<ScheduleResult>(
+        QUERY_AIRING_SCHEDULE,
+        { airingAt_greater, airingAt_lesser, page, perPage },
+        token || undefined
+      );
+      return data.Page.airingSchedules;
     },
     [token]
   );
@@ -303,5 +336,6 @@ export default function useAniList() {
     login,
     logout,
     initSession,
+    getGlobalSchedule,
   };
 }

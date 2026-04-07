@@ -71,9 +71,17 @@ export class JKAnimeProvider implements IProvider {
         headers: this.headers(),
         timeout: 10000,
       });
-      const match = (data as string).match(/episodios.*?(\d+)/i);
-      const total = match ? parseInt(match[1]) : 0;
-      if (!total) throw new Error('[JKAnime] No se encontró total de episodios');
+      // Buscar enlaces de episodios en el HTML para sacar el último número
+      let total = 0;
+      const rx = new RegExp(`href="[^"]*/${slug}/(\\d+)[/"]`, 'g');
+      let m;
+      while ((m = rx.exec(data as string)) !== null) {
+        const n = parseInt(m[1]);
+        if (n > total) total = n;
+      }
+      // Si no logramos parsearlo, asumimos un límite alto porque
+      // KageView solo necesita generar el ID para consultar el getStreamingSource
+      if (total === 0) total = 3000;
 
       return Array.from({ length: total }, (_, i) => ({
         id: `${slug}/${i + 1}`,

@@ -41,21 +41,6 @@ export default function TopBar({ activePage, userAvatar }: TopBarProps) {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-3 titlebar-no-drag">
-        {/* Notifications */}
-        <button
-          id="topbar-notifications"
-          onClick={() => alert('¡El panel de Notificaciones de nuevos episodios estará disponible en la próxima actualización de KageView!')}
-          className="
-            relative w-9 h-9 flex items-center justify-center
-            rounded-lg text-on-surface-variant
-            hover:text-on-surface hover:bg-surface-container-high/50
-            transition-all duration-200
-          "
-        >
-          <span className="material-symbols-outlined text-[20px]">notifications</span>
-          <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-secondary" />
-        </button>
-
         {/* History */}
         <button
           id="topbar-history"

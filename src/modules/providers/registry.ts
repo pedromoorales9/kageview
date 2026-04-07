@@ -5,6 +5,7 @@
 import { IProvider } from './IProvider';
 import { AnimeFlvProvider } from './animeflv';
 import { JKAnimeProvider } from './jkanime';
+import { AnimeAV1Provider } from './animeav1';
 import { findBestMatch } from '../titleMatcher';
 import {
   ProviderId,
@@ -17,6 +18,7 @@ import {
 export const PROVIDERS: Record<ProviderId, IProvider> = {
   animeflv: new AnimeFlvProvider(),
   jkanime: new JKAnimeProvider(),
+  animeav1: new AnimeAV1Provider(),
 };
 
 /**
@@ -59,8 +61,8 @@ export async function getSourceWithFallback(
   prefs: UserPreferences
 ): Promise<{ source: StreamingSource; providerId: ProviderId } | null> {
   const baseOrder: ProviderId[] = prefs.audioLanguage === 'es'
-    ? ['animeflv', 'jkanime']
-    : ['animeflv', 'jkanime'];
+    ? ['animeflv', 'animeav1', 'jkanime']
+    : ['animeflv', 'animeav1', 'jkanime'];
 
   // Poner el preferido primero (si existe y está habilitado)
   const order: ProviderId[] = [];
@@ -93,13 +95,16 @@ export async function getSourceWithFallback(
         console.warn(`[Registry] No se encontró match en ${pid}`);
         continue;
       }
+      console.log(`[Registry] Match en ${pid}: ${match.title} (ID: ${match.id})`);
 
       // Obtener episodios
       const episodes = await provider.getEpisodes(match.id, mode === 'dub');
+      console.log(`[Registry] Episodios en ${pid}:`, episodes.map(e => e.number).join(', '));
+      
       const ep = episodes.find((e) => e.number === episodeNumber);
       if (!ep) {
         console.warn(
-          `[Registry] Episodio ${episodeNumber} no encontrado en ${pid}`
+          `[Registry] Episodio ${episodeNumber} no encontrado en ${pid}. Solo existen: ${episodes.map(e => e.number).join(', ')}`
         );
         continue;
       }

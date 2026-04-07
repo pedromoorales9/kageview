@@ -13,6 +13,7 @@ const PROVIDER_LIST: Array<{
 }> = [
     { id: 'animeflv', name: 'AnimeFLV', initial: 'F', color: '#4ade80' },
     { id: 'jkanime', name: 'JKAnime', initial: 'J', color: '#60a5fa' },
+    { id: 'animeav1', name: 'AnimeAV1', initial: 'A', color: '#ec4899' },
   ];
 
 const STATUS_COLORS: Record<string, string> = {
