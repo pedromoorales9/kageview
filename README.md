@@ -46,11 +46,8 @@ KageView conecta múltiples fuentes y cambia automáticamente si una falla:
 |----------|--------|-----|-----|--------|
 | 🟢 AnimeFLV | 🇪🇸 Español | ✅ | ✅ | Activo |
 | 🟢 JKAnime | 🇪🇸 Español | ✅ | ✅ | Activo |
-| 🟢 HiAnime | 🇺🇸 Inglés | ✅ | ✅ | Inactivo |
-| 🟡 Gogoanime | 🇺🇸 Inglés | ✅ | ✅ | Inactivo |
-| 🟢 AnimePahe | 🇺🇸 Inglés | ✅ | ✅ | Inactivo |
+| 🟢 AnimeAV1 | ES Español | ✅ | ✅ | Activo |
 
-> Cuando seleccionas **español** como idioma de audio, KageView prioriza AnimeFLV y JKAnime automáticamente.
 > Por ahora los servicios en el idioma ingles estan desactivados!
 ---
 
@@ -60,7 +57,7 @@ KageView conecta múltiples fuentes y cambia automáticamente si una falla:
 |---------|---------|--|
 | Windows 10/11 | `KageView.Setup.1.0.0.exe` | [Descargar](../../releases/latest) |
 | Linux (Universal) | `KageView-1.0.0.AppImage` | Proximamente! |
-| MacOS | `kageview_1.0.0_amd64.dmg` | Proximamente! |
+| MacOS | `kageview_1.0.0_amd64.dmg` | [Descargar] https://github.com/pedromoorales9/kageview/releases/download/v1.0.5/KageView-1.0.5-arm64.dmg |
 
 ---
 
@@ -104,16 +101,7 @@ export const clientData: ClientData = {
 npm start
 ```
 
-### Scripts disponibles
 
-| Comando | Descripción |
-|---------|-------------|
-| `npm start` | Modo desarrollo con hot reload |
-| `npm run build` | Build de producción |
-| `npm run dist:win` | Instalador `.exe` para Windows |
-| `npm run dist:linux` | `.AppImage` + `.deb` para Linux |
-| `npm run typecheck` | Verificar TypeScript sin compilar |
-| `npm run lint` | ESLint sobre todo el proyecto |
 
 ---
 
@@ -203,5 +191,5 @@ Las contribuciones son bienvenidas. Si encuentras un bug o quieres proponer una 
 **GPL-3.0 © 2026 [Sh4Dow](https://github.com/pedromoorales9) — Gran Canaria, España**
 
 *Hecho con ♥ y demasiadas horas de madrugada.*
-
+*"Mientras otros veían anime, yo construí el lugar donde verlo."*
 </div>
