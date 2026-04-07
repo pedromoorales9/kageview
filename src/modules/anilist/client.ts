@@ -31,7 +31,7 @@ export async function gqlRequest<T>(
   }>(
     ANILIST_GQL,
     { query, variables },
-    { headers, timeout: 15000 }
+    { headers, timeout: 15000, validateStatus: 'lenient' }
   );
 
   const typed = data as { data: T; errors?: Array<{ message: string }> };

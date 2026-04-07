@@ -1,4 +1,4 @@
-export {};
+import { AiringEntry } from './types';
 
 declare global {
   interface Window {
@@ -37,6 +37,12 @@ declare global {
       updaterInstall: () => Promise<void>;
       onUpdater: (cb: (data: UpdaterEvent) => void) => void;
       removeUpdaterListener: () => void;
+
+      // Notificaciones nativas de Windows
+      sendNotification: (opts: { title: string; body: string }) => Promise<void>;
+      getNotificationsEnabled: () => Promise<boolean>;
+      setNotificationsEnabled: (val: boolean) => Promise<void>;
+      setAiringAnimes: (entries: AiringEntry[]) => Promise<void>;
     };
   }
 }

@@ -4,6 +4,8 @@ import {
   ipcMain,
   shell,
   protocol,
+  net,
+  Notification,
 } from 'electron';
 import path from 'path';
 import axios from 'axios';
@@ -20,6 +22,9 @@ const store = new Store({
 let mainWindow: BrowserWindow | null = null;
 
 const isDev = process.env.NODE_ENV === 'development' || process.env.ELECTRON_IS_DEV === '1';
+
+// ─── Spoof Global User-Agent para evadir Cloudflare/Anti-Bots ───
+const GENERIC_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 // ─── Deep Link Protocol ──────────────────────────────────
 if (process.defaultApp) {
@@ -122,8 +127,7 @@ async function createWindow(): Promise<void> {
   });
 
   // ─── Spoof Global User-Agent para evadir Cloudflare/Anti-Bots ───
-  const genericUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-  app.userAgentFallback = genericUserAgent;
+  app.userAgentFallback = GENERIC_USER_AGENT;
 
   // ─── Interceptar cabeceras para iframes de video ───────
   const { session } = require('electron');
@@ -147,29 +151,29 @@ async function createWindow(): Promise<void> {
         return;
       }
 
-      // Siempre inyectar el User-Agent limpio
-      details.requestHeaders['User-Agent'] = genericUserAgent;
-
-      // Limpiar headers de Electron que delatan a Cloudflare
-      const keys = Object.keys(details.requestHeaders);
-      for (const k of keys) {
-        const lowK = k.toLowerCase();
-        if (lowK === 'sec-ch-ua') {
-          details.requestHeaders[k] = '"Google Chrome";v="120", "Chromium";v="120", "Not?A_Brand";v="24"';
-        } else if (lowK === 'sec-ch-ua-mobile') {
-          details.requestHeaders[k] = '?0';
-        } else if (lowK === 'sec-ch-ua-platform') {
-          details.requestHeaders[k] = '"Windows"';
-        }
-      }
-
       // No tocar localhost, devtools ni la API de AniList
-      if (
-        !url.includes('localhost') &&
-        !url.includes('127.0.0.1') &&
-        !url.includes('anilist.co') &&
-        !url.startsWith('devtools://')
-      ) {
+      const isInternalOrAniList = url.includes('localhost') ||
+                                  url.includes('127.0.0.1') ||
+                                  url.includes('anilist.co') ||
+                                  url.startsWith('devtools://');
+
+      if (!isInternalOrAniList) {
+        // Siempre inyectar el User-Agent limpio para scrapers
+        details.requestHeaders['User-Agent'] = GENERIC_USER_AGENT;
+
+        // Limpiar headers de Electron que delatan a Cloudflare
+        const keys = Object.keys(details.requestHeaders);
+        for (const k of keys) {
+          const lowK = k.toLowerCase();
+          if (lowK === 'sec-ch-ua') {
+            details.requestHeaders[k] = '"Google Chrome";v="120", "Chromium";v="120", "Not?A_Brand";v="24"';
+          } else if (lowK === 'sec-ch-ua-mobile') {
+            details.requestHeaders[k] = '?0';
+          } else if (lowK === 'sec-ch-ua-platform') {
+            details.requestHeaders[k] = '"Windows"';
+          }
+        }
+
         if (url.includes('jkanime') || url.includes('jk.php') || url.includes('desu')) {
           details.requestHeaders['Referer'] = 'https://jkanime.net/';
           details.requestHeaders['Origin'] = 'https://jkanime.net';
@@ -268,6 +272,87 @@ ipcMain.handle('open-external', (_event, url: string) => {
   return shell.openExternal(url);
 });
 
+// ─── Notificaciones Nativas de Windows ────────────────────
+ipcMain.handle('send-notification', (_event, opts: { title: string; body: string }) => {
+  if (Notification.isSupported()) {
+    const n = new Notification({
+      title: opts.title,
+      body: opts.body,
+      icon: path.join(__dirname, '../../assets/icon.png'),
+      silent: false,
+    });
+    n.show();
+  }
+});
+
+ipcMain.handle('get-notifications-enabled', () => {
+  return store.get('notifications-enabled', false) as boolean;
+});
+
+ipcMain.handle('set-notifications-enabled', (_event, val: boolean) => {
+  store.set('notifications-enabled', val);
+  if (val) {
+    startDaemon();
+  } else {
+    stopDaemon();
+  }
+});
+
+// Almacenar animes en emision para el daemon
+let airingAnimes: Array<{ id: number; title: string; nextEpisode: number; airingAt: number }> = [];
+
+ipcMain.handle('set-airing-animes', (_event, entries: typeof airingAnimes) => {
+  airingAnimes = entries || [];
+});
+
+// ─── Daemon de Fondo ──────────────────────────────────────
+let daemonInterval: ReturnType<typeof setInterval> | null = null;
+
+function startDaemon() {
+  if (daemonInterval) return; // ya corriendo
+  daemonInterval = setInterval(() => {
+    const enabled = store.get('notifications-enabled', false) as boolean;
+    if (!enabled || airingAnimes.length === 0) return;
+
+    const now = Math.floor(Date.now() / 1000);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    const todayStartSec = Math.floor(todayStart.getTime() / 1000);
+    const todayEndSec = Math.floor(todayEnd.getTime() / 1000);
+
+    for (const anime of airingAnimes) {
+      // Solo si aira hoy y ya es la hora de emisión (o pasó hace menos de 1 hora)
+      if (anime.airingAt >= todayStartSec && anime.airingAt <= todayEndSec && anime.airingAt <= now + 60) {
+        const notifKey = `notified-${anime.id}-${anime.nextEpisode}`;
+        const alreadyNotified = store.get(notifKey, false) as boolean;
+        if (!alreadyNotified) {
+          if (Notification.isSupported()) {
+            const n = new Notification({
+              title: '🎌 KageView — Nuevo episodio',
+              body: `${anime.title} — Episodio ${anime.nextEpisode} ya disponible!`,
+              icon: path.join(__dirname, '../../assets/icon.png'),
+              silent: false,
+            });
+            n.show();
+          }
+          store.set(notifKey, true);
+          // Limpiar la clave al día siguiente (86400 s)
+          setTimeout(() => store.delete(notifKey as never), 86400 * 1000);
+        }
+      }
+    }
+  }, 60_000); // revisar cada minuto
+}
+
+function stopDaemon() {
+  if (daemonInterval) {
+    clearInterval(daemonInterval);
+    daemonInterval = null;
+  }
+}
+
 /**
  * Proxy HTTP requests through the main process.
  * The renderer can't make cross-origin requests to anime sites
@@ -290,37 +375,75 @@ ipcMain.handle(
     }
   ) => {
     try {
-      const axiosConfig: Record<string, unknown> = {
-        method: config.method || 'GET',
-        url: config.url,
-        params: config.params,
-        headers: config.headers || {},
-        timeout: config.timeout || 15000,
-      };
-      if (config.data) axiosConfig.data = config.data;
-      if (config.maxRedirects !== undefined)
-        axiosConfig.maxRedirects = config.maxRedirects;
-      if (config.validateStatus === 'lenient') {
-        axiosConfig.validateStatus = (s: number) => s >= 200 && s < 400;
+      let fullUrl = config.url;
+      if (config.params) {
+        const urlObj = new URL(fullUrl);
+        for (const [k, v] of Object.entries(config.params)) {
+          if (v !== undefined) urlObj.searchParams.append(k, String(v));
+        }
+        fullUrl = urlObj.toString();
       }
 
-      const response = await axios(axiosConfig as import('axios').AxiosRequestConfig);
-      return {
-        status: response.status,
-        data: response.data,
-        headers: response.headers,
+      const fetchOptions: RequestInit = {
+        method: config.method || 'GET',
+        headers: { 'User-Agent': GENERIC_USER_AGENT, ...(config.headers || {}) },
       };
-    } catch (err: unknown) {
-      const axErr = err as { response?: { status: number; data: unknown }; message?: string };
-      if (axErr.response) {
+
+      if (config.data) {
+        if (typeof config.data === 'string') {
+          fetchOptions.body = config.data;
+        } else {
+          fetchOptions.body = JSON.stringify(config.data);
+          const hdrs: Record<string, string> = (fetchOptions.headers as Record<string, string>) || {};
+          const hasCT = Object.keys(hdrs).some(k => k.toLowerCase() === 'content-type');
+          if (!hasCT) {
+            hdrs['Content-Type'] = 'application/json';
+          }
+          fetchOptions.headers = hdrs;
+        }
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), config.timeout || 15000);
+      fetchOptions.signal = controller.signal;
+
+      const response = await net.fetch(fullUrl, fetchOptions);
+      clearTimeout(timeoutId);
+
+      const contentType = response.headers.get('content-type') || '';
+      let responseData: unknown;
+      if (contentType.includes('application/json')) {
+        try { responseData = await response.json(); } catch { responseData = null; }
+      } else {
+        responseData = await response.text();
+      }
+
+      const responseHeaders: Record<string, string> = {};
+      response.headers.forEach((val, key) => { responseHeaders[key] = val; });
+
+      const isLenient = config.validateStatus === 'lenient';
+      const isOk = isLenient 
+        ? (response.status >= 200 && response.status < 400) 
+        : (response.status >= 200 && response.status < 300);
+
+      if (!isOk) {
         return {
-          status: axErr.response.status,
-          data: axErr.response.data,
-          headers: {},
+          status: response.status,
+          data: responseData,
+          headers: responseHeaders,
           error: true,
+          message: `Request failed with status ${response.status}`,
         };
       }
-      return { status: 0, data: null, headers: {}, error: true, message: axErr.message };
+
+      return {
+        status: response.status,
+        data: responseData,
+        headers: responseHeaders,
+      };
+    } catch (err: unknown) {
+      const e = err as Error;
+      return { status: 0, data: null, headers: {}, error: true, message: e.message };
     }
   }
 );
@@ -334,6 +457,12 @@ app.whenReady().then(async () => {
   app.on('open-url', (_event, url) => {
     handleDeepLink(url);
   });
+
+  // Arrancar el daemon si las notificaciones ya estaban activas
+  const notifEnabled = store.get('notifications-enabled', false) as boolean;
+  if (notifEnabled) {
+    startDaemon();
+  }
 
   // El auto-update ya se inicializó en createWindow()
 });

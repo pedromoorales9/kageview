@@ -1,6 +1,6 @@
 import React from 'react';
 
-type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings';
+type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings' | 'calendar';
 
 interface SidebarProps {
   activePage: PageId;
@@ -12,6 +12,7 @@ const NAV_ITEMS: Array<{ id: PageId; icon: string; label: string }> = [
   { id: 'discover', icon: 'explore', label: 'Descubrir' },
   { id: 'oracle', icon: 'flare', label: 'Oráculo' },
   { id: 'library', icon: 'auto_stories', label: 'Mi Lista' },
+  { id: 'calendar', icon: 'calendar_month', label: 'Calendario' },
   { id: 'search', icon: 'search', label: 'Buscar' },
   { id: 'settings', icon: 'settings', label: 'Ajustes' },
 ];

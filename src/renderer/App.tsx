@@ -11,14 +11,16 @@ import LibraryPage from './pages/LibraryPage';
 import SearchPage from './pages/SearchPage';
 import SettingsPage from './pages/SettingsPage';
 import OraclePage from './pages/OraclePage';
+import CalendarPage from './pages/CalendarPage';
 import AnimeModal from './components/modals/AnimeModal';
 import VideoPlayer from './components/player/VideoPlayer';
 import EpisodeNotFound from './components/player/EpisodeNotFound';
 import Spinner from './components/ui/Spinner';
 import SplashScreen from './components/ui/SplashScreen';
+import DemonOverlay from './components/ui/DemonOverlay';
 import { UpdaterModal } from './components/UpdaterModal';
 
-type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings';
+type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings' | 'calendar';
 
 interface PlayerConfig {
   anime: AniListAnime;
@@ -31,6 +33,7 @@ export default function App() {
   const [activePage, setActivePage] = useState<PageId>('discover');
   const [modalAnime, setModalAnime] = useState<AniListAnime | null>(null);
   const [playerConfig, setPlayerConfig] = useState<PlayerConfig | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   const user = useAppStore((s) => s.user);
   const skipTimes = useAppStore((s) => s.skipTimes);
@@ -40,6 +43,12 @@ export default function App() {
 
   const { initSession, saveProgress, login } = useAniList();
   const { source, loading: sourceLoading, error: sourceError, loadSource } = useProvider();
+
+  // ─── Leer estado de notificaciones al montar ─────────────────
+  useEffect(() => {
+    if (!window.electron?.getNotificationsEnabled) return;
+    window.electron.getNotificationsEnabled().then((val) => setNotificationsEnabled(val));
+  }, []);
 
   // ─── Inicializar sesión al montar ────────────────────────
   useEffect(() => {
@@ -218,6 +227,12 @@ export default function App() {
           {activePage === 'search' && (
             <SearchPage onSelectAnime={handleSelectAnime} />
           )}
+          {activePage === 'calendar' && (
+            <CalendarPage
+              onSelectAnime={handleSelectAnime}
+              onNotificationsChange={(val) => setNotificationsEnabled(val)}
+            />
+          )}
           {activePage === 'settings' && <SettingsPage />}
         </main>
       )}
@@ -266,6 +281,19 @@ export default function App() {
 
       {/* Actualizador Modal Global */}
       <UpdaterModal />
+
+      {/* Demonio Guardián de Notificaciones */}
+      <DemonOverlay
+        visible={notificationsEnabled && !isPlayerActive}
+        onTestNotification={() => {
+          if (window.electron?.sendNotification) {
+            window.electron.sendNotification({
+              title: '🎌 KageView — Prueba de notificación',
+              body: 'El demonio guardián está activo. ¡Te avisaré cuando salgan nuevos episodios!',
+            });
+          }
+        }}
+      />
     </div>
   );
 }

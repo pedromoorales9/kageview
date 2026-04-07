@@ -1,6 +1,6 @@
 import React from 'react';
 
-type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings';
+type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings' | 'calendar';
 
 interface TopBarProps {
   activePage: PageId;
@@ -13,6 +13,7 @@ const PAGE_TITLES: Record<PageId, string> = {
   library: '',
   search: '',
   settings: 'Ajustes',
+  calendar: 'Calendario de Emisión',
 };
 
 export default function TopBar({ activePage, userAvatar }: TopBarProps) {

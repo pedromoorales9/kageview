@@ -49,5 +49,18 @@ contextBridge.exposeInMainWorld('electron', {
 
   getVersion: (): Promise<string> => ipcRenderer.invoke('get-version'),
 
+  // ─── Notificaciones Nativas ─────────────────────────────
+  sendNotification: (opts: { title: string; body: string }): Promise<void> =>
+    ipcRenderer.invoke('send-notification', opts),
+
+  getNotificationsEnabled: (): Promise<boolean> =>
+    ipcRenderer.invoke('get-notifications-enabled'),
+
+  setNotificationsEnabled: (val: boolean): Promise<void> =>
+    ipcRenderer.invoke('set-notifications-enabled', val),
+
+  setAiringAnimes: (entries: Array<{ id: number; title: string; nextEpisode: number; airingAt: number }>): Promise<void> =>
+    ipcRenderer.invoke('set-airing-animes', entries),
+
   platform: process.platform,
 });

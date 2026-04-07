@@ -85,6 +85,14 @@ export type AudioLang = 'ja' | 'en' | 'es';
 export type SubLang = 'en' | 'es' | 'off';
 export type PlayMode = 'sub' | 'dub';
 
+// ─── Airing Entry (para daemon de notificaciones) ────────
+export interface AiringEntry {
+  id: number;
+  title: string;
+  nextEpisode: number;
+  airingAt: number; // Unix timestamp (segundos)
+}
+
 // ─── User Preferences ────────────────────────────────────
 export interface UserPreferences {
   audioLanguage: AudioLang;
@@ -95,6 +103,7 @@ export interface UserPreferences {
   skipOutro: boolean;
   discordRpc: boolean;
   providersEnabled: Record<ProviderId, boolean>;
+  notificationsEnabled: boolean;
 }
 
 // ─── AniList Auth ─────────────────────────────────────────
@@ -164,4 +173,5 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     animeflv: true,
     jkanime: true,
   },
+  notificationsEnabled: false,
 };
