@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AniListAnime, AniZipEpisode, PlayMode } from '../../../types/types';
+import { AniListAnime, AniZipEpisode, PlayMode, AnimeRelationNode, RelationType } from '../../../types/types';
 import useAnimeInfo from '../../hooks/useAnimeInfo';
 import useAniList from '../../hooks/useAniList';
 import { useAppStore } from '../../../modules/store';
@@ -11,6 +11,7 @@ interface AnimeModalProps {
   anime: AniListAnime;
   onClose: () => void;
   onPlay: (episode: number, mode: PlayMode) => void;
+  onSelectRelation?: (animeId: number) => Promise<void>;
 }
 
 const GENRE_I18N: Record<string, string> = {
@@ -21,12 +22,44 @@ const GENRE_I18N: Record<string, string> = {
   Supernatural: 'Sobrenatural', Music: 'Música',
 };
 
-export default function AnimeModal({ anime: initialAnime, onClose, onPlay }: AnimeModalProps) {
+const RELATION_LABEL: Record<RelationType | string, string> = {
+  SEQUEL:      'Secuela',
+  PREQUEL:     'Precuela',
+  SIDE_STORY:  'Historia paralela',
+  SPIN_OFF:    'Spin-off',
+  ALTERNATIVE: 'Alternativo',
+  PARENT:      'Obra original',
+  SUMMARY:     'Resumen',
+  ADAPTATION:  'Adaptación',
+  SOURCE:      'Fuente',
+  CHARACTER:   'Personaje',
+  COMPILATION: 'Recopilación',
+  CONTAINS:    'Contiene',
+  OTHER:       'Relacionado',
+};
+
+const RELATION_COLOR: Record<RelationType | string, string> = {
+  SEQUEL:      'bg-violet-500/20 text-violet-300 border-violet-500/30',
+  PREQUEL:     'bg-blue-500/20 text-blue-300 border-blue-500/30',
+  SIDE_STORY:  'bg-teal-500/20 text-teal-300 border-teal-500/30',
+  SPIN_OFF:    'bg-amber-500/20 text-amber-300 border-amber-500/30',
+  ALTERNATIVE: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+  PARENT:      'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+  default:     'bg-surface-variant/40 text-on-surface-variant border-surface-variant/50',
+};
+
+export default function AnimeModal({ anime: initialAnime, onClose, onPlay, onSelectRelation }: AnimeModalProps) {
   const [anime, setAnime] = useState<AniListAnime>(initialAnime);
   const [lastWatchedEp, setLastWatchedEp] = useState<number | null>(null);
+  const [navigatingTo, setNavigatingTo] = useState<number | null>(null);
   const { episodes, loading } = useAnimeInfo(anime.id);
   const { updateListStatus } = useAniList();
   const token = useAppStore((s) => s.token);
+
+  // Sincronizar estado interno cuando cambia el anime (navegación por relaciones)
+  useEffect(() => {
+    setAnime(initialAnime);
+  }, [initialAnime.id]);
 
   // Cargar último episodio visto desde local storage vía IPC
   useEffect(() => {
@@ -69,11 +102,18 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay }: Ani
       ">
         {/* Left Panel — Cover Image */}
         <div className="relative w-[280px] flex-none">
-          <img
-            src={anime.coverImage.extraLarge || anime.coverImage.large}
-            alt={anime.title.romaji}
-            className="w-full h-full object-cover"
-          />
+          {navigatingTo ? (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-surface-container/50">
+              <Spinner size={32} />
+              <span className="text-sm text-on-surface-variant mt-4 font-label">Cargando...</span>
+            </div>
+          ) : (
+            <img
+              src={anime.coverImage.extraLarge || anime.coverImage.large}
+              alt={anime.title.romaji}
+              className="w-full h-full object-cover"
+            />
+          )}
           {/* Gradiente lateral */}
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-surface-container" />
 
@@ -239,7 +279,7 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay }: Ani
             </div>
           </div>
 
-          {/* Episodes List */}
+          {/* Episodes List + Relations — scrollable together */}
           <div className="flex-1 mt-5 px-6 pb-4 overflow-hidden flex flex-col">
             <h3 className="text-sm font-headline font-semibold text-on-surface mb-3">
               Episodios
@@ -251,19 +291,22 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay }: Ani
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto pr-2 pb-4 scrollbar-thin">
-                <div className="grid grid-cols-3 gap-3">
+                {/* Episodios Carousel (Horizontal) */}
+                <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 scrollbar-thin snap-x">
                   {episodes.map((ep) => (
-                    <button
+                    <div
                       key={ep.episodeNumber}
                       onClick={() => onPlay(ep.episodeNumber, 'sub')}
+                      role="button"
+                      tabIndex={0}
                       className={`
-                        group w-full flex flex-col text-left rounded-lg overflow-hidden
+                        group flex-none w-[200px] flex flex-col text-left rounded-lg overflow-hidden cursor-pointer
                         bg-surface-container-high hover:bg-surface-container-highest
-                        transition-all duration-200
-                        ${ep.episodeNumber === lastWatchedEp ? 'ring-2 ring-primary ring-inset' : ''}
+                        transition-all duration-200 snap-start
+                        ${ep.episodeNumber === lastWatchedEp ? 'ring-2 ring-primary ring-inset' : 'border border-surface-variant/10 hover:border-primary/20'}
                       `}
                     >
-                      <div className="relative aspect-video bg-surface-container">
+                      <div className="relative shrink-0 w-full aspect-video bg-surface-container">
                         <img
                           src={ep.image || fallbackImage}
                           alt={`Ep ${ep.episodeNumber}`}
@@ -276,30 +319,123 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay }: Ani
                           opacity-0 group-hover:opacity-100
                           bg-black/40 transition-opacity duration-200
                         ">
-                          <span className="material-symbols-outlined filled text-white text-2xl">
-                            play_arrow
+                          <span className="material-symbols-outlined filled text-white text-3xl">
+                            play_circle
                           </span>
                         </div>
                       </div>
-                      <div className="p-2">
-                        <p className={`text-xs font-label font-medium ${ep.episodeNumber === lastWatchedEp ? 'text-primary' : 'text-on-surface'}`}>
-                          Episodio {ep.episodeNumber} {ep.episodeNumber === lastWatchedEp && '(Último visto)'}
+                      <div className="p-3">
+                        <p className={`text-xs font-label font-bold ${ep.episodeNumber === lastWatchedEp ? 'text-primary' : 'text-on-surface'} group-hover:text-primary transition-colors`}>
+                          Episodio {ep.episodeNumber} {ep.episodeNumber === lastWatchedEp && '(Último)'}
                         </p>
                         {ep.title?.en && (
-                          <p className="text-[11px] text-on-surface-variant line-clamp-1 mt-0.5">
+                          <p className="text-[11px] text-on-surface-variant line-clamp-2 mt-1 leading-tight">
                             {ep.title.en}
                           </p>
                         )}
                       </div>
-                    </button>
+                    </div>
                   ))}
 
                   {episodes.length === 0 && !loading && (
-                    <p className="text-sm text-on-surface-variant/60 py-8">
-                      No hay episodios disponibles
+                    <p className="text-sm text-on-surface-variant/60 py-8 px-2 w-full text-center">
+                      No hay episodios disponibles para este anime
                     </p>
                   )}
                 </div>
+
+                {/* Relations Section — dentro del mismo scroll */}
+                {(() => {
+                  const animeRelations = anime.relations?.edges?.filter(
+                    (e) => e.node.type === 'ANIME' && e.relationType !== 'CHARACTER' && e.relationType !== 'ADAPTATION'
+                  ) || [];
+                  if (animeRelations.length === 0) return null;
+                  return (
+                    <div className="mt-6 pt-4 border-t border-surface-variant/20">
+                      <h3 className="text-sm font-headline font-semibold text-on-surface mb-3 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary text-base">account_tree</span>
+                        Relacionados
+                      </h3>
+                      <div className="flex flex-col gap-2">
+                        {animeRelations.map((edge) => {
+                          const rel = edge.node;
+                          const label = RELATION_LABEL[edge.relationType] ?? RELATION_LABEL.OTHER;
+                          const colorClass = RELATION_COLOR[edge.relationType] ?? RELATION_COLOR.default;
+                          const relTitle = rel.title.english || rel.title.romaji;
+                          return (
+                            <button
+                              key={`${edge.relationType}-${rel.id}`}
+                              disabled={navigatingTo !== null}
+                              onClick={async () => {
+                                if (onSelectRelation) {
+                                  setNavigatingTo(rel.id);
+                                  try {
+                                    await onSelectRelation(rel.id);
+                                  } finally {
+                                    setNavigatingTo(null);
+                                  }
+                                }
+                              }}
+                              className={`
+                                group flex items-center gap-3 w-full text-left
+                                rounded-lg p-2
+                                bg-surface-container-high hover:bg-surface-container-highest
+                                transition-all duration-200 hover:scale-[1.01]
+                                border border-surface-variant/10 hover:border-primary/20
+                                ${navigatingTo === rel.id ? 'opacity-50 pointer-events-none' : ''}
+                              `}
+                            >
+                              {/* Portada */}
+                              <div className="relative w-12 h-16 flex-none rounded-md overflow-hidden bg-surface-container">
+                                <img
+                                  src={rel.coverImage.large}
+                                  alt={relTitle}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                              </div>
+
+                              {/* Info */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-label font-medium text-on-surface line-clamp-2 group-hover:text-primary transition-colors duration-200">
+                                  {relTitle}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  <span className={`text-[10px] font-label font-semibold px-1.5 py-0.5 rounded border ${colorClass}`}>
+                                    {label}
+                                  </span>
+                                  {rel.format && (
+                                    <span className="text-[10px] text-on-surface-variant/60">
+                                      {rel.format.replace(/_/g, ' ')}
+                                    </span>
+                                  )}
+                                  {rel.episodes && (
+                                    <span className="text-[10px] text-on-surface-variant/60">
+                                      {rel.episodes} ep.
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Score + arrow */}
+                              <div className="flex flex-col items-end gap-1 flex-none">
+                                {rel.averageScore && (
+                                  <span className="text-xs text-on-surface-variant flex items-center gap-0.5">
+                                    <span className="material-symbols-outlined filled text-primary text-[12px]">star</span>
+                                    {(rel.averageScore / 10).toFixed(1)}
+                                  </span>
+                                )}
+                                <span className="material-symbols-outlined text-on-surface-variant/40 text-base group-hover:text-primary/60 transition-colors duration-200">
+                                  chevron_right
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>

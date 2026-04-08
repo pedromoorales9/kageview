@@ -41,7 +41,7 @@ export default function App() {
   const setCurrentAnime = useAppStore((s) => s.setCurrentAnime);
   const setCurrentEpisode = useAppStore((s) => s.setCurrentEpisode);
 
-  const { initSession, saveProgress, login } = useAniList();
+  const { initSession, saveProgress, login, getAnimeDetail } = useAniList();
   const { source, loading: sourceLoading, error: sourceError, loadSource } = useProvider();
 
   // ─── Leer estado de notificaciones al montar ─────────────────
@@ -260,6 +260,14 @@ export default function App() {
           anime={modalAnime}
           onClose={handleCloseModal}
           onPlay={handlePlay}
+          onSelectRelation={async (animeId) => {
+            try {
+              const detail = await getAnimeDetail(animeId);
+              handleSelectAnime(detail);
+            } catch (err) {
+              console.error('[App] Error cargando relación:', err);
+            }
+          }}
         />
       )}
 

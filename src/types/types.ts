@@ -2,6 +2,32 @@
 // KageView — Tipos TypeScript centralizados
 // ═══════════════════════════════════════════════════════════
 
+// ─── Anime Relations ──────────────────────────────────────
+export type RelationType =
+  | 'ADAPTATION' | 'PREQUEL' | 'SEQUEL' | 'PARENT'
+  | 'SIDE_STORY' | 'CHARACTER' | 'SUMMARY' | 'ALTERNATIVE'
+  | 'SPIN_OFF' | 'OTHER' | 'SOURCE' | 'COMPILATION' | 'CONTAINS';
+
+export interface AnimeRelationNode {
+  id: number;
+  title: { romaji: string; english: string | null; native: string };
+  coverImage: { large: string; color: string | null };
+  type: string;
+  format: string | null;
+  status: string;
+  episodes: number | null;
+  averageScore: number | null;
+}
+
+export interface AnimeRelationEdge {
+  relationType: RelationType;
+  node: AnimeRelationNode;
+}
+
+export interface AnimeRelations {
+  edges: AnimeRelationEdge[];
+}
+
 // ─── AniList Anime ────────────────────────────────────────
 export interface AniListAnime {
   id: number;
@@ -33,6 +59,7 @@ export interface AniListAnime {
     timeUntilAiring: number;
   } | null;
   mediaListEntry: MediaListEntry | null;
+  relations?: AnimeRelations;
 }
 
 // ─── Media List Entry ─────────────────────────────────────

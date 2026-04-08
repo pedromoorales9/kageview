@@ -95,7 +95,7 @@ async function createWindow(): Promise<void> {
   // Cargar la aplicación
   if (isDev) {
     await mainWindow.loadURL('http://localhost:1212');
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
+    mainWindow.webContents.openDevTools({ mode: 'detach' }); // Descomenta para abrir DevTools automáticamente
   } else {
     await mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
@@ -125,6 +125,7 @@ async function createWindow(): Promise<void> {
   mainWindow.on('ready-to-show', () => {
     if (mainWindow) mainWindow.show();
   });
+  mainWindow.show(); // Forzar mostrar para debug
 
   // ─── Spoof Global User-Agent para evadir Cloudflare/Anti-Bots ───
   app.userAgentFallback = GENERIC_USER_AGENT;

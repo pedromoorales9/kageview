@@ -41,6 +41,28 @@ const ANIME_FRAGMENT = `
     progress
     score
   }
+  relations {
+    edges {
+      relationType(version: 2)
+      node {
+        id
+        title {
+          romaji
+          english
+          native
+        }
+        coverImage {
+          large
+          color
+        }
+        type
+        format
+        status
+        episodes
+        averageScore
+      }
+    }
+  }
 `;
 
 /** Trending anime */
