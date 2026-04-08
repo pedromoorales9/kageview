@@ -53,5 +53,11 @@ export function initUpdater(mainWindow: BrowserWindow) {
 
   ipcMain.handle('updater-check',    () => autoUpdater.checkForUpdates());
   ipcMain.handle('updater-download', () => autoUpdater.downloadUpdate());
-  ipcMain.handle('updater-install',  () => autoUpdater.quitAndInstall(false, true));
+  ipcMain.handle('updater-install',  () => {
+    // Destruir agresivamente todas las ventanas para liberar KageView.exe en Windows inmediatamente
+    BrowserWindow.getAllWindows().forEach((w) => w.destroy());
+    
+    // isSilent: true, isForceRunAfter: true para reinicio 100% automático y transparente
+    autoUpdater.quitAndInstall(true, true);
+  });
 }
