@@ -178,8 +178,14 @@ export function UpdaterModal() {
             {state.status === 'available' && (
               <button
                 onClick={() => {
-                  setState({ status: 'downloading', percent: 0 });
-                  window.electron.updaterDownload();
+                  const isMac = navigator.userAgent.toLowerCase().includes('mac os');
+                  if (isMac) {
+                    window.open('https://github.com/pedromoorales9/KageView/releases/latest');
+                    setDismissed(true);
+                  } else {
+                    setState({ status: 'downloading', percent: 0 });
+                    window.electron.updaterDownload();
+                  }
                 }}
                 className="group relative w-full py-5 rounded-full font-headline font-extrabold text-sm tracking-[0.1em] text-on-primary-fixed flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                 style={{
@@ -187,9 +193,12 @@ export function UpdaterModal() {
                   boxShadow: '0 0 20px 2px rgba(203, 151, 255, 0.2)'
                 }}
               >
-                INICIALIZAR ACTUALIZACIÓN
+                {(() => {
+                  const isMac = navigator.userAgent.toLowerCase().includes('mac os');
+                  return isMac ? 'DESCARGAR MANUALMENTE' : 'INICIALIZAR ACTUALIZACIÓN';
+                })()}
                 <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">
-                  bolt
+                  {navigator.userAgent.toLowerCase().includes('mac os') ? 'open_in_new' : 'bolt'}
                 </span>
               </button>
             )}
