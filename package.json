@@ -62,6 +62,15 @@
         ]
       }
     ],
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "KageView"
+    },
     "publish": {
       "provider": "github",
       "owner": "pedromoorales9",
