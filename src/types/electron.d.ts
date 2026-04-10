@@ -28,6 +28,9 @@ declare global {
         minimize: () => void;
         maximize: () => void;
         close: () => void;
+        setFullscreen: (value: boolean) => void;
+        onFullscreenChanged: (cb: (value: boolean) => void) => void;
+        removeFullscreenListener: () => void;
       };
       platform: string;
       getVersion: () => Promise<string>;

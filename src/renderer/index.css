@@ -140,6 +140,44 @@ html, body, #root {
   animation: fadeInScale 250ms ease-out;
 }
 
+/* ─── Episodes Carousel Scrollbar ────────────────────────────── */
+.carousel-scrollbar::-webkit-scrollbar {
+  height: 8px;
+}
+
+.carousel-scrollbar::-webkit-scrollbar-track {
+  background: #19191f;
+  border-radius: 3px;
+}
+
+.carousel-scrollbar::-webkit-scrollbar-thumb {
+  background: #48474d;
+  border-radius: 3px;
+}
+
+.carousel-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #cb97ff;
+}
+
+/* ─── AnimeRow Slide Animations ───────────────────────────── */
+@keyframes slideInFromRight {
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInFromLeft {
+  from { opacity: 0; transform: translateX(-30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.anime-row-slide-right {
+  animation: slideInFromRight 220ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.anime-row-slide-left {
+  animation: slideInFromLeft 220ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
 /* ─── Titlebar drag region (frameless window) ──────────────── */
 .titlebar-drag {
   -webkit-app-region: drag;

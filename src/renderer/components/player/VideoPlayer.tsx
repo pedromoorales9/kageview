@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import Hls from 'hls.js';
 import { AniListAnime, StreamingSource, SkipTime, PlayMode } from '../../../types/types';
 import PlayerControls from './PlayerControls';
@@ -28,6 +29,7 @@ export default function VideoPlayer({
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const webviewRef = useRef<any>(null);
+  const playerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const controlsTimerRef = useRef<number | null>(null);
   const progressTimerRef = useRef<number | null>(null);
@@ -42,8 +44,18 @@ export default function VideoPlayer({
   const [isBuffering, setIsBuffering] = useState(source.type !== 'iframe');
   const [showSkipIntro, setShowSkipIntro] = useState(false);
   const [showSkipOutro, setShowSkipOutro] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const countdownRef = useRef<number | null>(null);
+
+  const hasNextEpisode = !anime.episodes || episodeNumber < anime.episodes;
 
   const episodeTitle = `${anime.title.english || anime.title.romaji} — Episode ${episodeNumber}`;
+
+  // ─── Sincronizar fullscreen desde el main process ────────
+  useEffect(() => {
+    window.electron?.windowControls?.onFullscreenChanged((value) => setIsFullscreen(value));
+    return () => window.electron?.windowControls?.removeFullscreenListener();
+  }, []);
 
   // ─── Inyectar ad-blocker en webview ─────────────────────
   useEffect(() => {
@@ -93,7 +105,22 @@ export default function VideoPlayer({
           var observer = new MutationObserver(function() { removeAds(); });
           observer.observe(document.body, { childList: true, subtree: true });
 
-          // 4. Bloquear creación de nuevos iframes de ads
+          // 4. Bloquear requestFullscreen completamente — el fullscreen lo maneja la app
+          Element.prototype.requestFullscreen = function() { return Promise.resolve(); };
+          document.exitFullscreen = function() { return Promise.resolve(); };
+
+          // Propagar el bloqueo a iframes internos del player cuando se carguen
+          document.addEventListener('load', function(e) {
+            var el = e.target;
+            if (el && el.tagName === 'IFRAME') {
+              try {
+                var win = el.contentWindow;
+                if (win) win.Element.prototype.requestFullscreen = function() { return Promise.resolve(); };
+              } catch (_) {}
+            }
+          }, true);
+
+          // 5. Bloquear creación de nuevos iframes de ads
           var origCreate = document.createElement.bind(document);
           document.createElement = function(tag) {
             var el = origCreate(tag);
@@ -157,6 +184,65 @@ export default function VideoPlayer({
     };
   }, [source]);
 
+  // ─── Check skip times ──────────────────────────────────
+  const checkSkipTimes = useCallback(
+    (time: number) => {
+      const op = skipTimes.find(
+        (s) => s.skipType === 'op' || s.skipType === 'mixed-op'
+      );
+      const ed = skipTimes.find(
+        (s) => s.skipType === 'ed' || s.skipType === 'mixed-ed'
+      );
+
+      setShowSkipIntro(
+        !!op &&
+        time >= op.interval.startTime &&
+        time <= op.interval.endTime
+      );
+      setShowSkipOutro(
+        !!ed &&
+        time >= ed.interval.startTime &&
+        time <= ed.interval.endTime
+      );
+    },
+    [skipTimes]
+  );
+
+  // ─── Countdown siguiente episodio ─────────────────────
+  const cancelCountdown = useCallback(() => {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+    setCountdown(null);
+  }, []);
+
+  const startCountdown = useCallback(() => {
+    if (!hasNextEpisode) return;
+    if (countdownRef.current !== null) return; // ya corriendo
+    setCountdown(5);
+    countdownRef.current = window.setInterval(() => {
+      setCountdown((prev) => {
+        if (prev === null) return null;
+        if (prev <= 1) {
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, [hasNextEpisode]);
+
+  // Cuando countdown llega a 0 lanzamos siguiente episodio
+  useEffect(() => {
+    if (countdown === 0) {
+      cancelCountdown();
+      onNextEpisode();
+    }
+  }, [countdown, cancelCountdown, onNextEpisode]);
+
+  // Limpiar countdown al desmontar
+  useEffect(() => () => cancelCountdown(), [cancelCountdown]);
+
   // ─── Event listeners del video ──────────────────────────
   useEffect(() => {
     const video = videoRef.current;
@@ -172,7 +258,7 @@ export default function VideoPlayer({
     const onWaiting = () => setIsBuffering(true);
     const onCanPlay = () => setIsBuffering(false);
     const onEnded = () => {
-      onNextEpisode();
+      startCountdown();
     };
 
     video.addEventListener('play', onPlay);
@@ -192,7 +278,7 @@ export default function VideoPlayer({
       video.removeEventListener('canplay', onCanPlay);
       video.removeEventListener('ended', onEnded);
     };
-  }, [onNextEpisode]);
+  }, [startCountdown, checkSkipTimes]);
 
   // ─── Guardar progreso cada 5s ───────────────────────────
   useEffect(() => {
@@ -208,29 +294,33 @@ export default function VideoPlayer({
     };
   }, [onProgress]);
 
-  // ─── Check skip times ──────────────────────────────────
-  const checkSkipTimes = useCallback(
-    (time: number) => {
-      const op = skipTimes.find(
-        (s) => s.skip_type === 'op' || s.skip_type === 'mixed-op'
-      );
-      const ed = skipTimes.find(
-        (s) => s.skip_type === 'ed' || s.skip_type === 'mixed-ed'
-      );
+  // ─── Polling de tiempo para webview (iframe) ──────────
+  useEffect(() => {
+    const wv = webviewRef.current;
+    if (!wv || source.type !== 'iframe') return;
 
-      setShowSkipIntro(
-        !!op &&
-        time >= op.interval.start_time &&
-        time <= op.interval.end_time
-      );
-      setShowSkipOutro(
-        !!ed &&
-        time >= ed.interval.start_time &&
-        time <= ed.interval.end_time
-      );
-    },
-    [skipTimes]
-  );
+    let wasEnded = false;
+    const interval = window.setInterval(async () => {
+      try {
+        const result = await wv.executeJavaScript(
+          'var v = document.querySelector("video"); v ? JSON.stringify({t: v.currentTime, ended: v.ended}) : null'
+        );
+        if (typeof result === 'string') {
+          const { t, ended } = JSON.parse(result);
+          if (t >= 0) {
+            setCurrentTime(t);
+            checkSkipTimes(t);
+          }
+          if (ended && !wasEnded) startCountdown();
+          wasEnded = ended;
+        }
+      } catch {
+        // webview aún no está listo
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [source, checkSkipTimes, startCountdown]);
 
   // ─── Ocultar controles tras 3s ─────────────────────────
   const showControls = useCallback(() => {
@@ -283,7 +373,8 @@ export default function VideoPlayer({
           break;
         case 'Escape':
           if (isFullscreen) {
-            document.exitFullscreen();
+            window.electron?.windowControls?.setFullscreen(false);
+            setIsFullscreen(false);
           } else {
             onExit();
           }
@@ -327,35 +418,43 @@ export default function VideoPlayer({
   };
 
   const handleFullscreen = () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    } else {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
-    }
+    const next = !isFullscreen;
+    window.electron?.windowControls?.setFullscreen(next);
+    setIsFullscreen(next);
   };
 
   const handleSkipIntro = () => {
     const op = skipTimes.find(
-      (s) => s.skip_type === 'op' || s.skip_type === 'mixed-op'
+      (s) => s.skipType === 'op' || s.skipType === 'mixed-op'
     );
-    if (op && videoRef.current) {
-      videoRef.current.currentTime = op.interval.end_time;
+    if (!op) return;
+    if (source.type === 'iframe') {
+      webviewRef.current?.executeJavaScript(
+        `var v = document.querySelector("video"); if(v) v.currentTime = ${op.interval.endTime};`
+      ).catch(() => {});
+    } else if (videoRef.current) {
+      videoRef.current.currentTime = op.interval.endTime;
     }
   };
 
   const handleSkipOutro = () => {
     const ed = skipTimes.find(
-      (s) => s.skip_type === 'ed' || s.skip_type === 'mixed-ed'
+      (s) => s.skipType === 'ed' || s.skipType === 'mixed-ed'
     );
-    if (ed && videoRef.current) {
-      videoRef.current.currentTime = ed.interval.end_time;
+    if (!ed) return;
+    if (source.type === 'iframe') {
+      webviewRef.current?.executeJavaScript(
+        `var v = document.querySelector("video"); if(v) v.currentTime = ${ed.interval.endTime};`
+      ).catch(() => {});
+    } else if (videoRef.current) {
+      videoRef.current.currentTime = ed.interval.endTime;
     }
   };
 
   return (
+    <>
     <div
+      ref={playerRef}
       id="video-player"
       className="fixed inset-0 z-[80] bg-black flex items-center justify-center"
       onMouseMove={showControls}
@@ -377,53 +476,96 @@ export default function VideoPlayer({
         />
       )}
 
-      {/* Buffering Spinner */}
-      {isBuffering && source.type !== 'iframe' && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Spinner size={48} />
-        </div>
-      )}
+    </div>,
 
-      {/* Skip Buttons */}
-      {source.type !== 'iframe' && showSkipIntro && <SkipButton type="intro" onClick={handleSkipIntro} />}
-      {source.type !== 'iframe' && showSkipOutro && <SkipButton type="outro" onClick={handleSkipOutro} />}
+    // Portal: todos los overlays se montan en document.body, fuera del webview
+    ReactDOM.createPortal(
+      <div className="fixed inset-0 z-[200] pointer-events-none">
+        {/* Buffering Spinner */}
+        {isBuffering && source.type !== 'iframe' && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <Spinner size={48} />
+          </div>
+        )}
 
-      {/* Controls or minimal back button for iframes */}
-      {source.type === 'iframe' ? (
-        <div className="absolute top-0 left-0 p-4 z-[90] flex items-center gap-2">
-          <button
-            onClick={onExit}
-            className="w-10 h-10 rounded-lg bg-black/60 backdrop-blur-md flex items-center justify-center text-white/80 hover:text-white transition-all hover:bg-black/90 shadow-lg"
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-          </button>
-          <button
-            onClick={onNextEpisode}
-            className="w-10 h-10 rounded-lg bg-black/60 backdrop-blur-md flex items-center justify-center text-white/80 hover:text-white transition-all hover:bg-black/90 shadow-lg"
-          >
-            <span className="material-symbols-outlined">skip_next</span>
-          </button>
-        </div>
-      ) : (
-        <PlayerControls
-          isPlaying={isPlaying}
-          isMuted={isMuted}
-          isFullscreen={isFullscreen}
-          currentTime={currentTime}
-          duration={duration}
-          volume={volume}
-          episodeTitle={episodeTitle}
-          visible={controlsVisible}
-          onPlayPause={handlePlayPause}
-          onMute={handleMute}
-          onVolumeChange={handleVolumeChange}
-          onSeek={handleSeek}
-          onPrevEpisode={onPrevEpisode}
-          onNextEpisode={onNextEpisode}
-          onFullscreen={handleFullscreen}
-          onExit={onExit}
-        />
-      )}
-    </div>
+        {/* Skip Buttons */}
+        {showSkipIntro && (
+          <div className="pointer-events-auto">
+            <SkipButton type="intro" onClick={handleSkipIntro} />
+          </div>
+        )}
+        {showSkipOutro && (
+          <div className="pointer-events-auto">
+            <SkipButton type="outro" onClick={handleSkipOutro} />
+          </div>
+        )}
+
+        {/* Countdown siguiente episodio */}
+        {countdown !== null && (
+          <div className="absolute top-0 left-0 right-0 flex justify-center pt-4">
+            <div className="pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 animate-fade-in">
+              <span className="text-white/50 text-xs font-label">Siguiente en</span>
+              <span className="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-primary font-bold text-xs">
+                {countdown}
+              </span>
+              <button
+                onClick={() => { cancelCountdown(); onNextEpisode(); }}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary/20 border border-primary/40 text-white font-headline font-semibold text-xs hover:bg-primary/30 transition-all"
+              >
+                <span className="material-symbols-outlined text-primary text-base">skip_next</span>
+                Ep. {episodeNumber + 1}
+              </button>
+              <button
+                onClick={cancelCountdown}
+                className="w-6 h-6 flex items-center justify-center rounded-lg text-white/40 hover:text-white/80 hover:bg-white/10 transition-all"
+              >
+                <span className="material-symbols-outlined text-base">close</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Controls or minimal back button for iframes */}
+        {source.type === 'iframe' ? (
+          <div className="absolute top-0 left-0 p-4 flex items-center gap-2 pointer-events-auto">
+            <button
+              onClick={onExit}
+              className="w-10 h-10 rounded-lg bg-black/60 backdrop-blur-md flex items-center justify-center text-white/80 hover:text-white transition-all hover:bg-black/90 shadow-lg"
+            >
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+            <button
+              onClick={onNextEpisode}
+              className="w-10 h-10 rounded-lg bg-black/60 backdrop-blur-md flex items-center justify-center text-white/80 hover:text-white transition-all hover:bg-black/90 shadow-lg"
+            >
+              <span className="material-symbols-outlined">skip_next</span>
+            </button>
+          </div>
+        ) : (
+          <div className="pointer-events-auto absolute inset-0">
+            <PlayerControls
+              isPlaying={isPlaying}
+              isMuted={isMuted}
+              isFullscreen={isFullscreen}
+              currentTime={currentTime}
+              duration={duration}
+              volume={volume}
+              episodeTitle={episodeTitle}
+              visible={controlsVisible}
+              onPlayPause={handlePlayPause}
+              onMute={handleMute}
+              onVolumeChange={handleVolumeChange}
+              onSeek={handleSeek}
+              onPrevEpisode={onPrevEpisode}
+              onNextEpisode={onNextEpisode}
+              onFullscreen={handleFullscreen}
+              onExit={onExit}
+            />
+          </div>
+        )}
+      </div>,
+      document.body
+    )
+    </>
   );
 }

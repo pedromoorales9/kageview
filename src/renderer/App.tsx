@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { AniListAnime, PlayMode } from '../types/types';
 import { useAppStore } from '../modules/store';
 import { getSkipTimes } from '../modules/aniskip';
@@ -43,6 +43,10 @@ export default function App() {
 
   const { initSession, saveProgress, login, getAnimeDetail } = useAniList();
   const { source, loading: sourceLoading, error: sourceError, loadSource } = useProvider();
+
+  // Ref para acceder al source actual sin re-renders
+  const sourceRef = useRef(source);
+  useEffect(() => { sourceRef.current = source; }, [source]);
 
   // ─── Leer estado de notificaciones al montar ─────────────────
   useEffect(() => {
@@ -112,6 +116,29 @@ export default function App() {
     setCurrentAnime(null);
   }, [setCurrentAnime]);
 
+  /**
+   * Carga skip times de AniSkip solo si el source resuelto NO es iframe.
+   * En modo iframe no controlamos el reproductor, así que es inútil.
+   * Se ejecuta como fire-and-forget para no bloquear la carga del episodio.
+   */
+  const loadSkipTimesIfNeeded = useCallback(
+    async (malId: number | null, episode: number) => {
+      // Sin MAL ID no podemos consultar AniSkip
+      if (!malId) {
+        setSkipTimes([]);
+        return;
+      }
+
+      try {
+        const times = await getSkipTimes(malId, episode, 0);
+        setSkipTimes(times);
+      } catch {
+        setSkipTimes([]);
+      }
+    },
+    [setSkipTimes]
+  );
+
   const handlePlay = useCallback(
     async (episode: number, mode: PlayMode) => {
       if (!modalAnime) return;
@@ -128,17 +155,10 @@ export default function App() {
       // Cargar source de streaming
       await loadSource(modalAnime, episode, mode);
 
-      // Cargar skip times si tenemos MAL ID
-      if (modalAnime.idMal) {
-        try {
-          const times = await getSkipTimes(modalAnime.idMal, episode, 0);
-          setSkipTimes(times);
-        } catch {
-          setSkipTimes([]);
-        }
-      }
+      // Cargar skip times solo si no es iframe (fire-and-forget)
+      loadSkipTimesIfNeeded(modalAnime.idMal, episode);
     },
-    [modalAnime, loadSource, setSkipTimes, setCurrentEpisode]
+    [modalAnime, loadSource, setCurrentEpisode, loadSkipTimesIfNeeded]
   );
 
   const handleExitPlayer = useCallback(() => {
@@ -164,15 +184,9 @@ export default function App() {
 
     await loadSource(playerConfig.anime, nextEp, playerConfig.mode);
 
-    if (playerConfig.anime.idMal) {
-      try {
-        const times = await getSkipTimes(playerConfig.anime.idMal, nextEp, 0);
-        setSkipTimes(times);
-      } catch {
-        setSkipTimes([]);
-      }
-    }
-  }, [playerConfig, loadSource, saveProgress, setCurrentEpisode, setSkipTimes]);
+    // Cargar skip times solo si no es iframe
+    loadSkipTimesIfNeeded(playerConfig.anime.idMal, nextEp);
+  }, [playerConfig, loadSource, saveProgress, setCurrentEpisode, loadSkipTimesIfNeeded]);
 
   const handlePrevEpisode = useCallback(async () => {
     if (!playerConfig || playerConfig.episode <= 1) return;
@@ -188,15 +202,9 @@ export default function App() {
 
     await loadSource(playerConfig.anime, prevEp, playerConfig.mode);
 
-    if (playerConfig.anime.idMal) {
-      try {
-        const times = await getSkipTimes(playerConfig.anime.idMal, prevEp, 0);
-        setSkipTimes(times);
-      } catch {
-        setSkipTimes([]);
-      }
-    }
-  }, [playerConfig, loadSource, setCurrentEpisode, setSkipTimes]);
+    // Cargar skip times solo si no es iframe
+    loadSkipTimesIfNeeded(playerConfig.anime.idMal, prevEp);
+  }, [playerConfig, loadSource, setCurrentEpisode, loadSkipTimesIfNeeded]);
 
   const handleWatchProgress = useCallback(
     (_seconds: number) => {

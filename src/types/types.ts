@@ -149,8 +149,10 @@ export interface ClientData {
 
 // ─── AniSkip ──────────────────────────────────────────────
 export interface SkipTime {
-  interval: { start_time: number; end_time: number };
-  skip_type: 'op' | 'ed' | 'mixed-op' | 'mixed-ed' | 'recap';
+  interval: { startTime: number; endTime: number };
+  skipType: 'op' | 'ed' | 'mixed-op' | 'mixed-ed' | 'recap';
+  skipId: string;
+  episodeLength: number;
 }
 
 // ─── User Viewer ──────────────────────────────────────────

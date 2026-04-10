@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AniListAnime } from '../../types/types';
 import useAniList from '../hooks/useAniList';
 import HeroBanner from '../components/anime/HeroBanner';
-import AnimeCard from '../components/anime/AnimeCard';
+import AnimeRow from '../components/anime/AnimeRow';
 import Spinner from '../components/ui/Spinner';
 import { useAppStore } from '../../modules/store';
 
@@ -45,9 +45,9 @@ export default function DiscoverPage({ onSelectAnime }: DiscoverPageProps) {
       try {
         const { season, year } = getCurrentSeason();
         const [t, s, tr] = await Promise.all([
-          getTrending(1, 20),
-          getSeasonal(season, year, 1, 20),
-          getTopRated(1, 8),
+          getTrending(1, 40),
+          getSeasonal(season, year, 1, 40),
+          getTopRated(1, 20),
         ]);
         if (!cancelled) {
           setTrending(t);
@@ -108,7 +108,7 @@ export default function DiscoverPage({ onSelectAnime }: DiscoverPageProps) {
 
         if (topGenre && !cancelled) {
           // Extraer las joyas de ese género
-          const recom = await searchAnime('', 1, 15, [topGenre]);
+          const recom = await searchAnime('', 1, 30, [topGenre]);
           // Filtrar las que el usuario ya conoce
           const watchedIds = new Set(allItems.map((a: AniListAnime) => a.id));
           const freshRecom = recom.filter((a: AniListAnime) => !watchedIds.has(a.id));
@@ -171,127 +171,52 @@ export default function DiscoverPage({ onSelectAnime }: DiscoverPageProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden pr-2 space-y-8 pb-8">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-8 pb-8 px-1">
       {/* Hero Banner */}
       {heroAnime && (
         <HeroBanner anime={heroAnime} onClick={() => onSelectAnime(heroAnime)} />
       )}
 
       {/* Trending Now */}
-      {trending.length > 0 && (
-        <section>
-          <h2 className="font-headline text-lg font-bold text-on-surface mb-4">
-            En Tendencia
-          </h2>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-4">
-            {trending.slice(1, 13).map((anime: AniListAnime) => (
-              <AnimeCard
-                key={anime.id}
-                anime={anime}
-                onClick={() => onSelectAnime(anime)}
-                className="w-full"
-              />
-            ))}
-          </div>
-        </section>
-      )}
+      <AnimeRow
+        title="En Tendencia"
+        animes={trending.slice(1)}
+        onSelect={onSelectAnime}
+      />
 
       {/* Recommended for You */}
       {recommended && recommended.anime.length > 0 && (
-        <section className="bg-gradient-to-r from-primary/10 to-transparent p-4 rounded-2xl border border-primary/20 relative overflow-hidden">
+        <div className="bg-gradient-to-r from-primary/10 to-transparent p-4 rounded-2xl border border-primary/20 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 blur-[100px] pointer-events-none" />
-          <div className="flex items-center gap-3 mb-5 relative z-10 p-2">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30 shadow-[0_0_15px_rgba(203,151,255,0.3)]">
-              <span className="material-symbols-outlined text-primary text-[22px]">auto_awesome</span>
-            </div>
-            <div>
-              <h2 className="font-headline text-lg font-bold text-on-surface">
-                Recomendado para ti
-              </h2>
-              <p className="text-xs text-on-surface-variant font-label tracking-wide">
-                Porque tu radar detecta mucha <span className="text-primary font-bold uppercase tracking-widest">{GENRE_I18N[recommended.genre] || recommended.genre}</span>
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-4 px-2 relative z-10">
-            {recommended.anime.slice(0, 12).map((anime: AniListAnime) => (
-              <AnimeCard
-                key={anime.id}
-                anime={anime}
-                onClick={() => onSelectAnime(anime)}
-                className="w-full transition-transform hover:-translate-y-1"
-              />
-            ))}
-          </div>
-        </section>
+          <AnimeRow
+            title="Recomendado para ti"
+            animes={recommended.anime}
+            onSelect={onSelectAnime}
+            badge={
+              <span className="text-xs text-on-surface-variant font-label">
+                Basado en{' '}
+                <span className="text-primary font-bold uppercase tracking-widest">
+                  {GENRE_I18N[recommended.genre] || recommended.genre}
+                </span>
+              </span>
+            }
+          />
+        </div>
       )}
 
       {/* New This Season */}
-      {seasonal.length > 0 && (
-        <section>
-          <h2 className="font-headline text-lg font-bold text-on-surface mb-4">
-            Nuevos de Temporada
-          </h2>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-4">
-            {seasonal.slice(0, 12).map((anime: AniListAnime) => (
-              <AnimeCard
-                key={anime.id}
-                anime={anime}
-                onClick={() => onSelectAnime(anime)}
-                className="w-full"
-              />
-            ))}
-          </div>
-        </section>
-      )}
+      <AnimeRow
+        title="Nuevos de Temporada"
+        animes={seasonal}
+        onSelect={onSelectAnime}
+      />
 
-      {/* Top Rated — Bento Grid */}
-      {topRated.length > 0 && (
-        <section>
-          <h2 className="font-headline text-lg font-bold text-on-surface mb-4">
-            Mejor Valorados
-          </h2>
-          <div className="grid grid-cols-4 grid-rows-2 gap-3 h-[300px] xl:h-[420px]">
-            {topRated.slice(0, 5).map((anime: AniListAnime, idx: number) => (
-              <button
-                key={anime.id}
-                onClick={() => onSelectAnime(anime)}
-                className={`
-                  group relative rounded-xl overflow-hidden
-                  transition-transform duration-300 hover:scale-[1.02]
-                  ${idx === 0 ? 'col-span-2 row-span-2' : ''}
-                `}
-              >
-                <img
-                  src={idx === 0
-                    ? (anime.bannerImage || anime.coverImage.extraLarge)
-                    : anime.coverImage.extraLarge
-                  }
-                  alt={anime.title.romaji}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                <div className="absolute bottom-3 left-3 right-3">
-                  <p className="
-                    font-headline text-sm font-semibold text-white
-                    line-clamp-2 group-hover:text-primary transition-colors
-                  ">
-                    {anime.title.english || anime.title.romaji}
-                  </p>
-                  {anime.averageScore && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="material-symbols-outlined filled text-primary text-[12px]">star</span>
-                      <span className="text-[11px] text-white/80">
-                        {(anime.averageScore / 10).toFixed(1)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Top Rated */}
+      <AnimeRow
+        title="Mejor Valorados"
+        animes={topRated}
+        onSelect={onSelectAnime}
+      />
     </div>
   );
 }

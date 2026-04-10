@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AniListAnime, AniZipEpisode, PlayMode, AnimeRelationNode, RelationType } from '../../../types/types';
 import useAnimeInfo from '../../hooks/useAnimeInfo';
 import useAniList from '../../hooks/useAniList';
@@ -55,6 +55,18 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay, onSel
   const { episodes, loading } = useAnimeInfo(anime.id);
   const { updateListStatus } = useAniList();
   const token = useAppStore((s) => s.token);
+  const episodesCarouselRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = episodesCarouselRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      el.scrollLeft += e.deltaY + e.deltaX;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false, capture: true });
+    return () => el.removeEventListener('wheel', onWheel, { capture: true });
+  }, [episodes]);
 
   // Sincronizar estado interno cuando cambia el anime (navegación por relaciones)
   useEffect(() => {
@@ -292,7 +304,10 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay, onSel
             ) : (
               <div className="flex-1 overflow-y-auto pr-2 pb-4 scrollbar-thin">
                 {/* Episodios Carousel (Horizontal) */}
-                <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 scrollbar-thin snap-x">
+                <div
+                  ref={episodesCarouselRef}
+                  className="flex gap-4 overflow-x-scroll pb-2 pt-1 px-1 snap-x carousel-scrollbar"
+                >
                   {episodes.map((ep) => (
                     <div
                       key={ep.episodeNumber}

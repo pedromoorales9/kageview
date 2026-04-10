@@ -242,6 +242,22 @@ async function createWindow(): Promise<void> {
         e.preventDefault();
       }
     });
+
+    // Interceptar fullscreen del webview desde el proceso principal
+    // Cuando el player embebido pide fullscreen, lo cancelamos y ponemos
+    // la ventana en fullscreen nosotros — así nuestros overlays siguen visibles
+    let ignoringLeave = false;
+    webContents.on('enter-html-full-screen', () => {
+      ignoringLeave = true;
+      webContents.executeJavaScript('document.exitFullscreen && document.exitFullscreen()').catch(() => {});
+      if (mainWindow) mainWindow.setFullScreen(true);
+      mainWindow?.webContents.send('fullscreen-changed', true);
+    });
+    webContents.on('leave-html-full-screen', () => {
+      if (ignoringLeave) { ignoringLeave = false; return; }
+      if (mainWindow) mainWindow.setFullScreen(false);
+      mainWindow?.webContents.send('fullscreen-changed', false);
+    });
   });
 }
 
@@ -259,6 +275,10 @@ ipcMain.on('window-maximize', () => {
 
 ipcMain.on('window-close', () => {
   if (mainWindow) mainWindow.close();
+});
+
+ipcMain.on('window-set-fullscreen', (_event, value: boolean) => {
+  if (mainWindow) mainWindow.setFullScreen(value);
 });
 
 ipcMain.handle('get-store', (_event, key: string) => {
