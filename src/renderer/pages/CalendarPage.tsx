@@ -326,7 +326,7 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
               >
                 {/* Day name */}
                 <span className="text-[10px] font-semibold uppercase tracking-wider opacity-70">
-                  {DAY_NAMES[(day.getDay() + 6) % 7 === 6 ? 6 : (day.getDay() + 6) % 7]}
+                  {DAY_NAMES[day.getDay()]}
                 </span>
                 {/* Day number */}
                 <span className={`text-base font-bold ${isToday ? 'text-primary' : ''}`}>
