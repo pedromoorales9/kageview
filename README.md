@@ -256,7 +256,7 @@ KageView no aloja ningún contenido. Actúa únicamente como cliente que enlaza 
 
 <div align="center">
 
-**GPL-3.0 © 2026 [Sh4Dow](https://github.com/pedromoorales9) — Gran Canaria, España**
+**GPL-3.0 © 2026 [Sh4Dow]
 
 *Hecho con ♥ y demasiadas horas de madrugada.*
 
