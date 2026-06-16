@@ -1,236 +1,514 @@
 <!DOCTYPE html>
-
-<html class="dark" lang="en">
-
+<html>
 <head>
-    <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>KageView — Watch Anime Without Limits</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;display=swap"
-        rel="stylesheet" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "on-surface": "#e4e1e9",
-                        "surface-container": "#1f1f24",
-                        "on-surface-variant": "#cec3d2",
-                        "background": "#131318",
-                        "primary": "#debbff",
-                        "on-primary-fixed": "#2c0051",
-                        "primary-container": "#cb97ff",
-                        "secondary": "#ffafd3",
-                        "surface-container-lowest": "#0e0e13"
-                    },
-                    fontFamily: {
-                        "headline": ["Plus Jakarta Sans"],
-                        "body": ["Inter"]
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-            vertical-align: middle;
-        }
-
-        .glow-primary {
-            box-shadow: 0 0 40px rgba(203, 151, 255, 0.15);
-        }
-
-        .blob-background {
-            background: radial-gradient(circle at 50% 50%, rgba(203, 151, 255, 0.1) 0%, transparent 50%);
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
 </head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/sh4d0w-studio-design-system-fd85b929-0578-4ea7-96a8-29764932dcb7/components.css">
+<link rel="stylesheet" href="_ds/sh4d0w-studio-design-system-fd85b929-0578-4ea7-96a8-29764932dcb7/styles.css">
+<style>
+  html, body { background: #0a0a0f; }
+  body { overflow-x: hidden; }
+  @keyframes kvFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+  @keyframes kvFloatSlow { 0%,100% { transform: translateY(0) translateX(0); } 50% { transform: translateY(22px) translateX(14px); } }
+  @keyframes kvDrift { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(40px,-30px) scale(1.12); } }
+  @keyframes kvDrift2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-50px,30px) scale(1.18); } }
+  @keyframes kvPulse { 0%,100% { opacity: .85; filter: blur(0.4px); } 50% { opacity: 1; filter: blur(0px); } }
+  @keyframes kvRise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes kvScan { 0% { transform: translateY(-100%); } 100% { transform: translateY(220%); } }
+  @keyframes kvShine { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  @keyframes kvBlink { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+</style>
+</helmet>
 
-<body class="bg-surface-container-lowest text-on-surface font-body selection:bg-primary-container selection:text-[black]">
-    <!-- Top Navigation Bar -->
-    <header class="fixed top-0 w-full z-50 bg-[#131318]/80 backdrop-blur-xl shadow-[0_20px_40px_rgba(203,151,255,0.06)]">
-        <nav class="flex justify-between items-center px-6 md:px-12 py-4 w-full">
-            <div class="flex items-center gap-8">
-                <a class="text-2xl font-black text-[#cb97ff] tracking-tighter font-headline" href="#">影 KageView</a>
-                <div class="hidden md:flex gap-8">
-                    <a class="font-headline font-bold tracking-tight text-[#cb97ff] border-b-2 border-[#cb97ff] pb-1" href="#">Descubrir</a>
-                    <a class="font-headline font-bold tracking-tight text-slate-400 hover:text-slate-100 transition-colors" href="#">Calendario</a>
-                </div>
-            </div>
-            <div class="flex items-center gap-4">
-                <a href="https://github.com/pedromoorales9/KageView" target="_blank" class="p-2 hover:bg-white/5 rounded-full transition-all">
-                    <span class="material-symbols-outlined text-slate-400">code</span>
-                </a>
-            </div>
-        </nav>
-    </header>
+<div data-screen-label="KageView Landing" style="position: relative; min-height: 100vh; background: radial-gradient(150% 120% at 82% -12%, #18101f 0%, #0a0a0f 52%); color: var(--text); font-family: var(--font-sans); overflow: hidden;">
 
-    <!-- Hero Section -->
-    <section class="relative pt-32 pb-20 overflow-hidden">
-        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full blob-background pointer-events-none -z-10"></div>
-        <div class="container mx-auto px-6 text-center">
-            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-8 backdrop-blur-sm">
-                <span class="text-primary text-sm font-semibold">✨ Free &amp; Open Source</span>
-            </div>
-            <h1 class="text-6xl md:text-[80px] font-extrabold font-headline leading-[1.1] mb-6 tracking-tight max-w-5xl mx-auto">
-                Watch Anime <span class="text-primary italic">Without</span> Limits
-            </h1>
-            <p class="text-on-surface-variant text-xl mb-12 max-w-2xl mx-auto">
-                Experimenta el reproductor definitivo de escritorio con sincronización de AniList. Cero anuncios, máxima calidad.
-            </p>
-            <div class="flex flex-col md:flex-row gap-6 justify-center mb-20">
-                <a href="https://github.com/pedromoorales9/kageview/releases/download/v1.0.6/KageView-Setup-1.0.6.exe"
-                    class="px-8 py-4 bg-primary-container text-on-primary-fixed rounded-full font-bold flex items-center justify-center gap-3 hover:scale-105 transition-all shadow-[0_0_30px_rgba(203,151,255,0.3)]">
-                    <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">window</span>
-                    Windows
-                </a>
-                <a href="https://github.com/pedromoorales9/kageview/releases/download/v1.0.6/KageView-1.0.6-arm64.dmg"
-                    class="px-8 py-4 bg-white/5 border border-white/10 text-on-surface rounded-full font-bold flex items-center justify-center gap-3 hover:bg-white/10 hover:scale-105 transition-all">
-                    <span class="material-symbols-outlined">laptop_mac</span>
-                    macOS
-                </a>
-            </div>
+  <!-- ambient glows -->
+  <div aria-hidden="true" style="position: absolute; inset: 0; pointer-events: none; opacity: var(--kv-glow, 1); z-index: 0;">
+    <div style="position: absolute; top: -180px; left: 8%; width: 620px; height: 620px; border-radius: 50%; background: radial-gradient(circle, rgba(139,92,246,0.42), transparent 66%); filter: blur(40px); animation: kvDrift 17s var(--ease) infinite;"></div>
+    <div style="position: absolute; top: 220px; right: -120px; width: 560px; height: 560px; border-radius: 50%; background: radial-gradient(circle, rgba(246,115,183,0.30), transparent 66%); filter: blur(48px); animation: kvDrift2 21s var(--ease) infinite;"></div>
+    <div style="position: absolute; bottom: -140px; left: 40%; width: 520px; height: 520px; border-radius: 50%; background: radial-gradient(circle, rgba(124,58,237,0.26), transparent 68%); filter: blur(52px); animation: kvFloatSlow 19s var(--ease) infinite;"></div>
+  </div>
+  <!-- grid wash -->
+  <div aria-hidden="true" style="position: absolute; inset: 0; pointer-events: none; z-index: 0; background-image: linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px); background-size: 64px 64px; mask-image: radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 78%);"></div>
 
-            <!-- App Mockup Frame -->
-            <div class="relative max-w-6xl mx-auto rounded-xl border border-white/10 bg-[#19191f] shadow-2xl p-4 glow-primary">
-                <div class="flex items-center gap-2 mb-4 px-2">
-                    <div class="w-3 h-3 rounded-full bg-[#ff5f56]"></div>
-                    <div class="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
-                    <div class="w-3 h-3 rounded-full bg-[#27c93f]"></div>
-                    <div class="ml-4 h-6 w-64 bg-white/5 rounded-md"></div>
-                </div>
-                <div class="aspect-video w-full rounded-lg bg-surface-container-lowest overflow-hidden relative">
-                    <img alt="KageView App Interface" class="w-full h-full object-cover opacity-60"
-                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsa1WpZCNLCFdYzYJaJC64wO5Pt1FEyQuYbtkmVwKIIArsv0_V5j23Q6FBWoAjF3jpUNrtOKrfeqb1QWPgeZ1llWfOz4c8LJg9W215Qb-eqxstkI9X-2g43s31yig7XCntE8pSaxlc9o5pVaWleE2rtUu7E_UJ2_gZgWeOCmXcNaCE0GLUEjvdBv5VMksuKMeeS0BRMncsQm5Uj5sP4dKNl-De8Y-Li3ZuKAASGwlyF3qvRnWSQi3GTr1g_fmPUW6grqNePWLSt34" />
-                    <div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent"></div>
-                    <div class="absolute bottom-8 left-8 right-8 flex items-end justify-between">
-                        <div class="text-left">
-                            <h3 class="text-3xl font-headline font-bold text-white mb-2">Jujutsu Kaisen</h3>
-                            <div class="flex gap-4 text-sm text-on-surface-variant font-medium">
-                                <span>MAPPA</span>
-                                <span>•</span>
-                                <span>24 Episodes</span>
-                                <span>•</span>
-                                <span class="text-primary">Sincronizado con AniList</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  <!-- ============ NAV ============ -->
+  <header style="position: sticky; top: 0; z-index: 50; backdrop-filter: blur(14px); background: rgba(10,10,15,0.72); border-bottom: 1px solid var(--border);">
+    <nav style="max-width: 1200px; margin: 0 auto; padding: 14px 28px; display: flex; align-items: center; gap: 20px;">
+      <a href="#top" style="display: flex; align-items: center; gap: 11px; text-decoration: none;">
+        <img src="assets/icon.png" alt="KageView" width="34" height="34" style="border-radius: 9px; box-shadow: var(--shadow-accent);" />
+        <span style="font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: -0.02em; color: var(--text);">Kage<span style="color: var(--accent-text);">View</span></span>
+      </a>
+      <div style="flex: 1;"></div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <a href="#features" style="text-decoration: none;"><span class="nav-item" style="padding: 8px 12px; font-size: 14px;">Features</span></a>
+        <a href="#providers" style="text-decoration: none;"><span class="nav-item" style="padding: 8px 12px; font-size: 14px;">Providers</span></a>
+        <a href="#novedades" style="text-decoration: none;"><span class="nav-item" style="padding: 8px 12px; font-size: 14px;">Novedades</span></a>
+        <a href="https://github.com/pedromoorales9/kageview" target="_blank" rel="noreferrer" style="text-decoration: none;"><span class="nav-item" style="padding: 8px 12px; font-size: 14px;">GitHub</span></a>
+      </div>
+      <a href="https://github.com/pedromoorales9/kageview/releases/latest" target="_blank" rel="noreferrer" class="btn btn--primary btn--md" style="text-decoration: none;">Descargar</a>
+    </nav>
+  </header>
+
+  <!-- ============ HERO ============ -->
+  <section id="top" style="position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 96px 28px 40px; text-align: center;">
+    <!-- giant kanji glow -->
+    <div aria-hidden="true" style="position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font-family: var(--font-display); font-weight: 700; font-size: clamp(240px, 34vw, 380px); line-height: 1; color: transparent; background: linear-gradient(180deg, rgba(167,139,250,0.15), rgba(246,115,183,0.03)); -webkit-background-clip: text; background-clip: text; pointer-events: none; user-select: none; filter: blur(2px); opacity: var(--kv-glow, 1); z-index: -1;">影</div>
+
+    <div style="display: inline-flex; align-items: center; gap: 8px; animation: kvRise .7s var(--ease) both;">
+      <span class="badge badge--accent badge--pill" style="height: 26px;"><span class="badge__dot"></span> v1.1.0 · Windows 10/11</span>
+      <span class="badge badge--pill ds-mono" style="height: 26px;">GPL-3.0</span>
+    </div>
+
+    <h1 style="margin: 24px auto 0; max-width: 16ch; font-size: clamp(44px, 7vw, 86px); line-height: 1.02; letter-spacing: -0.035em; animation: kvRise .7s var(--ease) .06s both;">
+      Anime y manga.<br><span style="background: linear-gradient(120deg, #c4b1fb, #f673b7 55%, #9a78f3); -webkit-background-clip: text; background-clip: text; color: transparent;">Sin anuncios. Sin cuentas.</span>
+    </h1>
+
+    <p style="margin: 22px auto 0; max-width: 56ch; font-size: clamp(16px, 1.7vw, 20px); line-height: 1.55; color: var(--text-muted); animation: kvRise .7s var(--ease) .12s both;">
+      App de escritorio para hacer streaming de anime y leer manga, en español. Player integrado, skip de intro/outro, sincronización con AniList y un ad-blocker multicapa. Todo en una interfaz cinematográfica.
+    </p>
+
+    <div style="margin: 34px auto 0; display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; animation: kvRise .7s var(--ease) .18s both;">
+      <a href="https://github.com/pedromoorales9/kageview/releases/latest" target="_blank" rel="noreferrer" class="btn btn--primary btn--lg" style="text-decoration: none; height: 52px; font-size: 16px; padding: 0 28px;">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></svg>
+        Descargar para Windows
+      </a>
+      <a href="https://github.com/pedromoorales9/kageview" target="_blank" rel="noreferrer" class="btn btn--outline btn--lg" style="text-decoration: none; height: 52px; font-size: 16px; padding: 0 24px;">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="margin-right: 4px;"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.36 1.09 2.94.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg>
+        Ver en GitHub
+      </a>
+    </div>
+    <p class="ds-mono" style="margin: 16px 0 0; font-size: 12px; color: var(--text-subtle); animation: kvRise .7s var(--ease) .24s both;">Linux / macOS — próximamente · La app se actualiza sola</p>
+  </section>
+
+  <!-- ============ STAT STRIP ============ -->
+  <section style="position: relative; z-index: 1; max-width: 1080px; margin: 18px auto 0; padding: 0 28px;" data-reveal>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;">
+      <div class="stat-card"><div class="stat-card__head"><span class="stat-card__label">Anuncios</span></div><div class="stat-card__value" style="background: linear-gradient(120deg,#c4b1fb,#f673b7); -webkit-background-clip: text; background-clip: text; color: transparent;">0</div><div class="stat-card__sub">Bloqueador multicapa</div></div>
+      <div class="stat-card"><div class="stat-card__head"><span class="stat-card__label">Fuentes</span></div><div class="stat-card__value ds-mono">7</div><div class="stat-card__sub">3 anime · 4 manga</div></div>
+      <div class="stat-card"><div class="stat-card__head"><span class="stat-card__label">Precio</span></div><div class="stat-card__value">Gratis</div><div class="stat-card__sub">Open source · GPL-3.0</div></div>
+      <div class="stat-card"><div class="stat-card__head"><span class="stat-card__label">Cuenta</span></div><div class="stat-card__value">No</div><div class="stat-card__sub">AniList opcional</div></div>
+    </div>
+  </section>
+
+  <!-- ============ APP MOCKUP ============ -->
+  <section style="position: relative; z-index: 1; max-width: 1180px; margin: 64px auto 0; padding: 0 28px;" data-reveal>
+    <div style="position: relative; animation: kvFloat 9s var(--ease) infinite;">
+      <div aria-hidden="true" style="position: absolute; inset: 8% 14% -6%; background: radial-gradient(60% 60% at 50% 40%, rgba(124,58,237,0.45), transparent 70%); filter: blur(60px); opacity: var(--kv-glow, 1); z-index: 0;"></div>
+
+      <div style="position: relative; z-index: 1; border-radius: 16px; border: 1px solid var(--border-strong); overflow: hidden; box-shadow: var(--shadow-lg); background: var(--surface);">
+        <!-- titlebar -->
+        <div style="display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 14px; background: var(--titlebar); border-bottom: 1px solid var(--border);">
+          <div style="display: flex; gap: 7px;">
+            <span style="width: 11px; height: 11px; border-radius: 50%; background: #f87171;"></span>
+            <span style="width: 11px; height: 11px; border-radius: 50%; background: #fbbf24;"></span>
+            <span style="width: 11px; height: 11px; border-radius: 50%; background: #34d399;"></span>
+          </div>
+          <div style="flex: 1; text-align: center; font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--text-muted); letter-spacing: -0.01em;">影 KageView</div>
+          <div style="display: flex; gap: 14px; color: var(--text-subtle);">
+            <span style="width: 12px; height: 1.5px; background: currentColor; align-self: center;"></span>
+            <span style="width: 11px; height: 11px; border: 1.5px solid currentColor; border-radius: 2px;"></span>
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </div>
         </div>
-    </section>
+        <!-- body -->
+        <div style="display: flex; min-height: 460px;">
+          <!-- sidebar -->
+          <aside style="width: 216px; flex: none; background: var(--sidebar); border-right: 1px solid var(--border); padding: 18px 14px; display: flex; flex-direction: column; gap: 18px;">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 2px 6px;">
+              <img src="assets/icon.png" width="32" height="32" alt="" style="border-radius: 8px;" />
+              <div style="line-height: 1.1;"><div style="font-family: var(--font-display); font-weight: 700; font-size: 15px;">KageView</div><div style="font-size: 11px; color: var(--text-subtle);">影 · v1.1.0</div></div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+              <div class="nav-item" data-active="true"><svg class="icon" viewBox="0 0 24 24" style="font-size: 18px;"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg><span>Descubrir</span></div>
+              <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" style="font-size: 18px;"><path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a0 0 0 0 1 0 0"/><path d="M8 21V10h8v11"/></svg><span>Biblioteca</span></div>
+              <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" style="font-size: 18px;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><span>Buscar</span></div>
+              <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" style="font-size: 18px;"><path d="M4 5a2 2 0 0 1 2-2h6v18H6a2 2 0 0 0-2 2zM20 5a2 2 0 0 0-2-2h-6v18h6a2 2 0 0 1 2 2z"/></svg><span>Manga</span></div>
+              <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" style="font-size: 18px;"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg><span>Calendario</span></div>
+            </div>
+            <div style="flex: 1;"></div>
+            <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" style="font-size: 18px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8M4.6 9a1.6 1.6 0 0 0-.3-1.8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Ajustes</span></div>
+            <div style="display: flex; align-items: center; gap: 8px; padding: 6px;"><span class="user-pill"><span class="badge__dot"></span> AniList</span></div>
+          </aside>
+          <!-- main -->
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+            <!-- topbar -->
+            <div style="display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--border);">
+              <div class="field__control" style="flex: 1; max-width: 320px; height: 38px; color: var(--text-subtle);"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><span style="font-size: 13px;">Buscar anime o manga…</span></div>
+              <div style="flex: 1;"></div>
+              <span class="badge badge--status-online" style="height: 24px;"><span class="badge__dot"></span> Sin anuncios</span>
+            </div>
+            <!-- featured banner -->
+            <div style="margin: 18px; border-radius: 14px; overflow: hidden; position: relative; min-height: 188px; display: flex; align-items: flex-end; background: linear-gradient(115deg, #2a1248 0%, #4a1d6e 45%, #7c2d5e 100%);">
+              <div aria-hidden="true" style="position: absolute; inset: 0; background: radial-gradient(120% 140% at 85% 10%, rgba(246,115,183,0.5), transparent 55%);"></div>
+              <div aria-hidden="true" style="position: absolute; right: 28px; top: 18px; font-family: var(--font-display); font-size: 110px; font-weight: 700; color: rgba(255,255,255,0.10); line-height: 1;">影</div>
+              <div style="position: relative; padding: 22px; max-width: 70%;">
+                <span class="badge badge--pill" style="background: rgba(0,0,0,0.35); border-color: rgba(255,255,255,0.18); color: #fff; height: 22px;">Continúa viendo · Ep 8</span>
+                <div style="font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: -0.02em; margin-top: 10px; color: #fff;">Yoru no Senshi</div>
+                <div style="display: flex; gap: 10px; margin-top: 14px;">
+                  <span class="btn btn--primary btn--sm" style="height: 34px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5l11 7-11 7z"/></svg> Reanudar</span>
+                  <span class="btn btn--outline btn--sm" style="height: 34px; background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.22); color: #fff;">+ Lista</span>
+                </div>
+              </div>
+            </div>
+            <!-- row -->
+            <div style="padding: 4px 18px 22px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <div style="font-family: var(--font-display); font-weight: 700; font-size: 16px;">Tendencia esta semana</div>
+                <span style="font-size: 12px; color: var(--accent-text);">Ver todo →</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
+                <div class="kv-poster" style="--g: linear-gradient(160deg,#4c1d95,#9d174d);" data-t="Kage no Hikari" data-e="Ep 12 · SUB"></div>
+                <div class="kv-poster" style="--g: linear-gradient(160deg,#1e3a8a,#6d28d9);" data-t="Sora Crónicas" data-e="Ep 4 · DUB"></div>
+                <div class="kv-poster" style="--g: linear-gradient(160deg,#7c2d12,#be185d);" data-t="Ryū Densetsu" data-e="Ep 23 · SUB"></div>
+                <div class="kv-poster" style="--g: linear-gradient(160deg,#0f766e,#5b21b6);" data-t="Hoshi Gakuen" data-e="Ep 9 · SUB"></div>
+                <div class="kv-poster" style="--g: linear-gradient(160deg,#5b21b6,#db2777);" data-t="Yami no Tabi" data-e="Ep 1 · DUB"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    <!-- Providers Section -->
-    <section class="bg-[#131318] py-20 border-y border-white/5">
-        <div class="container mx-auto px-6">
-            <div class="flex flex-col md:flex-row items-center justify-between gap-12">
-                <div class="max-w-md">
-                    <span class="text-primary font-bold tracking-[0.2em] text-xs uppercase mb-2 block">FUENTES MÚLTIPLES</span>
-                    <h2 class="text-4xl font-headline font-bold text-on-surface">Red de Servidores.</h2>
-                    <p class="text-on-surface-variant mt-4">KageView analiza los proveedores más rápidos y evita caídas usando planes de contingencia automáticamente.</p>
-                </div>
-                <div class="flex flex-wrap gap-4 justify-center md:justify-end">
-                    <div class="flex items-center gap-2 px-6 py-3 rounded-full bg-white/5 border border-white/5 font-medium">
-                        <div class="w-2 h-2 rounded-full bg-emerald-400"></div> AnimeFLV
-                    </div>
-                    <div class="flex items-center gap-2 px-6 py-3 rounded-full bg-white/5 border border-white/5 font-medium">
-                        <div class="w-2 h-2 rounded-full bg-emerald-400"></div> JKAnime
-                    </div>
-                    <div class="flex items-center gap-2 px-6 py-3 rounded-full bg-white/5 border border-primary/30 font-medium">
-                        <div class="w-2 h-2 rounded-full bg-primary"></div> AnimeAV1 (Nuevo)
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+  <!-- ============ FEATURES ============ -->
+  <section id="features" style="position: relative; z-index: 1; max-width: 1200px; margin: 110px auto 0; padding: 0 28px;">
+    <div style="text-align: center; max-width: 60ch; margin: 0 auto;" data-reveal>
+      <span class="badge badge--accent badge--pill" style="height: 26px;">FEATURES</span>
+      <h2 style="margin: 18px 0 0; font-size: clamp(30px, 4vw, 48px); letter-spacing: -0.03em;">Todo lo que necesitas para ver anime</h2>
+      <p style="margin: 16px 0 0; font-size: 17px; color: var(--text-muted); line-height: 1.55;">Construido para una sola cosa: una experiencia limpia, rápida y sin interrupciones.</p>
+    </div>
 
-    <!-- Features Bento Grid -->
-    <section class="py-32 container mx-auto px-6">
-        <div class="text-center mb-16">
-            <span class="text-secondary font-bold tracking-[0.2em] text-xs uppercase mb-2 block">TODO LO QUE NECESITAS</span>
-            <h2 class="text-5xl font-headline font-extrabold">Potencia Nativa</h2>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-[#19191f] p-8 rounded-xl border border-white/5 hover:scale-[1.02] transition-all">
-                <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-6 text-primary">
-                    <span class="material-symbols-outlined text-3xl">block</span>
-                </div>
-                <h3 class="text-2xl font-headline font-bold mb-4">Cero Anuncios</h3>
-                <p class="text-on-surface-variant">Sin ventanas emergentes ni molestos banners. Streaming limpio directo a tu reproductor.</p>
-            </div>
-            <div class="bg-[#19191f] p-8 rounded-xl border border-white/5 hover:scale-[1.02] transition-all">
-                <div class="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center mb-6 text-secondary">
-                    <span class="material-symbols-outlined text-3xl">sync</span>
-                </div>
-                <h3 class="text-2xl font-headline font-bold mb-4">Sincronización AniList</h3>
-                <p class="text-on-surface-variant">Mantén tu progreso actualizado al instante. KageView marca los episodios vistos por ti.</p>
-            </div>
-            <div class="bg-[#19191f] p-8 rounded-xl border border-white/5 hover:scale-[1.02] transition-all">
-                <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-6 text-primary">
-                    <span class="material-symbols-outlined text-3xl">calendar_month</span>
-                </div>
-                <h3 class="text-2xl font-headline font-bold mb-4">Calendario Global</h3>
-                <p class="text-on-surface-variant">Utilizamos GraphQL de AniList para traer todos los horarios globales y evitar que te pierdas un estreno.</p>
-            </div>
-            <div class="bg-[#19191f] p-8 rounded-xl border border-white/5 hover:scale-[1.02] transition-all">
-                <div class="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center mb-6 text-secondary">
-                    <span class="material-symbols-outlined text-3xl">skip_next</span>
-                </div>
-                <h3 class="text-2xl font-headline font-bold mb-4">AniSkip Integrado</h3>
-                <p class="text-on-surface-variant">El sistema detecta automáticamente los openings y endings para saltarlos en tiempo real.</p>
-            </div>
-            <div class="bg-[#19191f] p-8 rounded-xl border border-white/5 hover:scale-[1.02] transition-all">
-                <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-6 text-primary">
-                    <span class="material-symbols-outlined text-3xl">update</span>
-                </div>
-                <h3 class="text-2xl font-headline font-bold mb-4">Auto-Updates</h3>
-                <p class="text-on-surface-variant">Toda corrección y nuevo proveedor te llegará mágicamente en segundo plano mediante las Github Releases.</p>
-            </div>
-            <div class="bg-[#19191f] p-8 rounded-xl border border-white/5 hover:scale-[1.02] transition-all">
-                <div class="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center mb-6 text-secondary">
-                    <span class="material-symbols-outlined text-3xl">desktop_windows</span>
-                </div>
-                <h3 class="text-2xl font-headline font-bold mb-4">Desktop First</h3>
-                <p class="text-on-surface-variant">Optimizado usando Electron y React. Adiós al navegador web y su consumo de memoria.</p>
-            </div>
-        </div>
-    </section>
+    <div style="margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
 
-    <!-- Download CTA -->
-    <section class="py-32 relative">
-        <div class="container mx-auto px-6 max-w-4xl">
-            <div class="bg-[#19191f]/80 backdrop-blur-2xl p-12 rounded-xl border border-white/10 text-center glow-primary">
-                <h2 class="text-5xl font-headline font-extrabold mb-6">Instala KageView</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 my-10">
-                    <a href="https://github.com/pedromoorales9/kageview/releases/download/v1.0.6/KageView-Setup-1.0.6.exe"
-                        class="p-8 rounded-xl bg-white/5 border border-white/5 flex flex-col items-center hover:bg-white/10 transition-colors group">
-                        <span class="material-symbols-outlined text-5xl text-primary mb-6" style="font-variation-settings: 'FILL' 1;">window</span>
-                        <h4 class="text-2xl font-headline font-bold mb-2">Windows</h4>
-                        <p class="text-on-surface-variant text-sm mb-6">v1.0.6 • .exe installer</p>
-                    </a>
-                    <a href=https://github.com/pedromoorales9/kageview/releases/download/v1.0.6/KageView-1.0.6-arm64.dmg"
-                        class="p-8 rounded-xl bg-white/5 border border-white/5 flex flex-col items-center hover:bg-white/10 transition-colors group">
-                        <span class="material-symbols-outlined text-5xl text-secondary mb-6">laptop_mac</span>
-                        <h4 class="text-2xl font-headline font-bold mb-2">macOS</h4>
-                        <p class="text-on-surface-variant text-sm mb-6">v1.0.6 • .dmg installer</p>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </section>
+      <div class="kv-feat panel" data-reveal style="padding: 24px;">
+        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6z"/><path d="M5 5l14 14"/></svg></div>
+        <h3 style="font-size: 18px; margin-top: 16px;">Sin anuncios</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Bloqueador multicapa de popups, overlays y dominios de publicidad a nivel de red.</p>
+      </div>
 
-    <footer class="bg-[#131318] border-t border-white/5 w-full">
-        <div class="flex justify-between items-center px-12 py-8 w-full max-w-7xl mx-auto">
-            <span class="text-lg font-bold text-[#f8f5fd] font-headline">影 KageView v1.0.6</span>
-            <a href="https://github.com/pedromoorales9/KageView" class="text-slate-500 hover:text-primary">Source Code on GitHub</a>
+      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .05s;">
+        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M10.5 9l4.5 3-4.5 3z"/></svg></div>
+        <h3 style="font-size: 18px; margin-top: 16px;">Player integrado</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">HLS nativo, control de velocidad, pantalla completa y skip de intro/outro automático.</p>
+      </div>
+
+      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .1s;">
+        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M5 5l9 7-9 7z"/><path d="M19 5v14"/></svg></div>
+        <h3 style="font-size: 18px; margin-top: 16px;">Auto-play</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Cuenta atrás de 5 segundos para reproducir el siguiente episodio automáticamente.</p>
+      </div>
+
+      <div class="kv-feat panel" data-reveal style="padding: 24px;">
+        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 12a8 8 0 0 1 14-5l2 2"/><path d="M20 12a8 8 0 0 1-14 5l-2-2"/><path d="M20 4v5h-5M4 20v-5h5"/></svg></div>
+        <h3 style="font-size: 18px; margin-top: 16px;">Fallback automático</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Si un provider falla, el siguiente entra solo sin interrumpir la reproducción.</p>
+      </div>
+
+      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .05s;">
+        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></div>
+        <h3 style="font-size: 18px; margin-top: 16px;">Proveedor favorito</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Marca tu fuente preferida de anime y manga — siempre será la primera en cargar.</p>
+      </div>
+
+      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .1s;">
+        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M9 15l6-6"/><path d="M10 6l1.5-1.5a4 4 0 0 1 5.7 5.7L15.5 12"/><path d="M14 18l-1.5 1.5a4 4 0 0 1-5.7-5.7L8.5 12"/></svg></div>
+        <h3 style="font-size: 18px; margin-top: 16px;">AniList Sync</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Watchlist, progreso de episodios y puntuaciones sincronizados en tiempo real.</p>
+      </div>
+
+      <div class="kv-feat panel" data-reveal style="padding: 24px;">
+        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 5a2 2 0 0 1 2-2h6v16H6a2 2 0 0 0-2 2zM20 5a2 2 0 0 0-2-2h-6v16h6a2 2 0 0 1 2 2z"/></svg></div>
+        <h3 style="font-size: 18px; margin-top: 16px;">Manga integrado</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Lector de manga con múltiples fuentes y tu propia biblioteca personal.</p>
+      </div>
+
+      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .05s;">
+        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg></div>
+        <h3 style="font-size: 18px; margin-top: 16px;">Calendario de emisión</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Vista semanal con cuenta atrás en tiempo real para los nuevos episodios.</p>
+      </div>
+
+      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .1s;">
+        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></div>
+        <h3 style="font-size: 18px; margin-top: 16px;">Notificaciones</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Aviso nativo de Windows cuando sale un episodio nuevo hoy mismo.</p>
+      </div>
+
+      <div class="kv-feat panel" data-reveal style="padding: 24px;">
+        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l1.8 4.7L18.5 9.5 13.8 11.3 12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 14l.7 1.8 1.8.7-1.8.7L19 19l-.7-1.8-1.8-.7 1.8-.7z"/></svg></div>
+        <h3 style="font-size: 18px; margin-top: 16px;">Cinematic Shadow UI</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Interfaz oscura con glows y glassmorphism diseñada para verse de noche.</p>
+      </div>
+
+      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .05s;">
+        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 9.5a3.5 3.5 0 0 1 .5 6.95"/><path d="M12 11v6M9 14l3 3 3-3"/></svg></div>
+        <h3 style="font-size: 18px; margin-top: 16px;">Auto-updater</h3>
+        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Actualizaciones silenciosas en segundo plano desde GitHub Releases.</p>
+      </div>
+
+      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .1s; display: flex; flex-direction: column; justify-content: center; background: var(--grad-brand-soft); border-color: var(--accent-soft-border);">
+        <h3 style="font-size: 20px;">¿Listo para empezar?</h3>
+        <p style="margin: 8px 0 16px; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Descárgalo gratis y empieza a ver en menos de un minuto.</p>
+        <a href="https://github.com/pedromoorales9/kageview/releases/latest" target="_blank" rel="noreferrer" class="btn btn--primary btn--md" style="text-decoration: none; align-self: flex-start;">Descargar ahora</a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ PROVIDERS ============ -->
+  <section id="providers" style="position: relative; z-index: 1; max-width: 1200px; margin: 110px auto 0; padding: 0 28px;">
+    <div style="text-align: center; max-width: 60ch; margin: 0 auto;" data-reveal>
+      <span class="badge badge--accent badge--pill" style="height: 26px;">PROVIDERS</span>
+      <h2 style="margin: 18px 0 0; font-size: clamp(30px, 4vw, 48px); letter-spacing: -0.03em;">Múltiples fuentes, cero esfuerzo</h2>
+      <p style="margin: 16px 0 0; font-size: 17px; color: var(--text-muted); line-height: 1.55;">KageView conecta varias fuentes y cambia automáticamente si una falla. Marca tu favorita y será siempre la primera.</p>
+    </div>
+
+    <div style="margin-top: 44px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <!-- anime -->
+      <div class="panel" data-reveal style="padding: 26px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 18px;">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent-text)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M10.5 9l4.5 3-4.5 3z"/></svg>
+          <h3 style="font-size: 19px;">Anime</h3>
+          <span class="badge badge--pill" style="height: 22px;">3 activas</span>
         </div>
-    </footer>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="kv-prov"><span class="kv-prov-dot"></span><span style="flex:1; font-weight: 600;">AnimeFLV</span><span class="badge" style="height:20px;">🇪🇸 ES</span><span class="badge badge--accent" style="height:20px;">Sub + Dub</span></div>
+          <div class="kv-prov"><span class="kv-prov-dot"></span><span style="flex:1; font-weight: 600;">JKAnime</span><span class="badge" style="height:20px;">🇪🇸 ES</span><span class="badge badge--accent" style="height:20px;">Sub + Dub</span></div>
+          <div class="kv-prov"><span class="kv-prov-dot"></span><span style="flex:1; font-weight: 600;">AnimeAV1</span><span class="badge" style="height:20px;">🇪🇸 ES</span><span class="badge badge--accent" style="height:20px;">Sub + Dub</span></div>
+        </div>
+        <p style="margin: 16px 0 0; font-size: 12px; color: var(--text-subtle); line-height: 1.5;">Las fuentes en inglés (HiAnime, Gogoanime) están desactivadas por ahora.</p>
+      </div>
+      <!-- manga -->
+      <div class="panel" data-reveal style="padding: 26px; transition-delay: .06s;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 18px;">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent-text)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h6v16H6a2 2 0 0 0-2 2zM20 5a2 2 0 0 0-2-2h-6v16h6a2 2 0 0 1 2 2z"/></svg>
+          <h3 style="font-size: 19px;">Manga</h3>
+          <span class="badge badge--pill" style="height: 22px;">4 activas</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="kv-prov"><span class="kv-prov-dot"></span><span style="flex:1; font-weight: 600;">MangaDex</span><span class="badge" style="height:20px;">🌐 Multi</span><span class="badge badge--plugins" style="height:20px;">Manga · Manhwa · Manhua</span></div>
+          <div class="kv-prov"><span class="kv-prov-dot"></span><span style="flex:1; font-weight: 600;">MangaOni</span><span class="badge" style="height:20px;">🇪🇸 ES</span><span class="badge badge--plugins" style="height:20px;">Manga · Manhwa · Manhua</span></div>
+          <div class="kv-prov"><span class="kv-prov-dot"></span><span style="flex:1; font-weight: 600;">InManga</span><span class="badge" style="height:20px;">🇪🇸 ES</span><span class="badge badge--plugins" style="height:20px;">Manga</span></div>
+          <div class="kv-prov"><span class="kv-prov-dot"></span><span style="flex:1; font-weight: 600;">ManhwaWeb</span><span class="badge" style="height:20px;">🇪🇸 ES</span><span class="badge badge--plugins" style="height:20px;">Manhwa</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ NOVEDADES / CHANGELOG ============ -->
+  <section id="novedades" style="position: relative; z-index: 1; max-width: 1200px; margin: 110px auto 0; padding: 0 28px;">
+    <div style="display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 40px; align-items: start;">
+      <div data-reveal>
+        <span class="badge badge--accent badge--pill" style="height: 26px;">NOVEDADES</span>
+        <h2 style="margin: 18px 0 0; font-size: clamp(28px, 3.4vw, 42px); letter-spacing: -0.03em;">v1.1.0 — MangaOni, UI responsive y login propio</h2>
+        <p style="margin: 16px 0 0; font-size: 16px; color: var(--text-muted); line-height: 1.6;">La última versión añade un nuevo proveedor de manga, una interfaz que se adapta al ancho de la ventana y login con tu propia cuenta de AniList.</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px;">
+          <span class="badge badge--pill ds-mono" style="height: 24px;">v1.0.9 · Favorito</span>
+          <span class="badge badge--pill ds-mono" style="height: 24px;">v1.0.7 · Auto-play</span>
+          <span class="badge badge--pill ds-mono" style="height: 24px;">v1.0.5 · Calendario</span>
+          <span class="badge badge--pill ds-mono" style="height: 24px;">v1.0.3 · Ad-blocker</span>
+        </div>
+      </div>
+      <div class="panel" data-reveal style="padding: 12px 26px; transition-delay: .06s;">
+        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Nuevo provider: MangaOni</b><span>Manga, manhwa y manhua en español, con filtro de contenido +18.</span></div></div>
+        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Lista de episodios estilo Crunchyroll</b><span>Cuadrícula de miniaturas con orden y carga por lotes — soporta series enormes sin congelar.</span></div></div>
+        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Buscador de episodios</b><span>Dentro del modal de anime, por número o por título.</span></div></div>
+        <div class="kv-log"><span class="kv-log-dot"></span><div><b>UI responsive</b><span>Las cuadrículas y filas se adaptan al ancho de la ventana.</span></div></div>
+        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Login con tu propia cuenta</b><span>OAuth Implicit Grant — el token se guarda solo en tu equipo, sin clientSecret.</span></div></div>
+        <div class="kv-log" style="border-bottom: none;"><span class="kv-log-dot"></span><div><b>Optimización de rendimiento</b><span>Menos blur por tarjeta, memoización y render por lotes para evitar tirones.</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TECH STACK ============ -->
+  <section style="position: relative; z-index: 1; max-width: 1200px; margin: 96px auto 0; padding: 0 28px;" data-reveal>
+    <div style="text-align: center; margin-bottom: 30px;">
+      <span class="badge badge--pill ds-mono" style="height: 24px;">TECH STACK</span>
+      <h2 style="margin: 14px 0 0; font-size: clamp(24px, 3vw, 36px); letter-spacing: -0.03em;">Construido sobre tecnología sólida</h2>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+      <div class="kv-tech"><b>Electron 28</b><span>Runtime de escritorio + IPC</span></div>
+      <div class="kv-tech"><b>React 18</b><span>UI framework</span></div>
+      <div class="kv-tech"><b>TypeScript 5</b><span>Tipado estático</span></div>
+      <div class="kv-tech"><b>Tailwind 3</b><span>Estilos con tokens</span></div>
+      <div class="kv-tech"><b>Zustand 4</b><span>Estado global</span></div>
+      <div class="kv-tech"><b>HLS.js</b><span>Streaming HLS nativo</span></div>
+      <div class="kv-tech"><b>electron-store 8</b><span>Persistencia cifrada</span></div>
+      <div class="kv-tech"><b>electron-updater 6</b><span>Auto-actualizaciones</span></div>
+      <div class="kv-tech"><b>AniList GraphQL v2</b><span>Metadatos + OAuth + sync</span></div>
+      <div class="kv-tech"><b>AniSkip API v2</b><span>Timestamps intro/outro</span></div>
+      <div class="kv-tech"><b>fastest-levenshtein</b><span>Title matching fuzzy</span></div>
+      <div class="kv-tech"><b>discord-rpc 4</b><span>Discord Rich Presence</span></div>
+    </div>
+  </section>
+
+  <!-- ============ DOWNLOAD ============ -->
+  <section style="position: relative; z-index: 1; max-width: 1080px; margin: 110px auto 0; padding: 0 28px;" data-reveal>
+    <div style="position: relative; border-radius: 24px; overflow: hidden; border: 1px solid var(--border-strong); background: linear-gradient(135deg, #15101f, #0d0d13); padding: 56px 40px; text-align: center;">
+      <div aria-hidden="true" style="position: absolute; inset: -40% 20% auto; height: 380px; background: radial-gradient(60% 70% at 50% 0%, rgba(124,58,237,0.4), transparent 70%); filter: blur(50px); opacity: var(--kv-glow, 1);"></div>
+      <div aria-hidden="true" style="position: absolute; right: 40px; bottom: -30px; font-family: var(--font-display); font-size: 200px; font-weight: 700; color: rgba(255,255,255,0.035); line-height: 1;">影</div>
+      <div style="position: relative;">
+        <h2 style="font-size: clamp(32px, 4.5vw, 52px); letter-spacing: -0.035em;">Descarga KageView</h2>
+        <p style="margin: 16px auto 0; max-width: 50ch; font-size: 17px; color: var(--text-muted); line-height: 1.55;">Gratis, open source y sin cuentas. Si ya lo tienes instalado, se actualiza solo en cuanto detecta una nueva versión.</p>
+        <div style="margin: 32px auto 0; display: flex; flex-wrap: wrap; gap: 14px; justify-content: center;">
+          <a href="https://github.com/pedromoorales9/kageview/releases/latest" target="_blank" rel="noreferrer" class="btn btn--primary btn--lg" style="text-decoration: none; height: 54px; font-size: 16px; padding: 0 30px;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="margin-right:4px;"><path d="M3 5.5L10.5 4.4v7.1H3zM11.5 4.2L21 3v8.5h-9.5zM3 12.5h7.5v7.1L3 18.5zM11.5 12.5H21V21l-9.5-1.3z"/></svg>
+            Windows 10/11 · Setup .exe
+          </a>
+          <span class="btn btn--outline btn--lg" style="height: 54px; font-size: 16px; padding: 0 26px; opacity: .7; cursor: default;">Linux / macOS — próximamente</span>
+        </div>
+        <p class="ds-mono" style="margin: 18px 0 0; font-size: 12px; color: var(--text-subtle);">KageView-Setup-1.1.0.exe</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ AVISO LEGAL ============ -->
+  <section style="position: relative; z-index: 1; max-width: 1080px; margin: 96px auto 0; padding: 0 28px;" data-reveal>
+    <div class="panel" style="padding: 34px; border-color: var(--border-strong);">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="kv-ic" style="width: 44px; height: 44px;"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg></div>
+        <div>
+          <span class="badge badge--pill" style="height: 22px;">AVISO LEGAL</span>
+          <h2 style="font-size: clamp(22px, 2.6vw, 30px); letter-spacing: -0.02em; margin-top: 8px;">KageView no aloja contenido — solo enlaza</h2>
+        </div>
+      </div>
+      <p style="margin: 18px 0 0; font-size: 15px; color: var(--text-muted); line-height: 1.65; max-width: 80ch;">KageView es <b style="color: var(--text);">únicamente un cliente</b> que localiza y enlaza contenido ya disponible públicamente en webs de terceros. <b style="color: var(--text);">No almacena, no aloja y no distribuye ningún archivo</b> de vídeo, manga ni multimedia en sus servidores — de hecho, no tiene servidores de contenido.</p>
+
+      <div style="margin-top: 26px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
+        <div style="padding: 18px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 9px; color: var(--accent-text);">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/><path d="M8 21h8"/></svg>
+            <span style="font-family: var(--font-display); font-weight: 700; font-size: 15px;">No guarda nada</span>
+          </div>
+          <p style="margin: 9px 0 0; font-size: 13px; color: var(--text-muted); line-height: 1.55;">La app no descarga ni almacena contenido. Solo hace de scraper: lee enlaces de las webs fuente y los reproduce en tu equipo.</p>
+        </div>
+        <div style="padding: 18px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 9px; color: var(--accent-text);">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>
+            <span style="font-family: var(--font-display); font-weight: 700; font-size: 15px;">Las webs son responsables</span>
+          </div>
+          <p style="margin: 9px 0 0; font-size: 13px; color: var(--text-muted); line-height: 1.55;">Todo el contenido pertenece y es responsabilidad exclusiva de los sitios de terceros enlazados (AnimeFLV, MangaDex, etc.), no de KageView.</p>
+        </div>
+        <div style="padding: 18px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 9px; color: var(--accent-text);">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M16 7a4 4 0 0 0-4-2.5C9.8 4.5 8 5.8 8 7.5S9.8 10 12 10.5s4 1.3 4 3-1.8 3-4 3a4 4 0 0 1-4-2.5"/><path d="M5 5l14 14"/></svg>
+            <span style="font-family: var(--font-display); font-weight: 700; font-size: 15px;">Sin ánimo de lucro</span>
+          </div>
+          <p style="margin: 9px 0 0; font-size: 13px; color: var(--text-muted); line-height: 1.55;">Proyecto personal, gratuito y open source bajo GPL-3.0. No genera ingresos: ni anuncios, ni suscripciones, ni venta de datos.</p>
+        </div>
+      </div>
+
+      <p style="margin: 22px 0 0; font-size: 12px; color: var(--text-subtle); line-height: 1.6; max-width: 80ch;">El desarrollador no se hace responsable del uso que se haga del contenido enlazado. Si eres titular de derechos sobre algún contenido, la reclamación debe dirigirse al sitio de terceros que lo aloja, no a esta aplicación.</p>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer style="position: relative; z-index: 1; max-width: 1200px; margin: 72px auto 0; padding: 40px 28px 56px; border-top: 1px solid var(--border);">
+    <div style="display: flex; flex-wrap: wrap; gap: 30px; align-items: flex-start; justify-content: space-between;">
+      <div style="max-width: 42ch;">
+        <div style="display: flex; align-items: center; gap: 11px;">
+          <img src="assets/icon.png" width="36" height="36" alt="KageView" style="border-radius: 9px;" />
+          <span style="font-family: var(--font-display); font-weight: 700; font-size: 18px;">影 KageView</span>
+        </div>
+        <p style="margin: 14px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.6; font-style: italic;">"Mientras otros veían anime, yo construí el lugar donde verlo."</p>
+        <p style="margin: 14px 0 0; font-size: 12px; color: var(--text-subtle); line-height: 1.6;">Proyecto sin ánimo de lucro. KageView no aloja ni almacena contenido: solo enlaza a webs de terceros, que son las únicas responsables del mismo.</p>
+      </div>
+      <div style="display: flex; gap: 56px; flex-wrap: wrap;">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-subtle);">Proyecto</span>
+          <a href="https://github.com/pedromoorales9/kageview" target="_blank" rel="noreferrer" style="font-size: 14px; color: var(--text-muted); text-decoration: none;">GitHub</a>
+          <a href="https://github.com/pedromoorales9/kageview/releases/latest" target="_blank" rel="noreferrer" style="font-size: 14px; color: var(--text-muted); text-decoration: none;">Releases</a>
+          <a href="https://github.com/pedromoorales9/kageview/issues" target="_blank" rel="noreferrer" style="font-size: 14px; color: var(--text-muted); text-decoration: none;">Issues</a>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-subtle);">Recursos</span>
+          <a href="#features" style="font-size: 14px; color: var(--text-muted); text-decoration: none;">Features</a>
+          <a href="#providers" style="font-size: 14px; color: var(--text-muted); text-decoration: none;">Providers</a>
+          <a href="https://anilist.co/settings/developer" target="_blank" rel="noreferrer" style="font-size: 14px; color: var(--text-muted); text-decoration: none;">AniList API</a>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;">
+      <span style="font-size: 12px; color: var(--text-subtle);">GPL-3.0 © 2026 Sh4Dow · Hecho con ♥ y demasiadas horas de madrugada.</span>
+      <div style="display: flex; gap: 8px;">
+        <span class="badge ds-mono" style="height: 22px;">Electron 28</span>
+        <span class="badge ds-mono" style="height: 22px;">React 18</span>
+        <span class="badge ds-mono" style="height: 22px;">v1.1.0</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- component-scoped styles for the few repeated landing patterns -->
+  <style>
+    .kv-poster { position: relative; aspect-ratio: 2 / 3; border-radius: 10px; background: var(--g); overflow: hidden; border: 1px solid var(--border); transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
+    .kv-poster::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.78)); }
+    .kv-poster::after { content: attr(data-t) ' \A ' attr(data-e); white-space: pre-wrap; position: absolute; left: 9px; right: 9px; bottom: 9px; font-family: var(--font-display); font-weight: 700; font-size: 12px; line-height: 1.3; color: #fff; }
+    .kv-poster:hover { transform: translateY(-4px); box-shadow: var(--shadow-accent); }
+    .kv-feat { transition: opacity .7s var(--ease), transform .7s var(--ease), border-color var(--dur) var(--ease); }
+    .kv-feat:hover { border-color: var(--border-accent); }
+    .kv-ic { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 12px; background: var(--accent-soft); border: 1px solid var(--accent-soft-border); color: var(--accent-text); }
+    .kv-ic svg { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    .kv-prov { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); font-size: 14px; transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease); }
+    .kv-prov:hover { border-color: var(--border-strong); transform: translateX(3px); }
+    .kv-prov-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green-500); box-shadow: 0 0 10px var(--green-500); animation: kvBlink 2.4s var(--ease) infinite; }
+    .kv-log { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+    .kv-log-dot { flex: none; width: 9px; height: 9px; margin-top: 5px; border-radius: 50%; background: var(--grad-brand); box-shadow: var(--shadow-accent); }
+    .kv-log b { font-family: var(--font-display); font-size: 15px; display: block; }
+    .kv-log span { font-size: 13px; color: var(--text-muted); line-height: 1.5; display: block; margin-top: 3px; }
+    .kv-tech { padding: 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease); }
+    .kv-tech:hover { border-color: var(--border-accent); transform: translateY(-3px); }
+    .kv-tech b { font-family: var(--font-mono); font-size: 14px; color: var(--accent-text); display: block; }
+    .kv-tech span { font-size: 12px; color: var(--text-subtle); display: block; margin-top: 4px; line-height: 1.4; }
+    [data-reveal] { opacity: 0; transform: translateY(26px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
+    [data-reveal].kv-in { opacity: 1; transform: none; }
+    @media (max-width: 900px) {
+      nav > div:nth-child(2) { display: none !important; }
+      #features > div:nth-child(2) { grid-template-columns: 1fr 1fr !important; }
+      #providers div[style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
+      #novedades > div { grid-template-columns: 1fr !important; }
+      section div[style*="repeat(4, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
+      section div[style*="repeat(5, 1fr)"] { grid-template-columns: repeat(3, 1fr) !important; }
+    }
+  </style>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;accent&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#8b5cf6&quot;, &quot;options&quot;: [&quot;#8b5cf6&quot;, &quot;#f673b7&quot;, &quot;#47c4ff&quot;] },
+  &quot;glow&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Cinematic&quot;, &quot;options&quot;: [&quot;Sutil&quot;, &quot;Cinematic&quot;, &quot;Intenso&quot;] }
+}">
+class Component extends DCLogic {
+  componentDidMount() {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', 'dark');
+    this.applyVars();
+    this._io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) {
+          e.target.classList.add('kv-in');
+          this._io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -7% 0px' });
+    requestAnimationFrame(() => {
+      document.querySelectorAll('[data-reveal]').forEach((el) => this._io.observe(el));
+    });
+  }
+  componentDidUpdate() { this.applyVars(); }
+  componentWillUnmount() { if (this._io) this._io.disconnect(); }
+  applyVars() {
+    const root = document.documentElement;
+    const accent = this.props.accent || '#8b5cf6';
+    root.style.setProperty('--kv-accent', accent);
+    const glowMap = { 'Sutil': '0.5', 'Cinematic': '1', 'Intenso': '1.45' };
+    root.style.setProperty('--kv-glow', glowMap[this.props.glow] || '1');
+  }
+  renderVals() { return {}; }
+}
+</script>
 </body>
 </html>

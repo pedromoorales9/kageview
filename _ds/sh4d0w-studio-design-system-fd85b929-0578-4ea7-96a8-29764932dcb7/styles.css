@@ -1,0 +1,189 @@
+/* ============================================================
+   Sh4d0w Studio — Design System
+   Global tokens, themes, fonts, and base styles.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('./components.css');
+
+/* ---------- Design tokens (theme-agnostic) ---------- */
+:root {
+  /* Type families */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-sans: 'Manrope', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Type scale */
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 26px;
+  --text-3xl: 34px;
+  --text-4xl: 44px;
+
+  /* Weights */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Brand violet ramp */
+  --violet-50:  #f3effe;
+  --violet-100: #e6dcfd;
+  --violet-200: #cfbcfb;
+  --violet-300: #b095f7;
+  --violet-400: #9a78f3;
+  --violet-500: #8b5cf6;
+  --violet-600: #7c3aed;
+  --violet-700: #6927d4;
+  --violet-800: #561fab;
+  --violet-900: #3f177d;
+
+  /* Status hues */
+  --green-500: #34d399;
+  --green-600: #10b981;
+  --amber-500: #fbbf24;
+  --red-500:   #f87171;
+  --blue-500:  #60a5fa;
+
+  /* Radii */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  /* Spacing scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Brand gradient */
+  --grad-brand: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%); /* @kind color */
+  --grad-brand-soft: linear-gradient(135deg, rgba(167,139,250,0.18) 0%, rgba(124,58,237,0.10) 100%); /* @kind color */
+
+  /* Motion */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1); /* @kind other */
+  --dur-fast: 120ms; /* @kind other */
+  --dur: 200ms; /* @kind other */
+}
+
+/* ---------- Dark theme (default) ---------- */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0a0a0f;
+  --bg-app: radial-gradient(140% 120% at 80% -10%, #15101f 0%, #0a0a0f 55%);
+  --titlebar: #121218;
+  --sidebar: #0d0d13;
+  --surface: #14141b;
+  --surface-2: #1b1b24;
+  --surface-3: #23232e;
+  --surface-hover: #1f1f29;
+
+  --border: rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.12);
+  --border-accent: rgba(139,92,246,0.55);
+
+  --text: #f5f5f7;
+  --text-muted: #9b9ba8;
+  --text-subtle: #6a6a78;
+  --text-on-accent: #ffffff;
+
+  --accent: var(--violet-500);
+  --accent-hover: var(--violet-400);
+  --accent-press: var(--violet-600);
+  --accent-text: #c4b1fb;
+  --accent-soft: rgba(139,92,246,0.14);
+  --accent-soft-border: rgba(139,92,246,0.30);
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.40);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.45);
+  --shadow-lg: 0 18px 50px rgba(0,0,0,0.55);
+  --shadow-accent: 0 8px 28px rgba(124,58,237,0.40);
+
+  --grid-line: rgba(255,255,255,0.035);
+}
+
+/* ---------- Light theme ---------- */
+[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f6f6fa;
+  --bg-app: radial-gradient(140% 120% at 80% -10%, #efe9fb 0%, #f6f6fa 55%);
+  --titlebar: #ffffff;
+  --sidebar: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f4f3f8;
+  --surface-3: #eceaf3;
+  --surface-hover: #f0eef7;
+
+  --border: rgba(17,17,27,0.09);
+  --border-strong: rgba(17,17,27,0.16);
+  --border-accent: rgba(124,58,237,0.45);
+
+  --text: #16131f;
+  --text-muted: #5d5a6b;
+  --text-subtle: #8b8898;
+  --text-on-accent: #ffffff;
+
+  --accent: var(--violet-600);
+  --accent-hover: var(--violet-500);
+  --accent-press: var(--violet-700);
+  --accent-text: #6927d4;
+  --accent-soft: rgba(124,58,237,0.10);
+  --accent-soft-border: rgba(124,58,237,0.25);
+
+  --shadow-sm: 0 1px 2px rgba(17,17,27,0.06);
+  --shadow-md: 0 10px 28px rgba(17,17,27,0.10);
+  --shadow-lg: 0 20px 50px rgba(17,17,27,0.14);
+  --shadow-accent: 0 10px 28px rgba(124,58,237,0.28);
+
+  --grid-line: rgba(17,17,27,0.04);
+}
+
+/* ---------- Base ---------- */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--text);
+}
+
+::selection { background: var(--accent-soft); color: var(--text); }
+
+/* Utility number/mono accent */
+.ds-mono { font-family: var(--font-mono); font-feature-settings: 'tnum' 1; }
+
+/* Thin scrollbars to match the app chrome */
+* { scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-track { background: transparent; }
