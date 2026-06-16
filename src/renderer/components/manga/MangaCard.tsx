@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MangaModel } from '../../../modules/manga';
 
 const STATUS_I18N: Record<string, string> = {
@@ -28,6 +28,13 @@ function inferType(manga: MangaModel): { label: string; color: string } | null {
     return { label: 'MANHWA', color: 'bg-teal-500' };
   }
   if (manga.sourceId === 'inmanga') return { label: 'MANGA', color: 'bg-blue-500' };
+  if (manga.sourceId === 'mangaoni') {
+    // El id codifica el tipo: "{tipo}/{slug}" (manga/manhwa/manhua)
+    const type = manga.id.split('/')[0];
+    if (type === 'manhwa') return { label: 'MANHWA', color: 'bg-teal-500' };
+    if (type === 'manhua') return { label: 'MANHUA', color: 'bg-purple-500' };
+    return { label: 'MANGA', color: 'bg-blue-500' };
+  }
   if (manga.sourceId === 'mangadex') {
     if (tags.includes('manhwa') || title.includes('manhwa')) return { label: 'MANHWA', color: 'bg-teal-500' };
     if (tags.includes('manhua') || title.includes('manhua')) return { label: 'MANHUA', color: 'bg-purple-500' };
@@ -43,7 +50,8 @@ interface MangaCardProps {
   style?: React.CSSProperties;
 }
 
-export default function MangaCard({ manga, onClick, className = '', style }: MangaCardProps) {
+function MangaCard({ manga, onClick, className = '', style }: MangaCardProps) {
+  const [imgError, setImgError] = useState(false);
   const typeInfo = inferType(manga);
   const statusText = STATUS_I18N[manga.status] ?? manga.status?.toUpperCase();
   const statusColor = STATUS_COLOR[manga.status] ?? 'bg-gray-500';
@@ -60,17 +68,19 @@ export default function MangaCard({ manga, onClick, className = '', style }: Man
     >
       {/* Cover container */}
       <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden mb-2 card-shadow transition-all duration-500 transform group-hover:-translate-y-2 group-hover:shadow-[0_0_30px_rgba(222,187,255,0.15)]">
-        {/* Cover image */}
-        {manga.coverUrl ? (
+        {/* Cover image (con placeholder si falta o falla la carga, p.ej. CDN caído) */}
+        {manga.coverUrl && !imgError ? (
           <img
             src={manga.coverUrl}
             alt={manga.title}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
+            onError={() => setImgError(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-surface-container-high">
-            <span className="material-symbols-outlined text-on-surface-variant text-4xl">menu_book</span>
+          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-surface-container-high px-2 text-center">
+            <span className="material-symbols-outlined text-on-surface-variant/60 text-4xl">menu_book</span>
+            <span className="text-[10px] text-on-surface-variant/50 font-label line-clamp-2 leading-tight">{manga.title}</span>
           </div>
         )}
 
@@ -80,7 +90,7 @@ export default function MangaCard({ manga, onClick, className = '', style }: Man
         {/* Type Badge pill — bottom left */}
         {typeInfo && (
           <div className="absolute bottom-3 left-3 right-3 pointer-events-none">
-            <span className="inline-block bg-primary/20 backdrop-blur-md text-primary text-[9px] sm:text-[11px] lg:text-[13px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest shadow-lg border border-primary/20">
+            <span className="inline-block bg-primary/30 text-primary text-[9px] sm:text-[11px] lg:text-[13px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest shadow-lg border border-primary/20">
               {typeInfo.label}
             </span>
           </div>
@@ -99,3 +109,5 @@ export default function MangaCard({ manga, onClick, className = '', style }: Man
     </div>
   );
 }
+
+export default React.memo(MangaCard);

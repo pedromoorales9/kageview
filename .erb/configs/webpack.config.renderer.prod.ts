@@ -4,6 +4,7 @@ import HtmlWebpackPlugin from 'html-webpack-plugin';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import { merge } from 'webpack-merge';
 import baseConfig from './webpack.config.base';
+import { anilistDefinePlugin } from './loadEnv';
 
 const rootDir = path.resolve(__dirname, '../..');
 
@@ -44,6 +45,7 @@ const rendererProdConfig: Configuration = merge(baseConfig, {
     new MiniCssExtractPlugin({
       filename: 'styles.css',
     }),
+    anilistDefinePlugin(),
   ],
 });
 

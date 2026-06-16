@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { MangaModel, DEFAULT_PROVIDER_ID, getAllMangaProviders, getMangaProvider } from '../../modules/manga';
 import { useAppStore } from '../../modules/store';
 import MangaRow from '../components/manga/MangaRow';
@@ -14,11 +14,13 @@ export default function MangaPage({ onSelectManga }: MangaPageProps) {
   const [recent, setRecent] = useState<MangaModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [showAdult, setShowAdult] = useState(false);
   const prefs = useAppStore((s) => s.prefs);
   
-  const enabledProviders = getAllMangaProviders().filter(
-    (p) => prefs.mangaProvidersEnabled?.[p.id] !== false
+  const enabledProviders = useMemo(
+    () => getAllMangaProviders().filter((p) => prefs.mangaProvidersEnabled?.[p.id] !== false),
+    [prefs.mangaProvidersEnabled]
   );
 
   const [activeProviderId, setActiveProviderId] = useState(() => {
@@ -64,7 +66,7 @@ export default function MangaPage({ onSelectManga }: MangaPageProps) {
     }
     load();
     return () => { cancelled = true; };
-  }, [activeProviderId]);
+  }, [activeProviderId, reloadKey]);
 
   // Debounced search
   useEffect(() => {
@@ -85,7 +87,7 @@ export default function MangaPage({ onSelectManga }: MangaPageProps) {
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, activeProviderId]);
 
   if (loading) {
     return (
@@ -105,7 +107,7 @@ export default function MangaPage({ onSelectManga }: MangaPageProps) {
         <h2 className="font-headline text-xl font-bold text-on-surface">Error de Conexión</h2>
         <p className="text-on-surface-variant text-sm text-center max-w-md">{error}</p>
         <button
-          onClick={() => { setLoading(true); setError(null); }}
+          onClick={() => { setError(null); setReloadKey((k) => k + 1); }}
           className="mt-4 px-6 py-2 rounded-full bg-primary/20 text-primary font-label text-sm hover:bg-primary/30 transition-colors"
         >
           Reintentar

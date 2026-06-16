@@ -11,7 +11,7 @@ interface AnimeCardProps {
   className?: string;
 }
 
-export default function AnimeCard({
+function AnimeCard({
   anime,
   onClick,
   showProgress = false,
@@ -120,3 +120,5 @@ export default function AnimeCard({
     </button>
   );
 }
+
+export default React.memo(AnimeCard);

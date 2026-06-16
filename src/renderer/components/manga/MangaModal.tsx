@@ -40,22 +40,29 @@ interface MangaModalProps {
   onReadChapter: (chapterIndex: number, chapters: MangaChapterModel[]) => void;
 }
 
+// Capítulos renderizados por lote. Evita congelar el modal con series muy
+// largas (p.ej. One Piece en InManga ≈ 1187 capítulos) creando todo de golpe.
+const CHAPTER_BATCH = 100;
+
 export default function MangaModal({ manga, onClose, onReadChapter }: MangaModalProps) {
   const [chapters, setChapters] = useState<MangaChapterModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [visibleChapters, setVisibleChapters] = useState(CHAPTER_BATCH);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Library state
   const [libraryEntry, setLibraryEntry] = useState<MangaLibraryEntry | null>(null);
   const [readProgress, setReadProgress] = useState<MangaReadProgress | null>(null);
   const [libraryLoading, setLibraryLoading] = useState(false);
+  const [coverError, setCoverError] = useState(false);
 
   // Fetch chapters on mount
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setVisibleChapters(CHAPTER_BATCH);
 
     const provider = getMangaProvider(manga.sourceId);
     provider.getMangaChapters(manga.id)
@@ -145,11 +152,12 @@ export default function MangaModal({ manga, onClose, onReadChapter }: MangaModal
       ">
         {/* Left — Cover */}
         <div className="relative w-[260px] flex-none">
-          {manga.coverUrl ? (
+          {manga.coverUrl && !coverError ? (
             <img
               src={manga.coverUrl}
               alt={manga.title}
               className="w-full h-full object-cover"
+              onError={() => setCoverError(true)}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-surface-container-high">
@@ -299,7 +307,13 @@ export default function MangaModal({ manga, onClose, onReadChapter }: MangaModal
             ) : (
               <div ref={listRef} className="flex-1 overflow-y-auto pr-2 scrollbar-thin">
                 <div className="flex flex-col gap-1">
-                  {chapters.map((ch, idx) => {
+                  {(() => {
+                    const sliceEnd = Math.max(visibleChapters, continueChapterIndex >= 0 ? continueChapterIndex + 10 : 0);
+                    const shown = chapters.slice(0, sliceEnd);
+                    const remaining = chapters.length - shown.length;
+                    return (
+                      <>
+                  {shown.map((ch, idx) => {
                     const chNum = ch.chapter ? `Cap. ${ch.chapter}` : `ID ${ch.id.slice(0, 8)}`;
                     const date = ch.publishAt
                       ? new Date(ch.publishAt).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -341,9 +355,11 @@ export default function MangaModal({ manga, onClose, onReadChapter }: MangaModal
                           {date && (
                             <span className="text-[11px] text-on-surface-variant/60">{date}</span>
                           )}
-                          <span className="text-[11px] text-on-surface-variant/50">
-                            {ch.pages}p
-                          </span>
+                          {ch.pages > 0 && (
+                            <span className="text-[11px] text-on-surface-variant/50">
+                              {ch.pages}p
+                            </span>
+                          )}
                           <span className={`material-symbols-outlined text-sm transition-colors ${isLastRead ? 'text-primary' : 'text-on-surface-variant/40 group-hover:text-primary'}`}>
                             chevron_right
                           </span>
@@ -351,6 +367,17 @@ export default function MangaModal({ manga, onClose, onReadChapter }: MangaModal
                       </button>
                     );
                   })}
+                  {remaining > 0 && (
+                    <button
+                      onClick={() => setVisibleChapters(sliceEnd + CHAPTER_BATCH * 2)}
+                      className="mt-1 w-full py-2.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest border border-surface-variant/10 hover:border-primary/30 text-xs font-label font-semibold text-on-surface-variant hover:text-primary transition-colors"
+                    >
+                      Cargar más capítulos ({remaining} restantes)
+                    </button>
+                  )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}

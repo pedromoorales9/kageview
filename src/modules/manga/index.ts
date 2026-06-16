@@ -2,6 +2,7 @@ import { MangaProvider } from './types';
 import { MangaDexProvider } from './providers/mangadex';
 import { InMangaProvider } from './providers/inmanga';
 import { ManhwaWebProvider } from './providers/manhwaweb';
+import { MangaOniProvider } from './providers/mangaoni';
 
 export * from './types';
 
@@ -9,6 +10,7 @@ export const MANGA_PROVIDERS: Record<string, MangaProvider> = {
   [MangaDexProvider.id]: MangaDexProvider,
   [InMangaProvider.id]: InMangaProvider,
   [ManhwaWebProvider.id]: ManhwaWebProvider,
+  [MangaOniProvider.id]: MangaOniProvider,
 };
 
 export const DEFAULT_PROVIDER_ID = MangaDexProvider.id;

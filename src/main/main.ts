@@ -26,6 +26,10 @@ const isDev = process.env.NODE_ENV === 'development' || process.env.ELECTRON_IS_
 // ─── Spoof Global User-Agent para evadir Cloudflare/Anti-Bots ───
 const GENERIC_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+// MangaDex (API y CDN de portadas) rechaza User-Agents de navegador con un
+// "400: Unsupported Browser". Hay que identificarse como cliente de API.
+const MANGADEX_USER_AGENT = 'KageView/1.0 (https://github.com/pedromoorales9/KageView)';
+
 // ─── Deep Link Protocol ──────────────────────────────────
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
@@ -59,6 +63,17 @@ if (!gotTheLock) {
 function handleDeepLink(url: string): void {
   try {
     const parsed = new URL(url);
+    // Implicit Grant: el access_token llega en el fragmento
+    // (kageview://auth#access_token=...&token_type=Bearer&expires_in=...)
+    const fragment = new URLSearchParams(
+      parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash
+    );
+    const accessToken = fragment.get('access_token');
+    if (accessToken && mainWindow) {
+      mainWindow.webContents.send('oauth-code', accessToken);
+      return;
+    }
+    // Compatibilidad: flujo antiguo basado en ?code=
     const code = parsed.searchParams.get('code');
     if (code && mainWindow) {
       mainWindow.webContents.send('oauth-code', code);
@@ -152,12 +167,18 @@ async function createWindow(): Promise<void> {
         return;
       }
 
-      // No tocar localhost, devtools, AniList ni MangaDex (tienen hotlink protection)
+      // MangaDex bloquea User-Agents de navegador (API + CDN de portadas).
+      // Forzamos un UA de cliente de API y NO tocamos Referer/Origin.
+      if (url.includes('mangadex.org') || url.includes('mangadex.network')) {
+        details.requestHeaders['User-Agent'] = MANGADEX_USER_AGENT;
+        callback({ cancel: false, requestHeaders: details.requestHeaders });
+        return;
+      }
+
+      // No tocar localhost, devtools ni AniList (tienen hotlink protection)
       const isInternalOrAniList = url.includes('localhost') ||
                                   url.includes('127.0.0.1') ||
                                   url.includes('anilist.co') ||
-                                  url.includes('mangadex.org') ||
-                                  url.includes('mangadex.network') ||
                                   url.startsWith('devtools://');
 
       if (!isInternalOrAniList) {
@@ -180,6 +201,12 @@ async function createWindow(): Promise<void> {
         if (url.includes('jkanime') || url.includes('jk.php') || url.includes('desu')) {
           details.requestHeaders['Referer'] = 'https://jkanime.net/';
           details.requestHeaders['Origin'] = 'https://jkanime.net';
+        } else if (url.includes('mw.xyz') || url.includes('imageshack.com') || url.includes('manhwaweb')) {
+          // ManhwaWeb sirve portadas/páginas con hotlink protection que exige
+          // el Referer de su propio sitio. Las portadas se reparten en varios
+          // CDNs (img1mw.xyz, img2mw.xyz, …), por eso usamos "mw.xyz".
+          details.requestHeaders['Referer'] = 'https://manhwaweb.com/';
+          details.requestHeaders['Origin'] = 'https://manhwaweb.com';
         } else {
           // Default it to AnimeFLV for embed servers like Streamwish, Okru, Mega, Fembed etc.
           details.requestHeaders['Referer'] = 'https://animeflv.net/';

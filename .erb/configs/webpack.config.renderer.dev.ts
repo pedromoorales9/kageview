@@ -4,6 +4,7 @@ import { Configuration as DevServerConfig } from 'webpack-dev-server';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import { merge } from 'webpack-merge';
 import baseConfig from './webpack.config.base';
+import { anilistDefinePlugin } from './loadEnv';
 
 const rootDir = path.resolve(__dirname, '../..');
 
@@ -42,6 +43,7 @@ const rendererDevConfig: Config = merge(baseConfig as WebpackConfig, {
       template: path.resolve(rootDir, 'src/renderer/index.html'),
       filename: 'index.html',
     }),
+    anilistDefinePlugin(),
   ],
   devServer: {
     port: 1212,

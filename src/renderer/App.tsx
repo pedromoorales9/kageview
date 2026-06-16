@@ -72,14 +72,14 @@ export default function App() {
   useEffect(() => {
     initSession();
 
-    // Escuchar OAuth code desde deep link
+    // Escuchar el access_token de AniList desde el deep link (implicit grant)
     if (window.electron) {
-      window.electron.onOAuthCode(async (code: string) => {
-        console.log('[App] OAuth code recibido:', code);
+      window.electron.onOAuthCode(async (token: string) => {
+        console.log('[App] Token de AniList recibido desde deep link');
         try {
-          await login(code);
+          await login(token);
         } catch (err) {
-          console.error('[App] Error al iniciar sesión con OAuth:', err);
+          console.error('[App] Error al iniciar sesión con AniList:', err);
         }
       });
     }

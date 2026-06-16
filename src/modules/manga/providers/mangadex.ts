@@ -4,6 +4,12 @@ import { MangaModel, MangaChapterModel, MangaPagesModel, MangaProvider } from '.
 const MDEX_API = 'https://api.mangadex.org';
 const MDEX_COVERS = 'https://uploads.mangadex.org/covers';
 
+// MangaDex bloquea User-Agents de navegador (Chrome/Firefox → 400 "Unsupported
+// Browser"). Su API exige un UA de cliente que identifique la app, no que finja
+// ser un navegador. main.ts inyecta Chrome por defecto, así que lo sobrescribimos.
+const MDEX_USER_AGENT = 'KageView/1.0 (https://github.com/pedromoorales9/KageView)';
+const MDEX_HEADERS = { 'User-Agent': MDEX_USER_AGENT };
+
 function parseManga(raw: any): MangaModel {
   const attrs = raw.attributes || {};
 
@@ -64,21 +70,21 @@ export const MangaDexProvider: MangaProvider = {
   async searchManga(query: string): Promise<MangaModel[]> {
     const p = baseParams();
     if (query.trim()) p.set('title', query.trim());
-    const res = await proxyGet<any>(`${MDEX_API}/manga?${p.toString()}`);
+    const res = await proxyGet<any>(`${MDEX_API}/manga?${p.toString()}`, { headers: MDEX_HEADERS });
     return (res.data?.data ?? []).map(parseManga);
   },
 
   async getPopularManga(): Promise<MangaModel[]> {
     const p = baseParams();
     p.set('order[followedCount]', 'desc');
-    const res = await proxyGet<any>(`${MDEX_API}/manga?${p.toString()}`);
+    const res = await proxyGet<any>(`${MDEX_API}/manga?${p.toString()}`, { headers: MDEX_HEADERS });
     return (res.data?.data ?? []).map(parseManga);
   },
 
   async getRecentlyUpdatedManga(): Promise<MangaModel[]> {
     const p = baseParams();
     p.set('order[updatedAt]', 'desc');
-    const res = await proxyGet<any>(`${MDEX_API}/manga?${p.toString()}`);
+    const res = await proxyGet<any>(`${MDEX_API}/manga?${p.toString()}`, { headers: MDEX_HEADERS });
     return (res.data?.data ?? []).map(parseManga);
   },
 
@@ -89,7 +95,7 @@ export const MangaDexProvider: MangaProvider = {
     p.set('order[chapter]', 'asc');
     p.set('limit', '500');
 
-    const res = await proxyGet<any>(`${MDEX_API}/manga/${mangaId}/feed?${p.toString()}`);
+    const res = await proxyGet<any>(`${MDEX_API}/manga/${mangaId}/feed?${p.toString()}`, { headers: MDEX_HEADERS });
     const raw: any[] = res.data?.data ?? [];
 
     const chapters: MangaChapterModel[] = raw.map((c) => ({
@@ -119,7 +125,7 @@ export const MangaDexProvider: MangaProvider = {
   },
 
   async getChapterPages(chapterId: string): Promise<MangaPagesModel> {
-    const res = await proxyGet<any>(`${MDEX_API}/at-home/server/${chapterId}`);
+    const res = await proxyGet<any>(`${MDEX_API}/at-home/server/${chapterId}`, { headers: MDEX_HEADERS });
     const ch = res.data?.chapter;
     return {
       baseUrl: res.data?.baseUrl ?? 'https://uploads.mangadex.org',

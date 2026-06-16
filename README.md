@@ -6,7 +6,7 @@
 
 **App de escritorio para streaming de anime y lectura de manga — sin anuncios, sin cuentas, en español.**
 
-[![Version](https://img.shields.io/badge/version-1.0.9-cb97ff?style=flat-square&labelColor=0e0e13)](https://github.com/pedromoorales9/kageview/releases/latest)
+[![Version](https://img.shields.io/badge/version-1.1.0-cb97ff?style=flat-square&labelColor=0e0e13)](https://github.com/pedromoorales9/kageview/releases/latest)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-cb97ff?style=flat-square&labelColor=0e0e13)](https://www.gnu.org/licenses/gpl-3.0)
 [![Electron](https://img.shields.io/badge/Electron-28-47c4ff?style=flat-square&labelColor=0e0e13)](https://electronjs.org)
 [![React](https://img.shields.io/badge/React-18-f673b7?style=flat-square&labelColor=0e0e13)](https://reactjs.org)
@@ -60,6 +60,7 @@ KageView conecta múltiples fuentes y cambia automáticamente si una falla. Pued
 | Provider | Idioma | Tipo | Estado |
 |----------|--------|------|--------|
 | 🟢 MangaDex | 🌐 Multi | Manga / Manhwa / Manhua | Activo |
+| 🟢 MangaOni | 🇪🇸 Español | Manga / Manhwa / Manhua | Activo |
 | 🟢 InManga | 🇪🇸 Español | Manga | Activo |
 | 🟢 ManhwaWeb | 🇪🇸 Español | Manhwa | Activo |
 
@@ -71,7 +72,7 @@ KageView conecta múltiples fuentes y cambia automáticamente si una falla. Pued
 
 | Sistema | Archivo | |
 |---------|---------|--|
-| Windows 10/11 | `KageView-Setup-1.0.9.exe` | [**Descargar →**](https://github.com/pedromoorales9/kageview/releases/latest) |
+| Windows 10/11 | `KageView-Setup-1.1.0.exe` | [**Descargar →**](https://github.com/pedromoorales9/kageview/releases/latest) |
 | Linux / macOS | — | Próximamente |
 
 > Si ya tienes KageView instalado, la app se actualiza sola en cuanto detecta una nueva versión.
@@ -96,21 +97,18 @@ npm install
 
 ### Configurar AniList
 
-1. Ve a [AniList Developer Settings](https://anilist.co/settings/developer)
-2. Crea una nueva aplicación
-3. Pon como Redirect URI: `kageview://auth`
-4. Copia `clientId` y `clientSecret`
-5. Crea el archivo `src/modules/clientData.ts`:
+KageView usa **OAuth Implicit Grant**, así que solo necesita el `clientId` **público** de la app — no se usa ni se incrusta ningún `clientSecret`. Cada usuario inicia sesión con su propia cuenta.
 
-```ts
-export const clientData: ClientData = {
-  clientId: TU_CLIENT_ID,
-  clientSecret: "TU_CLIENT_SECRET",
-  redirectUri: "kageview://auth",
-};
+1. Ve a [AniList Developer Settings](https://anilist.co/settings/developer)
+2. Crea una nueva aplicación con Redirect URL: `kageview://auth`
+3. Copia el `clientId`
+4. Crea un archivo `.env` en la raíz (puedes partir de `.env.example`):
+
+```bash
+ANILIST_CLIENT_ID=tu_client_id
 ```
 
-> ⚠️ `clientData.ts` está en `.gitignore`. Nunca lo subas a GitHub.
+> ⚠️ `.env` está en `.gitignore` y persiste entre builds. El valor se inyecta automáticamente en cada compilación, así que no hay que volver a tocar el código.
 
 ### Lanzar en desarrollo
 
@@ -182,7 +180,7 @@ src/
 │   ├── manga/               # Providers de manga
 │   │   ├── index.ts         # Registro de manga providers
 │   │   ├── types.ts         # Modelos de datos
-│   │   └── providers/       # MangaDex, InManga, ManhwaWeb
+│   │   └── providers/       # MangaDex, MangaOni, InManga, ManhwaWeb
 │   ├── anilist/             # GraphQL client + queries
 │   ├── aniskip.ts           # Skip intro/outro timestamps
 │   ├── store.ts             # Zustand global store
@@ -196,6 +194,17 @@ src/
 ---
 
 ## 📋 Changelog
+
+### v1.1.0 — MangaOni, UI responsive y login propio
+- **Nuevo provider de manga: MangaOni** (manga-oni.com) — manga, manhwa y manhua en español, con filtro de contenido +18
+- **MangaDex restaurado** — corregido el bloqueo por User-Agent que rompía API y portadas
+- **ManhwaWeb** — portadas arregladas (referer correcto de su CDN)
+- **Lista de episodios estilo Crunchyroll** — cuadrícula de miniaturas con orden ascendente/descendente y carga por lotes (soporta series enormes como One Piece sin congelar)
+- **Buscador de episodios** dentro del modal de anime (por número o título)
+- **UI responsive** — las cuadrículas y filas se adaptan al ancho de la ventana
+- **Login con tu propia cuenta (OAuth Implicit Grant)** — la app ya no incrusta ningún `clientSecret`; cada usuario entra con su cuenta y el token se guarda solo en su equipo
+- **Optimización de rendimiento** — menos `backdrop-blur` por tarjeta, memoización y render por lotes para evitar tirones
+- Credenciales movidas a `.env` (inyección en build) para que persistan entre actualizaciones
 
 ### v1.0.9 — Proveedor favorito
 - Selector de proveedor favorito en Ajustes para **anime** y **manga**

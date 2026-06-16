@@ -431,10 +431,10 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
                       <div
                         className="
                           absolute inset-0 rounded-xl
-                          bg-success/20 flex items-center justify-center
+                          bg-emerald-500/20 flex items-center justify-center
                         "
                       >
-                        <span className="material-symbols-outlined text-success text-xl">check_circle</span>
+                        <span className="material-symbols-outlined text-emerald-400 text-xl">check_circle</span>
                       </div>
                     )}
                   </div>

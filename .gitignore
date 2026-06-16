@@ -12,7 +12,6 @@ release/build/
 .env
 .env.local
 .env.*.local
-src/modules/clientData.ts
 
 # IDE
 .idea/

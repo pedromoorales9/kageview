@@ -3,7 +3,6 @@
 // ═══════════════════════════════════════════════════════════
 
 import { useCallback } from 'react';
-import { proxyPost } from '../../modules/httpProxy';
 import { gqlRequest } from '../../modules/anilist/client';
 import {
   QUERY_TRENDING,
@@ -16,7 +15,6 @@ import {
   QUERY_AIRING_SCHEDULE,
 } from '../../modules/anilist/queries';
 import { MUTATION_SAVE_PROGRESS, MUTATION_SAVE_SCORE } from '../../modules/anilist/mutations';
-import { clientData } from '../../modules/clientData';
 import { useAppStore } from '../../modules/store';
 import { AniListAnime, AniListViewer } from '../../types/types';
 
@@ -244,35 +242,30 @@ export default function useAniList() {
     [token]
   );
 
-  /** Login: intercambiar authorization code por token */
+  /**
+   * Login con AniList — flujo Implicit Grant.
+   * El access_token llega directamente en el redirect (no hay intercambio
+   * de código ni se usa el client_secret), por eso la app no necesita
+   * incrustar ningún secreto: solo el clientId público.
+   * Cada usuario inicia sesión con SU propia cuenta; el token se guarda
+   * únicamente en su máquina.
+   */
   const login = useCallback(
-    async (code: string) => {
+    async (accessToken: string) => {
       try {
-        const { data } = await proxyPost<{
-          access_token: string;
-          token_type: string;
-          expires_in: number;
-        }>('https://anilist.co/api/v2/oauth/token', {
-          grant_type: 'authorization_code',
-          client_id: clientData.clientId,
-          client_secret: clientData.clientSecret,
-          redirect_uri: clientData.redirectUri,
-          code,
-        }, {
-          headers: { 'Content-Type': 'application/json' },
-        });
+        const tokenValue = accessToken.trim();
+        if (!tokenValue) throw new Error('Token vacío');
 
-        const typed = data as { access_token: string; token_type: string; expires_in: number };
-        const tokenValue = typed.access_token;
         setToken(tokenValue);
 
-        // Guardar en electron-store
+        // Los tokens de AniList (implicit grant) duran 1 año
+        const ONE_YEAR_SEC = 365 * 24 * 60 * 60;
         if (window.electron) {
-           await window.electron.setStore('token', {
+          await window.electron.setStore('token', {
             access_token: tokenValue,
-            token_type: typed.token_type,
-            expires_in: typed.expires_in,
-            expiry: Date.now() + typed.expires_in * 1000,
+            token_type: 'Bearer',
+            expires_in: ONE_YEAR_SEC,
+            expiry: Date.now() + ONE_YEAR_SEC * 1000,
           });
         }
 

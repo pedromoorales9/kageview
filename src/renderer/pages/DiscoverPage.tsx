@@ -38,6 +38,7 @@ export default function DiscoverPage({ onSelectAnime }: DiscoverPageProps) {
   const [topRated, setTopRated] = useState<AniListAnime[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,7 +67,7 @@ export default function DiscoverPage({ onSelectAnime }: DiscoverPageProps) {
     load();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reloadKey]);
 
   // Inteligencia Artificial / Algoritmo de Recomendación
   useEffect(() => {
@@ -144,7 +145,7 @@ export default function DiscoverPage({ onSelectAnime }: DiscoverPageProps) {
           {error}
         </p>
         <button
-          onClick={() => { setLoading(true); setError(null); }}
+          onClick={() => { setError(null); setLoading(true); setReloadKey((k) => k + 1); }}
           className="mt-4 px-6 py-2 rounded-full bg-primary/20 text-primary font-label text-sm hover:bg-primary/30 transition-colors"
         >
           Reintentar

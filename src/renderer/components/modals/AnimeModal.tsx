@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AniListAnime, AniZipEpisode, PlayMode, AnimeRelationNode, RelationType } from '../../../types/types';
 import useAnimeInfo from '../../hooks/useAnimeInfo';
 import useAniList from '../../hooks/useAniList';
@@ -48,29 +48,44 @@ const RELATION_COLOR: Record<RelationType | string, string> = {
   default:     'bg-surface-variant/40 text-on-surface-variant border-surface-variant/50',
 };
 
+// Episodios renderizados por lote. Evita congelar el modal al abrir animes
+// con cientos/miles de episodios (p.ej. One Piece) creando todo el DOM de golpe.
+const EPISODE_BATCH = 60;
+
 export default function AnimeModal({ anime: initialAnime, onClose, onPlay, onSelectRelation }: AnimeModalProps) {
   const [anime, setAnime] = useState<AniListAnime>(initialAnime);
   const [lastWatchedEp, setLastWatchedEp] = useState<number | null>(null);
   const [navigatingTo, setNavigatingTo] = useState<number | null>(null);
+  const [visibleEpisodes, setVisibleEpisodes] = useState(EPISODE_BATCH);
+  const [sortDesc, setSortDesc] = useState(false);
+  const [episodeQuery, setEpisodeQuery] = useState('');
   const { episodes, loading } = useAnimeInfo(anime.id);
   const { updateListStatus } = useAniList();
   const token = useAppStore((s) => s.token);
-  const episodesCarouselRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const el = episodesCarouselRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      el.scrollLeft += e.deltaY + e.deltaX;
-    };
-    el.addEventListener('wheel', onWheel, { passive: false, capture: true });
-    return () => el.removeEventListener('wheel', onWheel, { capture: true });
-  }, [episodes]);
+  // Lista ordenada (asc/desc). Útil en series muy largas para ir al más reciente.
+  const sortedEpisodes = useMemo(
+    () => (sortDesc ? [...episodes].reverse() : episodes),
+    [episodes, sortDesc]
+  );
+
+  // Filtrado por número o título del episodio
+  const filteredEpisodes = useMemo(() => {
+    const q = episodeQuery.trim().toLowerCase();
+    if (!q) return sortedEpisodes;
+    return sortedEpisodes.filter(
+      (e) =>
+        String(e.episodeNumber).includes(q) ||
+        (e.title?.en ?? '').toLowerCase().includes(q)
+    );
+  }, [sortedEpisodes, episodeQuery]);
 
   // Sincronizar estado interno cuando cambia el anime (navegación por relaciones)
   useEffect(() => {
     setAnime(initialAnime);
+    setVisibleEpisodes(EPISODE_BATCH);
+    setSortDesc(false);
+    setEpisodeQuery('');
   }, [initialAnime.id]);
 
   // Cargar último episodio visto desde local storage vía IPC
@@ -293,71 +308,143 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay, onSel
 
           {/* Episodes List + Relations — scrollable together */}
           <div className="flex-1 mt-5 px-6 pb-4 overflow-hidden flex flex-col">
-            <h3 className="text-sm font-headline font-semibold text-on-surface mb-3">
-              Episodios
-            </h3>
+            <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+              <h3 className="text-sm font-headline font-semibold text-on-surface">
+                Episodios
+                {episodes.length > 0 && (
+                  <span className="ml-2 text-on-surface-variant/60 font-normal">{episodes.length}</span>
+                )}
+              </h3>
+              <div className="flex items-center gap-2">
+                {episodes.length > 4 && (
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-[15px] pointer-events-none">search</span>
+                    <input
+                      type="text"
+                      value={episodeQuery}
+                      onChange={(e) => setEpisodeQuery(e.target.value)}
+                      placeholder="Buscar episodio..."
+                      className="w-36 sm:w-44 pl-7 pr-2 py-1.5 rounded-lg bg-surface-container-high text-on-surface text-xs font-label placeholder:text-on-surface-variant/50 border border-surface-variant/20 focus:border-primary/40 outline-none transition-colors"
+                    />
+                    {episodeQuery && (
+                      <button
+                        onClick={() => setEpisodeQuery('')}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-on-surface-variant/60 hover:text-on-surface"
+                        title="Limpiar"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">close</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+                {episodes.length > 1 && (
+                  <button
+                    onClick={() => setSortDesc((d) => !d)}
+                    className="flex items-center gap-1 text-xs font-label text-on-surface-variant hover:text-primary transition-colors flex-none"
+                    title="Cambiar orden"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">swap_vert</span>
+                    {sortDesc ? 'Más reciente' : 'Más antiguo'}
+                  </button>
+                )}
+              </div>
+            </div>
 
             {loading ? (
               <div className="flex-1 flex items-center justify-center">
                 <Spinner size={28} />
               </div>
+            ) : episodes.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center">
+                <p className="text-sm text-on-surface-variant/60 py-8 px-2 text-center">
+                  No hay episodios disponibles para este anime
+                </p>
+              </div>
             ) : (
               <div className="flex-1 overflow-y-auto pr-2 pb-4 scrollbar-thin">
-                {/* Episodios Carousel (Horizontal) */}
-                <div
-                  ref={episodesCarouselRef}
-                  className="flex gap-4 overflow-x-scroll pb-2 pt-1 px-1 snap-x carousel-scrollbar"
-                >
-                  {episodes.map((ep) => (
-                    <div
-                      key={ep.episodeNumber}
-                      onClick={() => onPlay(ep.episodeNumber, 'sub')}
-                      role="button"
-                      tabIndex={0}
-                      className={`
-                        group flex-none w-[200px] flex flex-col text-left rounded-lg overflow-hidden cursor-pointer
-                        bg-surface-container-high hover:bg-surface-container-highest
-                        transition-all duration-200 snap-start
-                        ${ep.episodeNumber === lastWatchedEp ? 'ring-2 ring-primary ring-inset' : 'border border-surface-variant/10 hover:border-primary/20'}
-                      `}
-                    >
-                      <div className="relative shrink-0 w-full aspect-video bg-surface-container">
-                        <img
-                          src={ep.image || fallbackImage}
-                          alt={`Ep ${ep.episodeNumber}`}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                        {/* Play icon on hover */}
-                        <div className="
-                          absolute inset-0 flex items-center justify-center
-                          opacity-0 group-hover:opacity-100
-                          bg-black/40 transition-opacity duration-200
-                        ">
-                          <span className="material-symbols-outlined filled text-white text-3xl">
-                            play_circle
-                          </span>
-                        </div>
+                {/* Episodios — cuadrícula estilo Crunchyroll */}
+                {(() => {
+                  const isFiltering = episodeQuery.trim().length > 0;
+                  const lastWatchedIdx = lastWatchedEp
+                    ? sortedEpisodes.findIndex((e) => e.episodeNumber === lastWatchedEp)
+                    : -1;
+                  const sliceEnd = Math.max(visibleEpisodes, lastWatchedIdx >= 0 ? lastWatchedIdx + 6 : 0);
+                  // Al buscar mostramos todas las coincidencias; sin buscar, por lotes
+                  // para no congelar el modal en series muy largas.
+                  const shown = isFiltering
+                    ? filteredEpisodes.slice(0, 300)
+                    : sortedEpisodes.slice(0, sliceEnd);
+                  const remaining = isFiltering ? 0 : sortedEpisodes.length - shown.length;
+                  const seriesTitle = anime.title.english || anime.title.romaji;
+                  if (isFiltering && filteredEpisodes.length === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-12 gap-2 text-on-surface-variant/60">
+                        <span className="material-symbols-outlined text-4xl">search_off</span>
+                        <p className="text-sm text-center">No se encontró ningún episodio para «{episodeQuery}»</p>
                       </div>
-                      <div className="p-3">
-                        <p className={`text-xs font-label font-bold ${ep.episodeNumber === lastWatchedEp ? 'text-primary' : 'text-on-surface'} group-hover:text-primary transition-colors`}>
-                          Episodio {ep.episodeNumber} {ep.episodeNumber === lastWatchedEp && '(Último)'}
-                        </p>
-                        {ep.title?.en && (
-                          <p className="text-[11px] text-on-surface-variant line-clamp-2 mt-1 leading-tight">
-                            {ep.title.en}
-                          </p>
-                        )}
+                    );
+                  }
+                  return (
+                    <>
+                      <div className="grid gap-x-3 gap-y-5 grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
+                        {shown.map((ep) => {
+                          const isLast = ep.episodeNumber === lastWatchedEp;
+                          const dur = ep.length || anime.duration;
+                          return (
+                            <div
+                              key={ep.episodeNumber}
+                              onClick={() => onPlay(ep.episodeNumber, 'sub')}
+                              role="button"
+                              tabIndex={0}
+                              className="group flex flex-col text-left cursor-pointer"
+                            >
+                              <div className={`relative w-full aspect-video rounded-lg overflow-hidden bg-surface-container ${isLast ? 'ring-2 ring-primary' : ''}`}>
+                                <img
+                                  src={ep.image || fallbackImage}
+                                  alt={`Ep ${ep.episodeNumber}`}
+                                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                  loading="lazy"
+                                />
+                                {/* Play overlay */}
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/45 transition-opacity duration-200">
+                                  <span className="material-symbols-outlined filled text-white text-4xl drop-shadow-lg">play_circle</span>
+                                </div>
+                                {/* Duration badge */}
+                                {dur && (
+                                  <span className="absolute bottom-1.5 right-1.5 text-[10px] font-bold text-white bg-black/75 px-1.5 py-0.5 rounded">
+                                    {dur}m
+                                  </span>
+                                )}
+                                {/* Last-watched marker */}
+                                {isLast && (
+                                  <span className="absolute top-1.5 left-1.5 text-[9px] font-bold text-on-primary bg-primary px-1.5 py-0.5 rounded uppercase tracking-wide">
+                                    Visto
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-2 text-[10px] text-on-surface-variant/50 font-label uppercase tracking-wide truncate">
+                                {seriesTitle}
+                              </p>
+                              <p className={`text-[13px] font-headline font-semibold leading-tight line-clamp-2 transition-colors ${isLast ? 'text-primary' : 'text-on-surface group-hover:text-primary'}`}>
+                                E{ep.episodeNumber}{ep.title?.en ? ` - ${ep.title.en}` : ''}
+                              </p>
+                            </div>
+                          );
+                        })}
                       </div>
-                    </div>
-                  ))}
 
-                  {episodes.length === 0 && !loading && (
-                    <p className="text-sm text-on-surface-variant/60 py-8 px-2 w-full text-center">
-                      No hay episodios disponibles para este anime
-                    </p>
-                  )}
-                </div>
+                      {remaining > 0 && (
+                        <button
+                          onClick={() => setVisibleEpisodes(sliceEnd + EPISODE_BATCH * 2)}
+                          className="mt-5 w-full py-2.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest border border-surface-variant/10 hover:border-primary/30 text-xs font-label font-semibold text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center gap-1.5"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">expand_more</span>
+                          Cargar más episodios ({remaining} restantes)
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
 
                 {/* Relations Section — dentro del mismo scroll */}
                 {(() => {

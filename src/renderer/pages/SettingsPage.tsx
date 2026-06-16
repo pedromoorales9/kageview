@@ -417,7 +417,7 @@ export default function SettingsPage() {
                 alert('¡Caché de la app limpiada! Reinicie KageView para aplicar los cambios.');
               }}
               className="
-                px-4 py-2. rounded-lg
+                px-4 py-2 rounded-lg
                 bg-error/15 text-error text-xs font-headline font-semibold
                 hover:bg-error/25 transition-colors
               "

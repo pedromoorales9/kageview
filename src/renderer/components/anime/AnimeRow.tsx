@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AniListAnime } from '../../../types/types';
 import AnimeCard from './AnimeCard';
 
-const PAGE_SIZE = 7;
+// Ancho objetivo por tarjeta (px). El nº de columnas se calcula según el ancho
+// disponible para que las tarjetas mantengan un tamaño consistente en cualquier
+// resolución (ventana mínima 1024px → monitores ultrawide).
+const TARGET_CARD_WIDTH = 185;
+const GRID_GAP = 12; // gap-3
+const MIN_COLS = 2;
+const MAX_COLS = 10;
 
 interface AnimeRowProps {
   title: string;
@@ -12,12 +18,36 @@ interface AnimeRowProps {
 }
 
 export default function AnimeRow({ title, animes, onSelect, badge }: AnimeRowProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [pageSize, setPageSize] = useState(7);
   const [page, setPage] = useState(0);
   const [dir, setDir] = useState<'left' | 'right'>('right');
   const [animKey, setAnimKey] = useState(0);
 
-  const totalPages = Math.ceil(animes.length / PAGE_SIZE);
-  const visible = animes.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+  // Recalcular columnas según el ancho real del contenedor
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const compute = () => {
+      const w = el.clientWidth;
+      if (w <= 0) return;
+      const cols = Math.floor((w + GRID_GAP) / (TARGET_CARD_WIDTH + GRID_GAP));
+      setPageSize(Math.max(MIN_COLS, Math.min(MAX_COLS, cols)));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const totalPages = Math.max(1, Math.ceil(animes.length / pageSize));
+
+  // Mantener la página dentro de rango cuando cambian columnas o lista
+  useEffect(() => {
+    setPage((p) => Math.min(p, totalPages - 1));
+  }, [totalPages]);
+
+  const visible = animes.slice(page * pageSize, page * pageSize + pageSize);
 
   const go = (direction: 'left' | 'right') => {
     setDir(direction);
@@ -32,7 +62,7 @@ export default function AnimeRow({ title, animes, onSelect, badge }: AnimeRowPro
   if (animes.length === 0) return null;
 
   return (
-    <section>
+    <section ref={containerRef}>
       <div className="flex items-center gap-3 mb-3 px-1">
         <button
           onClick={() => go('left')}
@@ -48,9 +78,9 @@ export default function AnimeRow({ title, animes, onSelect, badge }: AnimeRowPro
         >
           <span className="material-symbols-outlined text-sm">chevron_right</span>
         </button>
-        <h2 className="font-headline text-lg font-bold text-on-surface">{title}</h2>
+        <h2 className="font-headline text-lg font-bold text-on-surface truncate">{title}</h2>
         {badge}
-        <span className="text-xs text-on-surface-variant font-label ml-auto">
+        <span className="text-xs text-on-surface-variant font-label ml-auto flex-none">
           {page + 1} / {totalPages}
         </span>
       </div>
@@ -58,7 +88,7 @@ export default function AnimeRow({ title, animes, onSelect, badge }: AnimeRowPro
       <div
         key={animKey}
         className={`grid gap-3 ${dir === 'right' ? 'anime-row-slide-right' : 'anime-row-slide-left'}`}
-        style={{ gridTemplateColumns: `repeat(${PAGE_SIZE}, 1fr)` }}
+        style={{ gridTemplateColumns: `repeat(${pageSize}, minmax(0, 1fr))` }}
       >
         {visible.map((anime) => (
           <AnimeCard

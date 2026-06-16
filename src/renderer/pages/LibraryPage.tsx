@@ -146,10 +146,11 @@ function AnimeSection({ onSelectAnime }: { onSelectAnime: (anime: AniListAnime) 
           id="connect-anilist"
           onClick={() => {
             if (!clientData.clientId || clientData.clientId === 0) {
-              alert('Debes configurar tu Client ID en src/modules/clientData.ts para usar esta función.\nLee las instrucciones en el archivo clientData.ts.');
+              alert('El login de AniList no está configurado en esta versión (falta el Client ID público de la app).');
               return;
             }
-            const url = `https://anilist.co/api/v2/oauth/authorize?client_id=${clientData.clientId}&redirect_uri=${clientData.redirectUri}&response_type=code`;
+            // Implicit Grant: el token vuelve en el redirect, sin usar el secret.
+            const url = `https://anilist.co/api/v2/oauth/authorize?client_id=${clientData.clientId}&response_type=token`;
             if (window.electron) window.electron.openExternal(url);
           }}
           className="flex items-center gap-2 px-8 py-3 gradient-primary rounded-full text-on-primary font-headline font-semibold text-sm transition-all duration-200 hover:shadow-[0_0_22px_rgba(203,151,255,0.35)] hover:scale-[1.02]"
@@ -160,7 +161,7 @@ function AnimeSection({ onSelectAnime }: { onSelectAnime: (anime: AniListAnime) 
         <div className="flex items-center gap-2 mt-4">
           <input
             type="text"
-            placeholder="Pega el código de autorización aquí"
+            placeholder="Pega tu access token de AniList aquí"
             value={manualCode}
             onChange={(e) => setManualCode(e.target.value)}
             className="px-4 py-2 rounded-lg bg-surface-container-low text-on-surface text-sm border border-transparent focus:border-primary/30 outline-none w-64 placeholder:text-on-surface-variant/50"
@@ -207,7 +208,7 @@ function AnimeSection({ onSelectAnime }: { onSelectAnime: (anime: AniListAnime) 
           <p className="text-sm">No hay animes en esta categoría</p>
         </div>
       ) : (
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(155px,1fr))] xl:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] 2xl:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]">
           {animeList.map((anime) => (
             <div key={anime.id} className="relative">
               <AnimeCard
@@ -309,15 +310,17 @@ function MangaSection({ onSelectManga }: { onSelectManga: (manga: MangaModel) =>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-5 gap-5">
+        <div className="grid gap-5 grid-cols-[repeat(auto-fill,minmax(150px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] xl:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] 2xl:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]">
           {filtered.map((entry) => {
             const prog = getEntryProgress(entry);
             const { manga, status } = entry;
             return (
               <div key={`${manga.sourceId}-${manga.id}`} className="group relative flex flex-col gap-2">
                 {/* Cover */}
-                <button
+                <div
                   onClick={() => onSelectManga(manga)}
+                  role="button"
+                  tabIndex={0}
                   className="relative aspect-[2/3] rounded-xl overflow-hidden bg-surface-container w-full cursor-pointer transition-transform duration-200 hover:scale-[1.03] focus:outline-none"
                 >
                   {manga.coverUrl ? (
@@ -351,7 +354,7 @@ function MangaSection({ onSelectManga }: { onSelectManga: (manga: MangaModel) =>
                       </div>
                     </div>
                   )}
-                </button>
+                </div>
                 {/* Title */}
                 <p className="text-[12px] font-headline font-semibold text-on-surface line-clamp-2 px-0.5 leading-tight">
                   {manga.title}

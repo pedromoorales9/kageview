@@ -210,6 +210,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     mangadex: true,
     inmanga: true,
     manhwaweb: true,
+    mangaoni: true,
   },
   notificationsEnabled: false,
 };

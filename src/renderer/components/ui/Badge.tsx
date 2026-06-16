@@ -7,13 +7,16 @@ interface BadgeProps {
   className?: string;
 }
 
+// Nota: se evita `backdrop-blur` aquí a propósito. Los Badge aparecen en cada
+// tarjeta (varios por tarjeta), y un backdrop-filter por badge multiplica el
+// coste de compositing al hacer scroll. Se compensa con fondos algo más opacos.
 const variantClasses: Record<string, string> = {
-  primary: 'bg-primary/20 text-primary',
-  secondary: 'bg-secondary/20 text-secondary',
-  success: 'bg-green-500/20 text-green-400',
-  warning: 'bg-yellow-500/20 text-yellow-400',
-  error: 'bg-error/20 text-error',
-  neutral: 'bg-surface-variant/40 text-on-surface-variant',
+  primary: 'bg-primary/25 text-primary',
+  secondary: 'bg-secondary/25 text-secondary',
+  success: 'bg-green-500/25 text-green-400',
+  warning: 'bg-yellow-500/25 text-yellow-400',
+  error: 'bg-error/25 text-error',
+  neutral: 'bg-surface-container-high/80 text-on-surface-variant',
 };
 
 const sizeClasses: Record<string, string> = {
@@ -31,7 +34,6 @@ export default function Badge({
     <span
       className={`
         inline-flex items-center gap-1 rounded-full font-label font-medium
-        backdrop-blur-md
         ${variantClasses[variant]}
         ${sizeClasses[size]}
         ${className}

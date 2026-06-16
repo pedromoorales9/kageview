@@ -164,7 +164,7 @@ export default function SearchPage({ onSelectAnime }: SearchPageProps) {
           <p className="text-sm">No se encontraron resultados</p>
         </div>
       ) : (
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(155px,1fr))] xl:grid-cols-[repeat(auto-fill,minmax(170px,1fr))] 2xl:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]">
           {displayResults.map((anime) => (
             <AnimeCard
               key={anime.id}
