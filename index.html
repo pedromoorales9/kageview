@@ -60,7 +60,7 @@
     <div aria-hidden="true" style="position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font-family: var(--font-display); font-weight: 700; font-size: clamp(240px, 34vw, 380px); line-height: 1; color: transparent; background: linear-gradient(180deg, rgba(167,139,250,0.15), rgba(246,115,183,0.03)); -webkit-background-clip: text; background-clip: text; pointer-events: none; user-select: none; filter: blur(2px); opacity: var(--kv-glow, 1); z-index: -1;">影</div>
 
     <div style="display: inline-flex; align-items: center; gap: 8px; animation: kvRise .7s var(--ease) both;">
-      <span class="badge badge--accent badge--pill" style="height: 26px;"><span class="badge__dot"></span> v1.1.0 · Windows 10/11</span>
+      <span class="badge badge--accent badge--pill" style="height: 26px;"><span class="badge__dot"></span> v1.2.4 · Windows 10/11</span>
       <span class="badge badge--pill ds-mono" style="height: 26px;">GPL-3.0</span>
     </div>
 
@@ -121,7 +121,7 @@
           <aside style="width: 216px; flex: none; background: var(--sidebar); border-right: 1px solid var(--border); padding: 18px 14px; display: flex; flex-direction: column; gap: 18px;">
             <div style="display: flex; align-items: center; gap: 10px; padding: 2px 6px;">
               <img src="assets/icon.png" width="32" height="32" alt="" style="border-radius: 8px;" />
-              <div style="line-height: 1.1;"><div style="font-family: var(--font-display); font-weight: 700; font-size: 15px;">KageView</div><div style="font-size: 11px; color: var(--text-subtle);">影 · v1.1.0</div></div>
+              <div style="line-height: 1.1;"><div style="font-family: var(--font-display); font-weight: 700; font-size: 15px;">KageView</div><div style="font-size: 11px; color: var(--text-subtle);">影 · v1.2.4</div></div>
             </div>
             <div style="display: flex; flex-direction: column; gap: 3px;">
               <div class="nav-item" data-active="true"><svg class="icon" viewBox="0 0 24 24" style="font-size: 18px;"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg><span>Descubrir</span></div>
@@ -305,22 +305,22 @@
     <div style="display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 40px; align-items: start;">
       <div data-reveal>
         <span class="badge badge--accent badge--pill" style="height: 26px;">NOVEDADES</span>
-        <h2 style="margin: 18px 0 0; font-size: clamp(28px, 3.4vw, 42px); letter-spacing: -0.03em;">v1.1.0 — MangaOni, UI responsive y login propio</h2>
-        <p style="margin: 16px 0 0; font-size: 16px; color: var(--text-muted); line-height: 1.6;">La última versión añade un nuevo proveedor de manga, una interfaz que se adapta al ancho de la ventana y login con tu propia cuenta de AniList.</p>
+        <h2 style="margin: 18px 0 0; font-size: clamp(28px, 3.4vw, 42px); letter-spacing: -0.03em;">v1.2.4 — Reproductor nativo, historial y logros</h2>
+        <p style="margin: 16px 0 0; font-size: 16px; color: var(--text-muted); line-height: 1.6;">La serie 1.2 estrena reproducción HLS nativa sin anuncios, fila de "Continuar viendo", historial detallado, logros del Demonio Guardián y Discord Rich Presence.</p>
         <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px;">
+          <span class="badge badge--pill ds-mono" style="height: 24px;">v1.1.0 · MangaOni</span>
           <span class="badge badge--pill ds-mono" style="height: 24px;">v1.0.9 · Favorito</span>
           <span class="badge badge--pill ds-mono" style="height: 24px;">v1.0.7 · Auto-play</span>
           <span class="badge badge--pill ds-mono" style="height: 24px;">v1.0.5 · Calendario</span>
-          <span class="badge badge--pill ds-mono" style="height: 24px;">v1.0.3 · Ad-blocker</span>
         </div>
       </div>
       <div class="panel" data-reveal style="padding: 12px 26px; transition-delay: .06s;">
-        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Nuevo provider: MangaOni</b><span>Manga, manhwa y manhua en español, con filtro de contenido +18.</span></div></div>
-        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Lista de episodios estilo Crunchyroll</b><span>Cuadrícula de miniaturas con orden y carga por lotes — soporta series enormes sin congelar.</span></div></div>
-        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Buscador de episodios</b><span>Dentro del modal de anime, por número o por título.</span></div></div>
-        <div class="kv-log"><span class="kv-log-dot"></span><div><b>UI responsive</b><span>Las cuadrículas y filas se adaptan al ancho de la ventana.</span></div></div>
-        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Login con tu propia cuenta</b><span>OAuth Implicit Grant — el token se guarda solo en tu equipo, sin clientSecret.</span></div></div>
-        <div class="kv-log" style="border-bottom: none;"><span class="kv-log-dot"></span><div><b>Optimización de rendimiento</b><span>Menos blur por tarjeta, memoización y render por lotes para evitar tirones.</span></div></div>
+        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Reproductor HLS nativo</b><span>Streaming directo sin embeds ni anuncios, con clic para pausar, skip de intro/outro y auto-siguiente.</span></div></div>
+        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Continuar viendo + historial</b><span>Reanuda cada episodio en el minuto exacto y revisa todo lo que has visto.</span></div></div>
+        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Logros del Demonio Guardián</b><span>Maratones, rachas y hitos de anime y manga, celebrados con toasts.</span></div></div>
+        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Fallback de servidores</b><span>Si un servidor falla, la app salta sola al siguiente — o cámbialo tú con un botón.</span></div></div>
+        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Discord Rich Presence</b><span>Muestra en Discord el anime y episodio que estás viendo.</span></div></div>
+        <div class="kv-log" style="border-bottom: none;"><span class="kv-log-dot"></span><div><b>Resiliencia y rendimiento</b><span>Catálogo guardado cuando AniList cae, menos escrituras a disco y animaciones por GPU.</span></div></div>
       </div>
     </div>
   </section>
@@ -362,7 +362,7 @@
           </a>
           <span class="btn btn--outline btn--lg" style="height: 54px; font-size: 16px; padding: 0 26px; opacity: .7; cursor: default;">Linux / macOS — próximamente</span>
         </div>
-        <p class="ds-mono" style="margin: 18px 0 0; font-size: 12px; color: var(--text-subtle);">KageView-Setup-1.1.0.exe</p>
+        <p class="ds-mono" style="margin: 18px 0 0; font-size: 12px; color: var(--text-subtle);">KageView-Setup-1.2.4.exe</p>
       </div>
     </div>
   </section>
@@ -438,7 +438,7 @@
       <div style="display: flex; gap: 8px;">
         <span class="badge ds-mono" style="height: 22px;">Electron 28</span>
         <span class="badge ds-mono" style="height: 22px;">React 18</span>
-        <span class="badge ds-mono" style="height: 22px;">v1.1.0</span>
+        <span class="badge ds-mono" style="height: 22px;">v1.2.4</span>
       </div>
     </div>
   </footer>
