@@ -57,6 +57,31 @@ export default function VideoPlayer({
 
   const episodeTitle = `${anime.title.english || anime.title.romaji} — Episode ${episodeNumber}`;
 
+  // Evita reportar el mismo source como fallido dos veces (el sondeo y
+  // did-fail-load podrían dispararse a la vez y saltarse un servidor).
+  const failedUrlRef = useRef<string | null>(null);
+  const reportSourceFailed = useCallback(() => {
+    if (failedUrlRef.current === source.url) return;
+    failedUrlRef.current = source.url;
+    onSourceFailed?.();
+  }, [source.url, onSourceFailed]);
+
+  // Fallo de carga del propio webview (DNS caído, URL inválida…)
+  useEffect(() => {
+    const wv = webviewRef.current;
+    if (!wv || source.type !== 'iframe' || !onSourceFailed) return;
+
+    const onFailLoad = (e: any) => {
+      // -3 = ERR_ABORTED (lo lanzan redirects internos normales); ignorar
+      if (e?.isMainFrame && e?.errorCode !== -3) {
+        console.warn('[VideoPlayer] Webview did-fail-load:', e.errorCode, e.errorDescription);
+        reportSourceFailed();
+      }
+    };
+    wv.addEventListener('did-fail-load', onFailLoad);
+    return () => wv.removeEventListener('did-fail-load', onFailLoad);
+  }, [source, onSourceFailed, reportSourceFailed]);
+
   // ─── Sincronizar fullscreen desde el main process ────────
   useEffect(() => {
     window.electron?.windowControls?.onFullscreenChanged((value) => setIsFullscreen(value));
@@ -172,7 +197,7 @@ export default function VideoPlayer({
 
     const onVideoError = () => {
       console.error('[VideoPlayer] Error del elemento <video>; probando siguiente source');
-      onSourceFailed?.();
+      reportSourceFailed();
     };
 
     if (source.type === 'hls' && Hls.isSupported()) {
@@ -189,7 +214,7 @@ export default function VideoPlayer({
         if (data.fatal) {
           console.error('[VideoPlayer] HLS fatal error:', data);
           hls.destroy();
-          onSourceFailed?.();
+          reportSourceFailed();
         }
       });
       hlsRef.current = hls;
@@ -207,7 +232,7 @@ export default function VideoPlayer({
         hlsRef.current = null;
       }
     };
-  }, [source, startAt, onSourceFailed]);
+  }, [source, startAt, reportSourceFailed]);
 
   // ─── Check skip times ──────────────────────────────────
   const checkSkipTimes = useCallback(
@@ -328,12 +353,14 @@ export default function VideoPlayer({
     let wasEnded = false;
     let didSeek = false;
     let tick = 0;
-    let missCount = 0; // segundos consecutivos sin <video> en el embed
-    let hadVideo = false;
+    let missCount = 0; // segundos consecutivos sin señal de reproducción viable
+    let everPlayed = false; // el vídeo llegó a avanzar → nunca auto-cambiar
     let reportedFailure = false;
 
     // Textos típicos de las páginas de error de los embeds (StreamWish,
-    // Filemoon, Okru…) cuando el fichero ya no existe.
+    // zilla, Filemoon, Okru…) cuando el fichero no existe o el embed se
+    // niega a cargar. Algunos players crean el <video> igualmente, así que
+    // el texto se comprueba SIEMPRE, haya o no elemento de vídeo.
     const EMBED_ERROR_PATTERNS = [
       'content not found',
       'file not found',
@@ -346,36 +373,39 @@ export default function VideoPlayer({
     ];
 
     const failSource = () => {
-      if (reportedFailure || hadVideo) return;
+      if (reportedFailure || everPlayed) return;
       reportedFailure = true;
       clearInterval(interval);
-      onSourceFailed?.();
+      reportSourceFailed();
     };
 
     const interval = window.setInterval(async () => {
       try {
         const result = await wv.executeJavaScript(`(function() {
           var v = document.querySelector('video');
-          if (v) return JSON.stringify({t: v.currentTime, d: v.duration, ended: v.ended});
           var txt = ((document.body && document.body.innerText) || '').slice(0, 300);
+          if (v) return JSON.stringify({t: v.currentTime, d: v.duration, ended: v.ended, text: txt});
           return JSON.stringify({noVideo: true, text: txt});
         })()`);
         if (typeof result === 'string') {
           const parsed = JSON.parse(result);
 
-          if (parsed.noVideo) {
+          // Página de error reconocida → cambiar de servidor rápido,
+          // incluso si el player llegó a crear un <video> vacío.
+          const text = String(parsed.text || '').toLowerCase();
+          const looksDead = EMBED_ERROR_PATTERNS.some((p) => text.includes(p));
+
+          if (parsed.noVideo || looksDead) {
             missCount++;
-            const text = String(parsed.text || '').toLowerCase();
-            const looksDead = EMBED_ERROR_PATTERNS.some((p) => text.includes(p));
-            // Página de error reconocida → fallar rápido; si no, dar 15s de
-            // margen a que el player del embed cree su <video>.
+            // Error reconocido → fallar a los 2s; sin <video> → dar 15s de
+            // margen a que el player del embed lo cree.
             if ((looksDead && missCount >= 2) || missCount >= 15) failSource();
             return;
           }
 
-          hadVideo = true;
           missCount = 0;
           const { t, d, ended } = parsed;
+          if (t > 1) everPlayed = true;
 
           // Intento de reanudación (best-effort) una sola vez
           if (!didSeek && startAt && startAt > 1 && d > 0) {
@@ -400,7 +430,7 @@ export default function VideoPlayer({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [source, startAt, checkSkipTimes, startCountdown, onProgress, onSourceFailed]);
+  }, [source, startAt, checkSkipTimes, startCountdown, onProgress, reportSourceFailed]);
 
   // ─── Ocultar controles tras 3s ─────────────────────────
   const showControls = useCallback(() => {
@@ -621,6 +651,16 @@ export default function VideoPlayer({
             >
               <span className="material-symbols-outlined">skip_next</span>
             </button>
+            {onSourceFailed && (
+              <button
+                onClick={() => onSourceFailed()}
+                title={`Probar otro servidor (actual: ${source.quality})`}
+                className="h-10 px-3 rounded-lg bg-black/60 backdrop-blur-md flex items-center gap-1.5 text-white/80 hover:text-white transition-all hover:bg-black/90 shadow-lg"
+              >
+                <span className="material-symbols-outlined">dns</span>
+                <span className="text-xs font-semibold hidden sm:inline">{source.quality}</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="pointer-events-auto absolute inset-0">

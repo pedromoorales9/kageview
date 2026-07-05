@@ -118,4 +118,41 @@ describe('AnimeAV1Provider', () => {
     expect(eps[0].id).toBe('one-piece/1');
     expect(eps[0].url).toBe('https://animeav1.com/media/one-piece/1');
   });
+
+  // Fixture con la estructura real de la página SvelteKit (2026-07):
+  // embeds (reproducibles) seguido de downloads (misma forma, no embeds).
+  const EMBEDS_FIXTURE = `mirrors:void 0},embeds:{SUB:[` +
+    `{server:"HLS",url:"https://player.zilla-networks.com/play/aced41de84f231b5095a124e19c63f9c"},` +
+    `{server:"Mega",url:"https://mega.nz/embed/rNY2RDBI#xl0"},` +
+    `{server:"YourUpload",url:"https://www.yourupload.com/embed/H4dQly801Rou"}],` +
+    `LAT:[{server:"MP4Upload",url:"https://www.mp4upload.com/embed-lat.html"}]},` +
+    `downloads:{SUB:[{server:"Mega",url:"https://mega.nz/file/rNY2RDBI#xl0"},` +
+    `{server:"1Fichier",url:"https://1fichier.com/?abc"}]}`;
+
+  it('parseEmbeds convierte el player HLS propio en fuente nativa y ordena embeds', () => {
+    const sources = provider.parseEmbeds(EMBEDS_FIXTURE, 'sub');
+    expect(sources).toHaveLength(3);
+    // El HLS de zilla va primero como stream nativo /m3u8/<id>
+    expect(sources[0].type).toBe('hls');
+    expect(sources[0].url).toBe('https://player.zilla-networks.com/m3u8/aced41de84f231b5095a124e19c63f9c');
+    // YourUpload va antes que Mega en la lista de preferencia
+    expect(sources[1].quality).toBe('YourUpload');
+    expect(sources[2].quality).toBe('Mega');
+    expect(sources[1].type).toBe('iframe');
+  });
+
+  it('parseEmbeds ignora la sección downloads y respeta el idioma', () => {
+    const sub = provider.parseEmbeds(EMBEDS_FIXTURE, 'sub');
+    // Nada de mega.nz/file ni 1fichier (son descargas, no embeds)
+    expect(sub.some((s) => s.url.includes('mega.nz/file'))).toBe(false);
+    expect(sub.some((s) => s.url.includes('1fichier'))).toBe(false);
+
+    const dub = provider.parseEmbeds(EMBEDS_FIXTURE, 'dub');
+    expect(dub).toHaveLength(1);
+    expect(dub[0].quality).toBe('MP4Upload');
+  });
+
+  it('parseEmbeds devuelve [] si no hay bloque embeds', () => {
+    expect(provider.parseEmbeds('<html>sin datos</html>', 'sub')).toEqual([]);
+  });
 });

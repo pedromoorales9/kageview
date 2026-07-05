@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom';
 
 // ═══════════════════════════════════════════════════════════
@@ -61,13 +61,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     }
   }, [dismiss]);
 
-  const helpers: ToastContextValue = {
+  // Memoizado: los consumidores usan estas funciones como deps de efectos
+  // y callbacks; un objeto nuevo por render reiniciaría esos efectos.
+  const helpers: ToastContextValue = useMemo(() => ({
     toast,
     success: (message, title) => toast({ type: 'success', message, title }),
     error:   (message, title) => toast({ type: 'error', message, title }),
     info:    (message, title) => toast({ type: 'info', message, title }),
     warning: (message, title) => toast({ type: 'warning', message, title }),
-  };
+  }), [toast]);
 
   return (
     <ToastContext.Provider value={helpers}>
