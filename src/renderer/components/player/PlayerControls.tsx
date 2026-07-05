@@ -48,30 +48,39 @@ export default function PlayerControls({
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
+    // Capa raíz a pantalla completa, transparente a clics: los clics sobre el
+    // vídeo los captura el wrapper del reproductor (pausa/reanuda); solo el
+    // botón de volver y la barra inferior son interactivos.
     <div
       className={`
-        absolute inset-x-0 bottom-0 z-[82]
-        transition-opacity duration-300
-        ${visible ? 'opacity-100' : 'opacity-0 pointer-events-none'}
-      `}
-    >
-      {/* Gradiente inferior para legibilidad */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
-
-      {/* Top bar — Close */}
-      <div className={`
-        absolute top-0 left-0 right-0 p-4 flex items-center justify-between
+        absolute inset-0 z-[82]
         transition-opacity duration-300
         ${visible ? 'opacity-100' : 'opacity-0'}
-      `}>
+        pointer-events-none
+      `}
+    >
+      {/* Botón volver — arriba a la izquierda de la pantalla */}
+      <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between">
         <button
-          onClick={onExit}
-          className="w-9 h-9 rounded-lg bg-black/40 backdrop-blur-md flex items-center justify-center
-            text-white/80 hover:text-white transition-colors"
+          onClick={(e) => { e.stopPropagation(); onExit(); }}
+          className={`
+            w-10 h-10 rounded-lg bg-black/50 backdrop-blur-md flex items-center justify-center
+            text-white/80 hover:text-white transition-colors shadow-lg
+            ${visible ? 'pointer-events-auto' : ''}
+          `}
+          title="Volver"
         >
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
       </div>
+
+      {/* Barra inferior de controles */}
+      <div
+        className={`absolute inset-x-0 bottom-0 ${visible ? 'pointer-events-auto' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+      {/* Gradiente inferior para legibilidad */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
 
       <div className="relative px-6 pb-5 pt-12">
         {/* Progress Bar */}
@@ -199,6 +208,7 @@ export default function PlayerControls({
             </button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

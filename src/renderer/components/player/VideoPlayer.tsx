@@ -613,7 +613,7 @@ export default function VideoPlayer({
 
         {/* Countdown siguiente episodio */}
         {countdown !== null && (
-          <div className="absolute top-0 left-0 right-0 flex justify-center pt-4">
+          <div className="absolute top-0 left-0 right-0 z-[85] flex justify-center pt-4">
             <div className="pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 animate-fade-in">
               <span className="text-white/50 text-xs font-label">Siguiente en</span>
               <span className="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-primary font-bold text-xs">
@@ -663,7 +663,16 @@ export default function VideoPlayer({
             )}
           </div>
         ) : (
-          <div className="pointer-events-auto absolute inset-0">
+          <div
+            className="pointer-events-auto absolute inset-0"
+            onMouseMove={showControls}
+            onClick={() => {
+              // Clic en cualquier punto del vídeo → pausar/reanudar
+              // (los controles hacen stopPropagation para no interferir)
+              handlePlayPause();
+              showControls();
+            }}
+          >
             <PlayerControls
               isPlaying={isPlaying}
               isMuted={isMuted}
