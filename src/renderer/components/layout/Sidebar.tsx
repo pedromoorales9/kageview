@@ -10,8 +10,8 @@ interface SidebarProps {
 
 const NAV_ITEMS: Array<{ id: PageId; icon: string; label: string }> = [
   { id: 'discover', icon: 'explore', label: 'Descubrir' },
-  { id: 'oracle', icon: 'flare', label: 'Oráculo' },
-  { id: 'library', icon: 'auto_stories', label: 'Mi Lista' },
+  { id: 'oracle', icon: 'auto_awesome', label: 'Oráculo' },
+  { id: 'library', icon: 'video_library', label: 'Mi Lista' },
   { id: 'manga', icon: 'menu_book', label: 'Manga' },
   { id: 'calendar', icon: 'calendar_month', label: 'Calendario' },
   { id: 'search', icon: 'search', label: 'Buscar' },

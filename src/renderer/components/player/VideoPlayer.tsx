@@ -11,10 +11,14 @@ interface VideoPlayerProps {
   episodeNumber: number;
   source: StreamingSource;
   skipTimes: SkipTime[];
+  /** Segundo desde el que reanudar al cargar el episodio. */
+  startAt?: number;
   onExit: () => void;
   onNextEpisode: () => void;
   onPrevEpisode: () => void;
-  onProgress: (seconds: number) => void;
+  onProgress: (seconds: number, duration: number) => void;
+  /** El source actual no reproduce (embed caído, error fatal); probar el siguiente. */
+  onSourceFailed?: () => void;
 }
 
 export default function VideoPlayer({
@@ -22,10 +26,12 @@ export default function VideoPlayer({
   episodeNumber,
   source,
   skipTimes,
+  startAt,
   onExit,
   onNextEpisode,
   onPrevEpisode,
   onProgress,
+  onSourceFailed,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const webviewRef = useRef<any>(null);
@@ -154,6 +160,21 @@ export default function VideoPlayer({
     const video = videoRef.current;
     if (!video) return;
 
+    // Reanudar en la posición guardada una sola vez, cuando haya metadata
+    const seekToStart = () => {
+      if (startAt && startAt > 1 && isFinite(video.duration) && video.duration > 0) {
+        try {
+          video.currentTime = Math.min(startAt, video.duration - 2);
+        } catch { /* noop */ }
+      }
+    };
+    video.addEventListener('loadedmetadata', seekToStart, { once: true });
+
+    const onVideoError = () => {
+      console.error('[VideoPlayer] Error del elemento <video>; probando siguiente source');
+      onSourceFailed?.();
+    };
+
     if (source.type === 'hls' && Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
@@ -168,21 +189,25 @@ export default function VideoPlayer({
         if (data.fatal) {
           console.error('[VideoPlayer] HLS fatal error:', data);
           hls.destroy();
+          onSourceFailed?.();
         }
       });
       hlsRef.current = hls;
     } else {
+      video.addEventListener('error', onVideoError);
       video.src = source.url;
       video.play().catch(() => { });
     }
 
     return () => {
+      video.removeEventListener('loadedmetadata', seekToStart);
+      video.removeEventListener('error', onVideoError);
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
     };
-  }, [source]);
+  }, [source, startAt, onSourceFailed]);
 
   // ─── Check skip times ──────────────────────────────────
   const checkSkipTimes = useCallback(
@@ -283,8 +308,9 @@ export default function VideoPlayer({
   // ─── Guardar progreso cada 5s ───────────────────────────
   useEffect(() => {
     progressTimerRef.current = window.setInterval(() => {
-      if (videoRef.current) {
-        onProgress(videoRef.current.currentTime);
+      const v = videoRef.current;
+      if (v && v.currentTime > 0) {
+        onProgress(v.currentTime, v.duration || 0);
       }
     }, 5000);
     return () => {
@@ -300,16 +326,70 @@ export default function VideoPlayer({
     if (!wv || source.type !== 'iframe') return;
 
     let wasEnded = false;
+    let didSeek = false;
+    let tick = 0;
+    let missCount = 0; // segundos consecutivos sin <video> en el embed
+    let hadVideo = false;
+    let reportedFailure = false;
+
+    // Textos típicos de las páginas de error de los embeds (StreamWish,
+    // Filemoon, Okru…) cuando el fichero ya no existe.
+    const EMBED_ERROR_PATTERNS = [
+      'content not found',
+      'file not found',
+      'file was deleted',
+      'file is no longer available',
+      'video not found',
+      'archivo no encontrado',
+      'video ha sido eliminado',
+      'has been removed',
+    ];
+
+    const failSource = () => {
+      if (reportedFailure || hadVideo) return;
+      reportedFailure = true;
+      clearInterval(interval);
+      onSourceFailed?.();
+    };
+
     const interval = window.setInterval(async () => {
       try {
-        const result = await wv.executeJavaScript(
-          'var v = document.querySelector("video"); v ? JSON.stringify({t: v.currentTime, ended: v.ended}) : null'
-        );
+        const result = await wv.executeJavaScript(`(function() {
+          var v = document.querySelector('video');
+          if (v) return JSON.stringify({t: v.currentTime, d: v.duration, ended: v.ended});
+          var txt = ((document.body && document.body.innerText) || '').slice(0, 300);
+          return JSON.stringify({noVideo: true, text: txt});
+        })()`);
         if (typeof result === 'string') {
-          const { t, ended } = JSON.parse(result);
+          const parsed = JSON.parse(result);
+
+          if (parsed.noVideo) {
+            missCount++;
+            const text = String(parsed.text || '').toLowerCase();
+            const looksDead = EMBED_ERROR_PATTERNS.some((p) => text.includes(p));
+            // Página de error reconocida → fallar rápido; si no, dar 15s de
+            // margen a que el player del embed cree su <video>.
+            if ((looksDead && missCount >= 2) || missCount >= 15) failSource();
+            return;
+          }
+
+          hadVideo = true;
+          missCount = 0;
+          const { t, d, ended } = parsed;
+
+          // Intento de reanudación (best-effort) una sola vez
+          if (!didSeek && startAt && startAt > 1 && d > 0) {
+            didSeek = true;
+            wv.executeJavaScript(
+              `var v = document.querySelector("video"); if(v) v.currentTime = ${Math.min(startAt, d - 2)};`
+            ).catch(() => {});
+          }
+
           if (t >= 0) {
             setCurrentTime(t);
             checkSkipTimes(t);
+            // Reportar progreso cada ~5s
+            if (++tick % 5 === 0 && t > 0) onProgress(t, d || 0);
           }
           if (ended && !wasEnded) startCountdown();
           wasEnded = ended;
@@ -320,7 +400,7 @@ export default function VideoPlayer({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [source, checkSkipTimes, startCountdown]);
+  }, [source, startAt, checkSkipTimes, startCountdown, onProgress, onSourceFailed]);
 
   // ─── Ocultar controles tras 3s ─────────────────────────
   const showControls = useCallback(() => {
@@ -463,6 +543,7 @@ export default function VideoPlayer({
       {/* Webview Element for external providers */}
       {source.type === 'iframe' ? (
         React.createElement('webview', {
+          key: source.url,
           ref: webviewRef,
           src: source.url,
           className: 'w-full h-full bg-black border-0',

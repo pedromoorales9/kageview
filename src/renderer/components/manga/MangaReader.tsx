@@ -27,11 +27,14 @@ export default function MangaReader({
 
   const chapter = chapters[chapterIndex];
 
-  const [readingMode, setReadingMode] = useState<'cascade' | 'single'>('cascade');
+  const [readingMode, setReadingMode] = useState<'cascade' | 'single' | 'double'>('cascade');
   const [pageIndex, setPageIndex] = useState(0);
   const [brightness, setBrightness] = useState(100);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Modos paginados (single/double) vs cascada vertical
+  const paged = readingMode !== 'cascade';
 
   // Load pages whenever chapter changes
   useEffect(() => {
@@ -94,20 +97,22 @@ export default function MangaReader({
   }, [chapters.length]);
 
   const goPrevPage = useCallback(() => {
+    const step = readingMode === 'double' ? 2 : 1;
     if (pageIndex > 0) {
-      setPageIndex((i) => i - 1);
+      setPageIndex((i) => Math.max(0, i - step));
     } else if (chapterIndex > 0) {
       goPrevChapter();
     }
-  }, [pageIndex, chapterIndex, goPrevChapter]);
+  }, [pageIndex, chapterIndex, goPrevChapter, readingMode]);
 
   const goNextPage = useCallback(() => {
-    if (pageIndex < pages.length - 1) {
-      setPageIndex((i) => i + 1);
+    const step = readingMode === 'double' ? 2 : 1;
+    if (pageIndex + step < pages.length) {
+      setPageIndex((i) => i + step);
     } else if (chapterIndex < chapters.length - 1) {
       goNextChapter();
     }
-  }, [pageIndex, pages.length, chapterIndex, chapters.length, goNextChapter]);
+  }, [pageIndex, pages.length, chapterIndex, chapters.length, goNextChapter, readingMode]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -118,11 +123,11 @@ export default function MangaReader({
           break;
         case 'ArrowLeft':
           e.preventDefault();
-          if (readingMode === 'single') goPrevPage();
+          if (paged) goPrevPage();
           break;
         case 'ArrowRight':
           e.preventDefault();
-          if (readingMode === 'single') goNextPage();
+          if (paged) goNextPage();
           break;
         case 'PageUp':
           if (readingMode === 'cascade') {
@@ -234,9 +239,42 @@ export default function MangaReader({
               </div>
             </div>
           </div>
+        ) : readingMode === 'double' ? (
+          /* Double Page Mode */
+          <div
+            className="flex-1 flex items-center justify-center p-4 lg:p-8 h-[calc(100vh-120px)] cursor-pointer select-none overflow-hidden"
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const clickedRight = e.clientX - rect.left > rect.width / 2;
+              if (clickedRight) goNextPage();
+              else goPrevPage();
+            }}
+          >
+            <div
+              className="flex items-center justify-center gap-1 max-h-full transition-transform duration-300"
+              style={{ transform: `scale(${zoomLevel})` }}
+            >
+              {pages[pageIndex] && (
+                <img
+                  src={pages[pageIndex]}
+                  alt={`Página ${pageIndex + 1}`}
+                  className="max-h-[calc(100vh-150px)] w-auto object-contain shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] rounded-md select-none"
+                  draggable={false}
+                />
+              )}
+              {pages[pageIndex + 1] && (
+                <img
+                  src={pages[pageIndex + 1]}
+                  alt={`Página ${pageIndex + 2}`}
+                  className="max-h-[calc(100vh-150px)] w-auto object-contain shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] rounded-md select-none"
+                  draggable={false}
+                />
+              )}
+            </div>
+          </div>
         ) : (
           /* Single Page Mode */
-          <div 
+          <div
             className={`flex-1 flex items-center justify-center p-8 lg:p-12 h-[calc(100vh-120px)] cursor-pointer select-none ${zoomLevel > 1 ? 'overflow-auto block items-start' : ''}`}
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
@@ -261,19 +299,19 @@ export default function MangaReader({
       {/* Grand Unified Dashboard - Bottom Float */}
       <nav className="fixed bottom-6 lg:bottom-10 left-1/2 -translate-x-1/2 z-50 flex items-center px-4 py-2 bg-[#1A1820]/90 backdrop-blur-2xl rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] border border-white/5">
         
-        {/* Pagination Section (Visible mainly in single mode, but kept for chapter tracking in cascade) */}
+        {/* Pagination Section (Visible mainly in single/double mode, but kept for chapter tracking in cascade) */}
         <div className="flex items-center gap-1 sm:gap-2 pr-6 border-r border-white/10">
-          <button 
-            onClick={() => readingMode === 'single' ? setPageIndex(0) : goPrevChapter()} 
-            disabled={readingMode === 'single' ? pageIndex === 0 : chapterIndex === 0}
+          <button
+            onClick={() => paged ? setPageIndex(0) : goPrevChapter()}
+            disabled={paged ? pageIndex === 0 : chapterIndex === 0}
             className="w-8 h-8 rounded hover:bg-white/10 flex items-center justify-center text-on-surface-variant hover:text-white transition-colors disabled:opacity-30"
           >
             <span className="material-symbols-outlined text-[18px]">skip_previous</span>
           </button>
-          
-          <button 
-            onClick={readingMode === 'single' ? goPrevPage : goPrevChapter} 
-            disabled={readingMode === 'single' ? pageIndex === 0 && chapterIndex === 0 : chapterIndex === 0}
+
+          <button
+            onClick={paged ? goPrevPage : goPrevChapter}
+            disabled={paged ? pageIndex === 0 && chapterIndex === 0 : chapterIndex === 0}
             className="w-8 h-8 rounded hover:bg-white/10 flex items-center justify-center text-on-surface-variant hover:text-white transition-colors disabled:opacity-30"
           >
             <span className="material-symbols-outlined text-[18px]">navigate_before</span>
@@ -281,26 +319,26 @@ export default function MangaReader({
 
           <div className="flex flex-col items-center justify-center min-w-[50px] mx-2">
             <span className="text-[9px] font-bold tracking-widest text-on-surface-variant/60 uppercase -mb-1">
-              {readingMode === 'single' ? 'PAGE' : 'CAP'}
+              {paged ? 'PAGE' : 'CAP'}
             </span>
             <div className="font-headline font-bold text-sm text-primary">
-              {readingMode === 'single' ? pageIndex + 1 : chapterIndex + 1}
-              <span className="text-on-surface-variant/40 mx-1 text-xs">/</span> 
-              <span className="text-on-surface-variant text-xs">{readingMode === 'single' ? pages.length || 0 : chapters.length}</span>
+              {paged ? pageIndex + 1 : chapterIndex + 1}
+              <span className="text-on-surface-variant/40 mx-1 text-xs">/</span>
+              <span className="text-on-surface-variant text-xs">{paged ? pages.length || 0 : chapters.length}</span>
             </div>
           </div>
 
-          <button 
-            onClick={readingMode === 'single' ? goNextPage : goNextChapter} 
-            disabled={readingMode === 'single' ? pageIndex === pages.length - 1 && chapterIndex === chapters.length - 1 : chapterIndex === chapters.length - 1}
+          <button
+            onClick={paged ? goNextPage : goNextChapter}
+            disabled={paged ? pageIndex === pages.length - 1 && chapterIndex === chapters.length - 1 : chapterIndex === chapters.length - 1}
             className="w-8 h-8 rounded hover:bg-white/10 flex items-center justify-center text-on-surface-variant hover:text-white transition-colors disabled:opacity-30"
           >
             <span className="material-symbols-outlined text-[18px]">navigate_next</span>
           </button>
 
-          <button 
-            onClick={() => readingMode === 'single' ? setPageIndex(pages.length - 1) : null} 
-            disabled={readingMode === 'single' ? pageIndex === pages.length - 1 : true}
+          <button
+            onClick={() => paged ? setPageIndex(pages.length - 1) : null}
+            disabled={paged ? pageIndex === pages.length - 1 : true}
             className="w-8 h-8 rounded hover:bg-white/10 flex items-center justify-center text-on-surface-variant hover:text-white transition-colors disabled:opacity-30"
           >
             <span className="material-symbols-outlined text-[18px]">skip_next</span>
@@ -325,8 +363,11 @@ export default function MangaReader({
             <span className="material-symbols-outlined text-xl">view_day</span>
           </button>
 
-          {/* Double page stub (visual only for now to match UI mockup) */}
-          <button className="w-10 h-10 rounded-xl flex items-center justify-center text-on-surface-variant/40 cursor-not-allowed" title="Lectura Doble (Próximamente)">
+          <button
+            onClick={() => { setReadingMode('double'); setPageIndex((i) => i - (i % 2)); }}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${readingMode === 'double' ? 'bg-[#E3C6FF] text-[#30005C] shadow-[0_0_20px_rgba(227,198,255,0.4)]' : 'text-on-surface-variant hover:bg-white/5 hover:text-white'}`}
+            title="Lectura Doble"
+          >
             <span className="material-symbols-outlined text-xl">menu_book</span>
           </button>
         </div>

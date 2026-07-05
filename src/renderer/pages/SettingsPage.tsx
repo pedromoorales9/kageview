@@ -3,6 +3,7 @@ import { useAppStore } from '../../modules/store';
 import { PROVIDERS } from '../../modules/providers/registry';
 import { getAllMangaProviders } from '../../modules/manga';
 import { clearCache } from '../../modules/cache';
+import { useToast } from '../components/ui/Toast';
 import useAniList from '../hooks/useAniList';
 import { ProviderId, AudioLang, SubLang } from '../../types/types';
 
@@ -30,6 +31,7 @@ export default function SettingsPage() {
   const providerStatus = useAppStore((s) => s.providerStatus);
   const setProviderStatus = useAppStore((s) => s.setProviderStatus);
   const { logout } = useAniList();
+  const toast = useToast();
 
   const [checkingProviders, setCheckingProviders] = useState(false);
   const [version, setVersion] = useState<string>('');
@@ -436,7 +438,7 @@ export default function SettingsPage() {
             <button
               onClick={async () => {
                 await clearCache();
-                alert('¡Caché de la app limpiada! Reinicie KageView para aplicar los cambios.');
+                toast.success('Reinicia KageView para aplicar los cambios.', 'Caché limpiada');
               }}
               className="
                 px-4 py-2 rounded-lg

@@ -4,6 +4,9 @@ import { MangaModel, MangaChapterModel } from '../modules/manga';
 import { useAppStore } from '../modules/store';
 import { getCache } from '../modules/cache';
 import { getSkipTimes } from '../modules/aniskip';
+import { recordWatch, updateWatchPosition, flushWatchPosition, ContinueWatchingItem } from '../modules/watchHistory';
+import { evaluateAchievements } from '../modules/achievements';
+import { useToast } from './components/ui/Toast';
 import useAniList from './hooks/useAniList';
 import useProvider from './hooks/useProvider';
 import Sidebar from './components/layout/Sidebar';
@@ -16,6 +19,8 @@ import OraclePage from './pages/OraclePage';
 import CalendarPage from './pages/CalendarPage';
 import MangaPage from './pages/MangaPage';
 import AnimeModal from './components/modals/AnimeModal';
+import HistoryModal from './components/modals/HistoryModal';
+import AchievementsModal from './components/modals/AchievementsModal';
 import MangaModal from './components/manga/MangaModal';
 import MangaReader from './components/manga/MangaReader';
 import VideoPlayer from './components/player/VideoPlayer';
@@ -37,6 +42,8 @@ interface PlayerConfig {
   anime: AniListAnime;
   episode: number;
   mode: PlayMode;
+  /** Segundo desde el que reanudar al cargar (Continuar viendo). */
+  startAt?: number;
 }
 
 export default function App() {
@@ -45,6 +52,8 @@ export default function App() {
   const [modalAnime, setModalAnime] = useState<AniListAnime | null>(null);
   const [playerConfig, setPlayerConfig] = useState<PlayerConfig | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
 
   // Manga state
   const [mangaModal, setMangaModal] = useState<MangaModel | null>(null);
@@ -59,11 +68,31 @@ export default function App() {
   const setCurrentEpisode = useAppStore((s) => s.setCurrentEpisode);
 
   const { initSession, saveProgress, login, getAnimeDetail } = useAniList();
-  const { source, loading: sourceLoading, error: sourceError, loadSource } = useProvider();
+  const { source, loading: sourceLoading, error: sourceError, loadSource, tryNextSource } = useProvider();
+  const toast = useToast();
+
+  // Evalúa logros y celebra los recién desbloqueados con un toast del demonio
+  const celebrateAchievements = useCallback(async () => {
+    try {
+      const newly = await evaluateAchievements();
+      newly.forEach((a) => {
+        toast.toast({
+          type: 'success',
+          title: '👹 ¡Logro desbloqueado!',
+          message: a.title,
+          duration: 6000,
+        });
+      });
+    } catch { /* noop */ }
+  }, [toast]);
 
   // Ref para acceder al source actual sin re-renders
   const sourceRef = useRef(source);
   useEffect(() => { sourceRef.current = source; }, [source]);
+
+  // Ref al playerConfig para que el callback de progreso sea estable
+  const playerConfigRef = useRef(playerConfig);
+  useEffect(() => { playerConfigRef.current = playerConfig; }, [playerConfig]);
 
   // ─── Leer estado de notificaciones al montar ─────────────────
   useEffect(() => {
@@ -78,6 +107,11 @@ export default function App() {
       if (saved) setPrefs(saved);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ─── Persistir logros ya merecidos al arrancar (sin toasts) ───
+  useEffect(() => {
+    evaluateAchievements().catch(() => { /* noop */ });
   }, []);
 
   // ─── Inicializar sesión al montar ────────────────────────
@@ -191,6 +225,9 @@ export default function App() {
         window.electron.setWatchProgress(modalAnime.id, episode);
       }
 
+      // Registrar en el historial de visualización
+      recordWatch(modalAnime, episode, mode);
+
       // Cargar source de streaming
       await loadSource(modalAnime, episode, mode);
 
@@ -201,20 +238,26 @@ export default function App() {
   );
 
   const handleExitPlayer = useCallback(() => {
+    // Persistir la última posición pendiente antes de cerrar el player
+    flushWatchPosition();
     setPlayerConfig(null);
     setCurrentEpisode(null);
     setSkipTimes([]);
     window.electron?.discordClear?.();
-  }, [setCurrentEpisode, setSkipTimes]);
+    celebrateAchievements();
+  }, [setCurrentEpisode, setSkipTimes, celebrateAchievements]);
 
   const handleNextEpisode = useCallback(async () => {
     if (!playerConfig) return;
     const nextEp = playerConfig.episode + 1;
 
+    // Persistir la posición del episodio que se abandona
+    flushWatchPosition();
+
     // Guardar progreso del episodio actual en AniList
     await saveProgress(playerConfig.anime.id, playerConfig.episode);
 
-    setPlayerConfig({ ...playerConfig, episode: nextEp });
+    setPlayerConfig({ ...playerConfig, episode: nextEp, startAt: undefined });
     setCurrentEpisode(nextEp);
     updateDiscordWatching(playerConfig.anime, nextEp);
 
@@ -222,6 +265,9 @@ export default function App() {
     if (window.electron?.setWatchProgress) {
       window.electron.setWatchProgress(playerConfig.anime.id, nextEp);
     }
+
+    // Registrar en el historial de visualización
+    recordWatch(playerConfig.anime, nextEp, playerConfig.mode);
 
     await loadSource(playerConfig.anime, nextEp, playerConfig.mode);
 
@@ -233,7 +279,10 @@ export default function App() {
     if (!playerConfig || playerConfig.episode <= 1) return;
     const prevEp = playerConfig.episode - 1;
 
-    setPlayerConfig({ ...playerConfig, episode: prevEp });
+    // Persistir la posición del episodio que se abandona
+    flushWatchPosition();
+
+    setPlayerConfig({ ...playerConfig, episode: prevEp, startAt: undefined });
     setCurrentEpisode(prevEp);
     updateDiscordWatching(playerConfig.anime, prevEp);
 
@@ -242,17 +291,58 @@ export default function App() {
       window.electron.setWatchProgress(playerConfig.anime.id, prevEp);
     }
 
+    // Registrar en el historial de visualización
+    recordWatch(playerConfig.anime, prevEp, playerConfig.mode);
+
     await loadSource(playerConfig.anime, prevEp, playerConfig.mode);
 
     // Cargar skip times solo si no es iframe
     loadSkipTimesIfNeeded(playerConfig.anime.idMal, prevEp);
   }, [playerConfig, loadSource, setCurrentEpisode, loadSkipTimesIfNeeded, updateDiscordWatching]);
 
+  // El servidor embed actual no reproduce (p. ej. "Content not found"):
+  // saltar al siguiente servidor; si no quedan, useProvider pone el error
+  // y se muestra la pantalla de episodio no encontrado.
+  const handleSourceFailed = useCallback(() => {
+    const advanced = tryNextSource();
+    if (advanced) {
+      toast.info('Ese servidor no funciona, probando el siguiente…', 'Cambiando de servidor');
+    }
+  }, [tryNextSource, toast]);
+
   const handleWatchProgress = useCallback(
-    (_seconds: number) => {
-      // Guardar progreso local en cache (se podría expandir)
+    (seconds: number, duration: number) => {
+      const cfg = playerConfigRef.current;
+      if (!cfg) return;
+      // Guardar la posición de reproducción para "Continuar viendo"
+      updateWatchPosition(cfg.anime, cfg.episode, cfg.mode, seconds, duration);
     },
     []
+  );
+
+  const handleResume = useCallback(
+    async (item: ContinueWatchingItem) => {
+      setModalAnime(null);
+      setPlayerConfig({
+        anime: item.anime,
+        episode: item.episode,
+        mode: item.mode,
+        startAt: item.resumeSeconds,
+      });
+      setCurrentAnime(item.anime);
+      setCurrentEpisode(item.episode);
+
+      if (window.electron?.setWatchProgress) {
+        window.electron.setWatchProgress(item.anime.id, item.episode);
+      }
+
+      // recordWatch conserva la posición previa, así que no borra el reanudado
+      recordWatch(item.anime, item.episode, item.mode);
+
+      await loadSource(item.anime, item.episode, item.mode);
+      loadSkipTimesIfNeeded(item.anime.idMal, item.episode);
+    },
+    [loadSource, setCurrentAnime, setCurrentEpisode, loadSkipTimesIfNeeded]
   );
 
   // ─── Manga handlers ───────────────────────────────────
@@ -271,7 +361,8 @@ export default function App() {
 
   const handleExitMangaReader = useCallback(() => {
     setMangaReaderConfig(null);
-  }, []);
+    celebrateAchievements();
+  }, [celebrateAchievements]);
 
   // ─── Render ────────────────────────────────────────────
   const isPlayerActive = playerConfig !== null && source !== null;
@@ -291,7 +382,11 @@ export default function App() {
             onNavigate={setActivePage}
             userAvatar={userAvatar}
           />
-          <TopBar activePage={activePage} userAvatar={userAvatar} />
+          <TopBar
+            activePage={activePage}
+            userAvatar={userAvatar}
+            onOpenHistory={() => setShowHistory(true)}
+          />
         </>
       )}
 
@@ -302,7 +397,7 @@ export default function App() {
           style={{ marginLeft: '80px' }}
         >
           {activePage === 'discover' && (
-            <DiscoverPage onSelectAnime={handleSelectAnime} />
+            <DiscoverPage onSelectAnime={handleSelectAnime} onResume={handleResume} />
           )}
           {activePage === 'oracle' && (
             <OraclePage onSelectAnime={handleSelectAnime} />
@@ -362,6 +457,14 @@ export default function App() {
         />
       )}
 
+      {/* History Modal */}
+      {showHistory && (
+        <HistoryModal
+          onClose={() => setShowHistory(false)}
+          onSelectAnime={handleSelectAnime}
+        />
+      )}
+
       {/* Loading overlay when fetching stream */}
       {playerConfig && sourceLoading && (
         <div className="fixed inset-0 z-[75] bg-background/90 flex flex-col items-center justify-center gap-4">
@@ -379,10 +482,12 @@ export default function App() {
           episodeNumber={playerConfig.episode}
           source={source}
           skipTimes={skipTimes}
+          startAt={playerConfig.startAt}
           onExit={handleExitPlayer}
           onNextEpisode={handleNextEpisode}
           onPrevEpisode={handlePrevEpisode}
           onProgress={handleWatchProgress}
+          onSourceFailed={handleSourceFailed}
         />
       )}
 
@@ -398,9 +503,14 @@ export default function App() {
       {/* Actualizador Modal Global */}
       <UpdaterModal />
 
-      {/* Demonio Guardián de Notificaciones */}
+      {/* Demonio Guardián — mascota de notificaciones y logros */}
       <DemonOverlay
-        visible={notificationsEnabled && !isPlayerActive}
+        visible={
+          !playerConfig && !isMangaReaderActive &&
+          !modalAnime && !mangaModal && !showHistory && !showAchievements
+        }
+        notificationsEnabled={notificationsEnabled}
+        onOpenAchievements={() => setShowAchievements(true)}
         onTestNotification={() => {
           if (window.electron?.sendNotification) {
             window.electron.sendNotification({
@@ -410,6 +520,11 @@ export default function App() {
           }
         }}
       />
+
+      {/* Modal de Logros */}
+      {showAchievements && (
+        <AchievementsModal onClose={() => setShowAchievements(false)} />
+      )}
     </div>
   );
 }

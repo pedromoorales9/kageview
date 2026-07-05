@@ -3,6 +3,7 @@ import { MangaModel, DEFAULT_PROVIDER_ID, getAllMangaProviders, getMangaProvider
 import { useAppStore } from '../../modules/store';
 import MangaRow from '../components/manga/MangaRow';
 import MangaCard from '../components/manga/MangaCard';
+import MangaHero from '../components/manga/MangaHero';
 import Spinner from '../components/ui/Spinner';
 
 interface MangaPageProps {
@@ -188,7 +189,11 @@ export default function MangaPage({ onSelectManga }: MangaPageProps) {
         const filteredPopular = popular.filter(m => showAdult || !m.isAdult);
         const filteredRecent = recent.filter(m => showAdult || !m.isAdult);
         const filteredSearch = searchResults.filter(m => showAdult || !m.isAdult);
-        
+
+        // Destacado = primer popular CON portada (así el banner nunca queda en blanco)
+        const heroManga = filteredPopular.find((m) => m.coverUrl) ?? filteredPopular[0];
+        const rowPopular = filteredPopular.filter((m) => m !== heroManga);
+
         return (
           <>
             {/* Search results */}
@@ -228,84 +233,18 @@ export default function MangaPage({ onSelectManga }: MangaPageProps) {
               </section>
             ) : (
               <>
-                {/* Dynamic Hero Section using the top popular manga */}
-                {filteredPopular.length > 0 && (
-                  <section 
-                    className="mt-2 mb-10 w-full relative h-[380px] lg:h-[450px] rounded-xl lg:rounded-3xl overflow-hidden cursor-pointer group shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)]"
-                    onClick={() => onSelectManga(filteredPopular[0])}
-                  >
-                    {/* Blurred atmospheric background expanding the entire width */}
-                    <div className="absolute inset-0 z-0">
-                      <img 
-                        src={filteredPopular[0].coverUrl} 
-                        alt=""
-                        className="w-full h-full object-cover opacity-30 blur-[60px] scale-150 saturate-[1.5]"
-                      />
-                    </div>
-
-                    {/* The actual poster beautifully constrained securely in the background without stretching */}
-                    <div className="absolute inset-0 z-10 flex justify-end md:justify-center lg:justify-end pr-0 lg:pr-32 xl:pr-48">
-                      <img 
-                        src={filteredPopular[0].coverUrl} 
-                        alt=""
-                        className="h-[120%] lg:h-[140%] -mt-10 max-w-none object-contain mask-image-linear-to-b opacity-80 mix-blend-screen transition-transform duration-1000 group-hover:scale-105"
-                        style={{ maskImage: "radial-gradient(circle at center, black 40%, transparent 80%)", WebkitMaskImage: "radial-gradient(ellipse at center, black 40%, transparent 80%)" }}
-                      />
-                    </div>
-
-                    {/* Gradient overlays to darken for text */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent z-20" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-background via-background/50 lg:via-transparent to-transparent z-20" />
-
-                    {/* Content Block */}
-                    <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 flex flex-col gap-3 z-30">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="bg-primary/20 backdrop-blur-md text-primary px-3 py-1 rounded-full text-xs font-black tracking-widest uppercase shadow-lg border border-primary/20">
-                          Top Tendencia
-                        </span>
-                        <span className="bg-surface-variant/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-on-surface tracking-widest uppercase">
-                          Cap. {filteredPopular[0].lastChapter ?? '?'}
-                        </span>
-                        <span className="bg-surface-variant/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-tertiary tracking-widest uppercase">
-                          {filteredPopular[0].status === 'ongoing' ? 'En Curso' : 'Finalizado'}
-                        </span>
-                      </div>
-
-                      <h2 className="font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-on-surface leading-[1.05] max-w-4xl drop-shadow-2xl line-clamp-2">
-                        {filteredPopular[0].title}
-                      </h2>
-
-                      <div className="flex items-center gap-3 mt-6">
-                        <button className="
-                          flex items-center gap-2 px-8 py-3
-                          gradient-primary rounded-full
-                          text-on-primary font-headline font-bold text-sm tracking-widest uppercase
-                          transition-all duration-300
-                          hover:shadow-[0_0_30px_rgba(203,151,255,0.4)]
-                          hover:scale-105
-                        ">
-                          <span className="material-symbols-outlined text-xl">play_arrow</span>
-                          Leer Ahora
-                        </button>
-                        <button className="
-                          flex items-center gap-2 px-6 py-3
-                          bg-surface-container-high/60 backdrop-blur-xl rounded-full border border-white/10
-                          text-on-surface font-headline font-bold text-sm tracking-widest uppercase
-                          transition-all duration-300
-                          hover:bg-surface-container-highest
-                        ">
-                          <span className="material-symbols-outlined text-xl">info</span>
-                          Detalles
-                        </button>
-                      </div>
-                    </div>
-                  </section>
+                {/* Hero destacado: primer popular CON portada (evita banners en blanco) */}
+                {heroManga && (
+                  <MangaHero
+                    manga={heroManga}
+                    onClick={() => onSelectManga(heroManga)}
+                  />
                 )}
 
-                {/* Popular (Sliced to avoid double-showing the Hero) */}
+                {/* Popular (excluye el destacado para no duplicarlo) */}
                 <MangaRow
                   title="Populares en Español"
-                  mangas={filteredPopular.length > 0 ? filteredPopular.slice(1) : []}
+                  mangas={rowPopular}
                   onSelect={onSelectManga}
                 />
 

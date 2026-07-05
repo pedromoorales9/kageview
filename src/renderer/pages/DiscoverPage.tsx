@@ -3,8 +3,14 @@ import { AniListAnime } from '../../types/types';
 import useAniList from '../hooks/useAniList';
 import HeroBanner from '../components/anime/HeroBanner';
 import AnimeRow from '../components/anime/AnimeRow';
+import ContinueWatchingRow from '../components/anime/ContinueWatchingRow';
 import Spinner from '../components/ui/Spinner';
 import { useAppStore } from '../../modules/store';
+import {
+  ContinueWatchingItem,
+  getContinueWatching,
+  removeHistoryEntry,
+} from '../../modules/watchHistory';
 
 const GENRE_I18N: Record<string, string> = {
   Action: 'Acción', Adventure: 'Aventura', Comedy: 'Comedia', Drama: 'Drama',
@@ -16,6 +22,7 @@ const GENRE_I18N: Record<string, string> = {
 
 interface DiscoverPageProps {
   onSelectAnime: (anime: AniListAnime) => void;
+  onResume: (item: ContinueWatchingItem) => void;
 }
 
 // Devuelve la temporada actual según el mes
@@ -29,16 +36,34 @@ function getCurrentSeason(): { season: string; year: number } {
   return { season: 'FALL', year };
 }
 
-export default function DiscoverPage({ onSelectAnime }: DiscoverPageProps) {
+export default function DiscoverPage({ onSelectAnime, onResume }: DiscoverPageProps) {
   const { getTrending, getSeasonal, getTopRated, getUserList, searchAnime } = useAniList();
   const user = useAppStore((s) => s.user);
   const [recommended, setRecommended] = useState<{ anime: AniListAnime[]; genre: string } | null>(null);
   const [trending, setTrending] = useState<AniListAnime[]>([]);
   const [seasonal, setSeasonal] = useState<AniListAnime[]>([]);
   const [topRated, setTopRated] = useState<AniListAnime[]>([]);
+  const [continueWatching, setContinueWatching] = useState<ContinueWatchingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Cargar "Continuar viendo" al montar (se refresca al volver del reproductor,
+  // ya que la página se desmonta mientras el player está activo).
+  useEffect(() => {
+    let cancelled = false;
+    getContinueWatching().then((items) => {
+      if (!cancelled) setContinueWatching(items);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleRemoveContinue = async (item: ContinueWatchingItem) => {
+    // sourceEpisode es la entrada real del historial que originó el item
+    // (difiere de `episode` cuando el anterior terminó y sugerimos el siguiente).
+    await removeHistoryEntry(item.anime.id, item.sourceEpisode);
+    setContinueWatching((prev) => prev.filter((i) => i.anime.id !== item.anime.id));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -173,6 +198,13 @@ export default function DiscoverPage({ onSelectAnime }: DiscoverPageProps) {
 
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-8 pb-8 px-1">
+      {/* Continuar viendo */}
+      <ContinueWatchingRow
+        items={continueWatching}
+        onResume={onResume}
+        onRemove={handleRemoveContinue}
+      />
+
       {/* Hero Banner */}
       {heroAnime && (
         <HeroBanner anime={heroAnime} onClick={() => onSelectAnime(heroAnime)} />

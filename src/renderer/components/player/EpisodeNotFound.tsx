@@ -1,4 +1,5 @@
 import React from 'react';
+import { useToast } from '../ui/Toast';
 
 interface EpisodeNotFoundProps {
   onBack: () => void;
@@ -7,6 +8,7 @@ interface EpisodeNotFoundProps {
 }
 
 export default function EpisodeNotFound({ onBack, onNextEpisode, episodeNumber }: EpisodeNotFoundProps) {
+  const toast = useToast();
   return (
     <main className="fixed inset-0 z-[80] bg-background text-on-background font-body flex items-center justify-center overflow-hidden">
       {/* Background Layer */}
@@ -82,7 +84,7 @@ export default function EpisodeNotFound({ onBack, onNextEpisode, episodeNumber }
             </button>
 
             <button
-              onClick={() => alert("Reporte enviado. Revisaremos el episodio pronto.")}
+              onClick={() => toast.success('Revisaremos el episodio pronto. ¡Gracias!', 'Reporte enviado')}
               className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors font-headline uppercase tracking-widest text-xs font-semibold py-4 px-6 border-b border-transparent hover:border-primary/30"
             >
               <span className="material-symbols-outlined text-sm">flag</span>

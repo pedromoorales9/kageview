@@ -59,7 +59,7 @@ export async function getSourceWithFallback(
   episodeNumber: number,
   mode: PlayMode,
   prefs: UserPreferences
-): Promise<{ source: StreamingSource; providerId: ProviderId } | null> {
+): Promise<{ sources: StreamingSource[]; providerId: ProviderId } | null> {
   const baseOrder: ProviderId[] = prefs.audioLanguage === 'es'
     ? ['animeflv', 'animeav1', 'jkanime']
     : ['animeflv', 'animeav1', 'jkanime'];
@@ -109,11 +109,13 @@ export async function getSourceWithFallback(
         continue;
       }
 
-      // Obtener sources de streaming
+      // Obtener sources de streaming — se devuelven TODOS los servidores
+      // para poder saltar al siguiente si el primero está caído
+      // (p. ej. embeds que muestran "Content not found").
       const sources = await provider.getStreamingSource(ep.id, mode);
       if (sources.length > 0) {
-        console.log(`[Registry] Source obtenido de ${pid}`);
-        return { source: sources[0], providerId: pid };
+        console.log(`[Registry] ${sources.length} source(s) obtenidos de ${pid}`);
+        return { sources, providerId: pid };
       }
     } catch (err) {
       console.warn(`[Registry] Provider ${pid} falló:`, err);

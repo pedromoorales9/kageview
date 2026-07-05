@@ -20,6 +20,30 @@ const store = new Store({
   encryptionKey: 'kageview-secure-store-key-2026',
 });
 
+// El historial de visualización se actualiza durante la reproducción; va en
+// su propio fichero para que cada escritura no reescriba también el store
+// principal (providerCache, token, biblioteca de manga…).
+const historyStore = new Store({
+  name: 'watch-history',
+  encryptionKey: 'kageview-secure-store-key-2026',
+});
+
+const HISTORY_STORE_KEYS = new Set(['watchHistory']);
+
+function storeForKey(key: string): Store {
+  return HISTORY_STORE_KEYS.has(key) ? historyStore : store;
+}
+
+// Migrar el historial que la 1.2.0 guardó en el store principal
+for (const key of HISTORY_STORE_KEYS) {
+  if (store.has(key)) {
+    if (!historyStore.has(key)) {
+      historyStore.set(key, store.get(key));
+    }
+    store.delete(key);
+  }
+}
+
 let mainWindow: BrowserWindow | null = null;
 
 const isDev = process.env.NODE_ENV === 'development' || process.env.ELECTRON_IS_DEV === '1';
@@ -208,6 +232,13 @@ async function createWindow(): Promise<void> {
           // CDNs (img1mw.xyz, img2mw.xyz, …), por eso usamos "mw.xyz".
           details.requestHeaders['Referer'] = 'https://manhwaweb.com/';
           details.requestHeaders['Origin'] = 'https://manhwaweb.com';
+        } else if (url.includes('manga-oni.com') || url.includes('ntr-files.online')) {
+          // MangaOni sirve portadas y páginas desde su CDN (oni.ntr-files.online).
+          // Forzar un Referer/Origin ajeno (animeflv) activa la protección
+          // anti-hotlink y rompe la carga de imágenes. Usamos su propio Referer
+          // y NO mandamos Origin (las peticiones de <img> no lo necesitan).
+          details.requestHeaders['Referer'] = 'https://manga-oni.com/';
+          delete details.requestHeaders['Origin'];
         } else {
           // Default it to AnimeFLV for embed servers like Streamwish, Okru, Mega, Fembed etc.
           details.requestHeaders['Referer'] = 'https://animeflv.net/';
@@ -312,11 +343,17 @@ ipcMain.on('window-set-fullscreen', (_event, value: boolean) => {
 });
 
 ipcMain.handle('get-store', (_event, key: string) => {
-  return store.get(key);
+  return storeForKey(key).get(key);
 });
 
 ipcMain.handle('set-store', (_event, key: string, value: unknown) => {
-  store.set(key, value);
+  const target = storeForKey(key);
+  if (value === undefined) {
+    // electron-store no admite set(key, undefined); borrar la clave
+    target.delete(key as never);
+  } else {
+    target.set(key, value);
+  }
 });
 
 ipcMain.handle('open-external', (_event, url: string) => {

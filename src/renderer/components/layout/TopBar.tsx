@@ -1,10 +1,12 @@
 import React from 'react';
+import { useToast } from '../ui/Toast';
 
 type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings' | 'calendar' | 'manga';
 
 interface TopBarProps {
   activePage: PageId;
   userAvatar?: string | null;
+  onOpenHistory?: () => void;
 }
 
 const PAGE_TITLES: Record<PageId, string> = {
@@ -17,8 +19,9 @@ const PAGE_TITLES: Record<PageId, string> = {
   manga: 'Manga',
 };
 
-export default function TopBar({ activePage, userAvatar }: TopBarProps) {
+export default function TopBar({ activePage, userAvatar, onOpenHistory }: TopBarProps) {
   const pageTitle = PAGE_TITLES[activePage];
+  const toast = useToast();
 
   return (
     <header
@@ -45,7 +48,8 @@ export default function TopBar({ activePage, userAvatar }: TopBarProps) {
         {/* History */}
         <button
           id="topbar-history"
-          onClick={() => alert('El Historial detallado de visualización se añadirá pronto.\\nPor ahora, tu progreso se guarda automáticamente en la pestaña Biblioteca > Viendo.')}
+          onClick={() => onOpenHistory?.()}
+          title="Historial de visualización"
           className="
             w-9 h-9 flex items-center justify-center
             rounded-lg text-on-surface-variant
@@ -58,7 +62,7 @@ export default function TopBar({ activePage, userAvatar }: TopBarProps) {
 
         {/* Avatar */}
         <button
-          onClick={() => alert('Pronto podrás editar tu perfil de AniList directamente desde aquí.\\nPara modificar tus ajustes de cuenta, usa la web oficial de AniList de momento.')}
+          onClick={() => toast.info('Para modificar tus ajustes de cuenta, usa la web oficial de AniList de momento.', 'Perfil de AniList')}
           className="hover:scale-105 transition-transform"
         >
           {userAvatar ? (

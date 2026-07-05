@@ -16,6 +16,7 @@ import { clientData } from '../../modules/clientData';
 import AnimeCard from '../components/anime/AnimeCard';
 import Badge from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
+import { useToast } from '../components/ui/Toast';
 
 interface LibraryPageProps {
   onSelectAnime: (anime: AniListAnime) => void;
@@ -108,6 +109,7 @@ export default function LibraryPage({ onSelectAnime, onSelectManga }: LibraryPag
 function AnimeSection({ onSelectAnime }: { onSelectAnime: (anime: AniListAnime) => void }) {
   const token = useAppStore((s) => s.token);
   const { getUserList, login } = useAniList();
+  const toast = useToast();
   const [animeList, setAnimeList] = useState<AniListAnime[]>([]);
   const [activeTab, setActiveTab] = useState('ALL');
   const [loading, setLoading] = useState(false);
@@ -146,7 +148,7 @@ function AnimeSection({ onSelectAnime }: { onSelectAnime: (anime: AniListAnime) 
           id="connect-anilist"
           onClick={() => {
             if (!clientData.clientId || clientData.clientId === 0) {
-              alert('El login de AniList no está configurado en esta versión (falta el Client ID público de la app).');
+              toast.warning('Falta el Client ID público de la app en esta versión.', 'Login no configurado');
               return;
             }
             // Implicit Grant: el token vuelve en el redirect, sin usar el secret.
