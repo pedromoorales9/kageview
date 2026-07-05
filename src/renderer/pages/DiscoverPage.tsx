@@ -6,6 +6,8 @@ import AnimeRow from '../components/anime/AnimeRow';
 import ContinueWatchingRow from '../components/anime/ContinueWatchingRow';
 import Spinner from '../components/ui/Spinner';
 import { useAppStore } from '../../modules/store';
+import { getCache, setCache } from '../../modules/cache';
+import { isAniListDown } from '../../modules/anilist/client';
 import {
   ContinueWatchingItem,
   getContinueWatching,
@@ -23,6 +25,24 @@ const GENRE_I18N: Record<string, string> = {
 interface DiscoverPageProps {
   onSelectAnime: (anime: AniListAnime) => void;
   onResume: (item: ContinueWatchingItem) => void;
+}
+
+/** Último catálogo bueno, persistido para cuando AniList no responda. */
+interface DiscoverCache {
+  trending: AniListAnime[];
+  seasonal: AniListAnime[];
+  topRated: AniListAnime[];
+  savedAt: number;
+}
+
+/** "hace 2 h", "hace 3 días"… para el banner de catálogo guardado. */
+function timeAgo(ts: number): string {
+  const mins = Math.max(1, Math.round((Date.now() - ts) / 60000));
+  if (mins < 60) return `hace ${mins} min`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? 'hace 1 día' : `hace ${days} días`;
 }
 
 // Devuelve la temporada actual según el mes
@@ -47,6 +67,9 @@ export default function DiscoverPage({ onSelectAnime, onResume }: DiscoverPagePr
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // Timestamp del catálogo cacheado que se está mostrando (null = datos frescos)
+  const [staleSince, setStaleSince] = useState<number | null>(null);
+  const [apiDown, setApiDown] = useState(false);
 
   // Cargar "Continuar viendo" al montar (se refresca al volver del reproductor,
   // ya que la página se desmonta mientras el player está activo).
@@ -79,10 +102,29 @@ export default function DiscoverPage({ onSelectAnime, onResume }: DiscoverPagePr
           setTrending(t);
           setSeasonal(s);
           setTopRated(tr);
+          setStaleSince(null);
+          // Guardar como último catálogo bueno (fire-and-forget)
+          setCache('discoverCache', {
+            trending: t,
+            seasonal: s,
+            topRated: tr,
+            savedAt: Date.now(),
+          } satisfies DiscoverCache);
         }
       } catch (err) {
         console.error('[DiscoverPage] Error loading data:', err);
-        if (!cancelled) {
+        if (cancelled) return;
+
+        // Modo degradado: mostrar el último catálogo bueno si existe
+        const cached = await getCache<DiscoverCache>('discoverCache');
+        if (cancelled) return;
+        if (cached && cached.trending?.length) {
+          setTrending(cached.trending);
+          setSeasonal(cached.seasonal ?? []);
+          setTopRated(cached.topRated ?? []);
+          setStaleSince(cached.savedAt);
+        } else {
+          setApiDown(isAniListDown(err));
           setError(err instanceof Error ? err.message : 'Failed to load data from AniList');
         }
       } finally {
@@ -164,13 +206,13 @@ export default function DiscoverPage({ onSelectAnime, onResume }: DiscoverPagePr
       <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8">
         <span className="material-symbols-outlined text-secondary text-5xl">cloud_off</span>
         <h2 className="font-headline text-xl font-bold text-on-surface">
-          Error de Conexión
+          {apiDown ? 'AniList no disponible' : 'Error de Conexión'}
         </h2>
         <p className="text-on-surface-variant text-sm text-center max-w-md">
           {error}
         </p>
         <button
-          onClick={() => { setError(null); setLoading(true); setReloadKey((k) => k + 1); }}
+          onClick={() => { setError(null); setApiDown(false); setLoading(true); setReloadKey((k) => k + 1); }}
           className="mt-4 px-6 py-2 rounded-full bg-primary/20 text-primary font-label text-sm hover:bg-primary/30 transition-colors"
         >
           Reintentar
@@ -198,6 +240,24 @@ export default function DiscoverPage({ onSelectAnime, onResume }: DiscoverPagePr
 
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-8 pb-8 px-1">
+      {/* Aviso de modo degradado: AniList caído, catálogo guardado */}
+      {staleSince !== null && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary/10 border border-secondary/25">
+          <span className="material-symbols-outlined text-secondary text-xl">cloud_off</span>
+          <p className="flex-1 text-xs text-on-surface-variant leading-snug">
+            <span className="font-semibold text-on-surface">AniList no responde ahora mismo.</span>{' '}
+            Estás viendo el último catálogo guardado ({timeAgo(staleSince)}). La reproducción
+            de episodios y el manga funcionan con normalidad.
+          </p>
+          <button
+            onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }}
+            className="flex-none px-3 py-1.5 rounded-lg bg-secondary/15 hover:bg-secondary/25 text-secondary text-xs font-semibold transition-colors"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
       {/* Continuar viendo */}
       <ContinueWatchingRow
         items={continueWatching}

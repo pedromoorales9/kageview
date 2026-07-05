@@ -31,6 +31,6 @@ export async function setCache(key: string, value: unknown): Promise<void> {
  * Limpia todas las claves del store.
  */
 export async function clearCache(): Promise<void> {
-  const keys = ['token', 'userPrefs', 'providerCache', 'watchProgress', 'watchHistory', 'achievementsUnlocked', 'mangaLibrary', 'mangaProgress'];
+  const keys = ['token', 'userPrefs', 'providerCache', 'watchProgress', 'watchHistory', 'achievementsUnlocked', 'discoverCache', 'mangaLibrary', 'mangaProgress'];
   await Promise.all(keys.map((k) => setCache(k, undefined)));
 }

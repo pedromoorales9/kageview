@@ -21,6 +21,19 @@ export interface ProxyResponse<T = unknown> {
   headers: Record<string, unknown>;
 }
 
+/** Error HTTP del proxy que conserva el status y el cuerpo de la respuesta. */
+export class ProxyHttpError extends Error {
+  readonly status: number;
+  readonly data: unknown;
+
+  constructor(message: string, status: number, data: unknown) {
+    super(message);
+    this.name = 'ProxyHttpError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
 /**
  * Make an HTTP request through the Electron main process.
  * Falls back to fetch() if window.electron is not available.
@@ -38,7 +51,11 @@ export async function proxyGet<T = unknown>(
       timeout: config.timeout,
     });
     if (res.error) {
-      throw new Error(res.message || `Request failed with status ${res.status}`);
+      throw new ProxyHttpError(
+        res.message || `Request failed with status ${res.status}`,
+        res.status,
+        res.data
+      );
     }
     return res as ProxyResponse<T>;
   }
@@ -74,7 +91,11 @@ export async function proxyPost<T = unknown>(
       validateStatus: config.validateStatus,
     });
     if (res.error) {
-      throw new Error(res.message || `Request failed with status ${res.status}`);
+      throw new ProxyHttpError(
+        res.message || `Request failed with status ${res.status}`,
+        res.status,
+        res.data
+      );
     }
     return res as ProxyResponse<T>;
   }

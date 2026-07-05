@@ -28,10 +28,20 @@ const historyStore = new Store({
   encryptionKey: 'kageview-secure-store-key-2026',
 });
 
+// Último catálogo bueno de Descubrir (fallback cuando AniList está caído).
+// Igual que el historial: fichero aparte porque son objetos grandes.
+const catalogStore = new Store({
+  name: 'catalog-cache',
+  encryptionKey: 'kageview-secure-store-key-2026',
+});
+
 const HISTORY_STORE_KEYS = new Set(['watchHistory']);
+const CATALOG_STORE_KEYS = new Set(['discoverCache']);
 
 function storeForKey(key: string): Store {
-  return HISTORY_STORE_KEYS.has(key) ? historyStore : store;
+  if (HISTORY_STORE_KEYS.has(key)) return historyStore;
+  if (CATALOG_STORE_KEYS.has(key)) return catalogStore;
+  return store;
 }
 
 // Migrar el historial que la 1.2.0 guardó en el store principal
