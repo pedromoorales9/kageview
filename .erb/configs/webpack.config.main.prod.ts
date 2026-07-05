@@ -2,6 +2,7 @@ import path from 'path';
 import { Configuration } from 'webpack';
 import { merge } from 'webpack-merge';
 import baseConfig from './webpack.config.base';
+import { anilistDefinePlugin } from './loadEnv';
 
 const rootDir = path.resolve(__dirname, '../..');
 
@@ -13,10 +14,13 @@ const mainProdConfig: Configuration = merge(baseConfig, {
     path: path.resolve(rootDir, 'dist/main'),
     filename: 'main.js',
   },
+  plugins: [
+    // Inyecta DISCORD_CLIENT_ID (y credenciales AniList) desde .env
+    anilistDefinePlugin(),
+  ],
   externals: {
     'electron-store': 'commonjs electron-store',
     'electron-updater': 'commonjs electron-updater',
-    'discord-rpc': 'commonjs discord-rpc',
   },
   node: {
     __dirname: false,

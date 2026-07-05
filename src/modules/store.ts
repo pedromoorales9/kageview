@@ -13,6 +13,7 @@ import {
   SkipTime,
   ProviderId,
 } from '../types/types';
+import { setCache } from './cache';
 
 export const useAppStore = create<AppState>((set) => ({
   // ─── State ──────────────────────────────────────────────
@@ -37,9 +38,13 @@ export const useAppStore = create<AppState>((set) => ({
   setUser: (user: AniListViewer | null) => set({ user }),
 
   setPrefs: (partial: Partial<UserPreferences>) =>
-    set((state) => ({
-      prefs: { ...state.prefs, ...partial },
-    })),
+    set((state) => {
+      const prefs = { ...state.prefs, ...partial };
+      // Persistir en electron-store (fire-and-forget); antes las prefs
+      // se perdían al cerrar la app.
+      setCache('userPrefs', prefs);
+      return { prefs };
+    }),
 
   setCurrentAnime: (anime: AniListAnime | null) => set({ currentAnime: anime }),
 

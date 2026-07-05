@@ -252,6 +252,28 @@ export default function SettingsPage() {
             </div>
           </section>
 
+          {/* Integrations */}
+          <section className="bg-surface-container rounded-xl p-5">
+            <h3 className="font-headline text-sm font-bold text-on-surface mb-4">
+              Integraciones
+            </h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm text-on-surface-variant">Discord Rich Presence</label>
+                <p className="text-[11px] text-on-surface-variant/60 mt-0.5">
+                  Muestra el anime y episodio que estás viendo en tu perfil de Discord
+                </p>
+              </div>
+              <ToggleSwitch
+                checked={prefs.discordRpc}
+                onChange={(v) => {
+                  setPrefs({ discordRpc: v });
+                  window.electron?.discordSetEnabled?.(v);
+                }}
+              />
+            </div>
+          </section>
+
           {/* Providers */}
           <section className="bg-surface-container rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">

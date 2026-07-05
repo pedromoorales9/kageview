@@ -13,6 +13,7 @@ import Store from 'electron-store';
 import { version } from '../../package.json';
 import { initUpdater } from './updater';
 import { buildMenu } from './menu';
+import * as discordRpc from './discordRpc';
 
 // ─── Electron Store ───────────────────────────────────────
 const store = new Store({
@@ -322,6 +323,24 @@ ipcMain.handle('open-external', (_event, url: string) => {
   return shell.openExternal(url);
 });
 
+// ─── Discord Rich Presence ────────────────────────────────
+ipcMain.handle('discord-set-enabled', (_event, enabled: boolean) => {
+  if (enabled) {
+    discordRpc.connect();
+  } else {
+    discordRpc.clear();
+    discordRpc.disconnect();
+  }
+});
+
+ipcMain.handle('discord-set-activity', (_event, opts: { details: string; state: string }) => {
+  discordRpc.setActivity(opts.details, opts.state);
+});
+
+ipcMain.handle('discord-clear', () => {
+  discordRpc.clear();
+});
+
 // ─── Notificaciones Nativas de Windows ────────────────────
 ipcMain.handle('send-notification', (_event, opts: { title: string; body: string }) => {
   if (Notification.isSupported()) {
@@ -524,7 +543,18 @@ app.whenReady().then(async () => {
     startDaemon();
   }
 
+  // Conectar Discord RPC si las prefs guardadas no lo desactivan
+  // (por defecto discordRpc: true; sin DISCORD_CLIENT_ID es un no-op)
+  const savedPrefs = store.get('userPrefs') as { discordRpc?: boolean } | undefined;
+  if (savedPrefs?.discordRpc !== false) {
+    discordRpc.connect();
+  }
+
   // El auto-update ya se inicializó en createWindow()
+});
+
+app.on('quit', () => {
+  discordRpc.disconnect();
 });
 
 app.on('window-all-closed', () => {

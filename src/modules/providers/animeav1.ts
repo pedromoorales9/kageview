@@ -43,22 +43,27 @@ export class AnimeAV1Provider implements IProvider {
         { headers: this.headers(), timeout: 10000 }
       );
 
-      const results: ProviderAnime[] = [];
-      const regex = /href="\/media\/([^"]+)"><span class="sr-only">Ver ([^<]+)<\/span>/g;
-      
-      let match;
-      while ((match = regex.exec(data)) !== null) {
-        results.push({
-          id: match[1],
-          title: match[2].trim(),
-          url: `${this.baseUrl}/media/${match[1]}`,
-        });
-      }
-      return results;
+      return this.parseSearch(data as string);
     } catch (err) {
       console.error('[AnimeAV1] search failed:', err);
       return [];
     }
+  }
+
+  /** Parseo puro del HTML del catálogo (expuesto para tests). */
+  parseSearch(html: string): ProviderAnime[] {
+    const results: ProviderAnime[] = [];
+    const regex = /href="\/media\/([^"]+)"><span class="sr-only">Ver ([^<]+)<\/span>/g;
+
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+      results.push({
+        id: match[1],
+        title: match[2].trim(),
+        url: `${this.baseUrl}/media/${match[1]}`,
+      });
+    }
+    return results;
   }
 
   async getEpisodes(slug: string, _dubbed: boolean): Promise<ProviderEpisode[]> {
@@ -72,27 +77,32 @@ export class AnimeAV1Provider implements IProvider {
         timeout: 10000,
       });
       
-      let total = 0;
-      const rx = new RegExp(`href="/media/${slug}/(\\d+)"`, 'g');
-      let m;
-      while ((m = rx.exec(data as string)) !== null) {
-        const n = parseInt(m[1]);
-        if (n > total) total = n;
-      }
-      
-      // Fallback seguro si la pagina no lo expone en anchors directamente
-      if (total === 0) total = 3000;
-
-      return Array.from({ length: total }, (_, i) => ({
-        id: `${slug}/${i + 1}`,
-        number: i + 1,
-        title: `Episodio ${i + 1}`,
-        url: `${this.baseUrl}/media/${slug}/${i + 1}`,
-      }));
+      return this.parseEpisodes(data as string, slug);
     } catch (err) {
       console.error('[AnimeAV1] getEpisodes failed:', err);
       return [];
     }
+  }
+
+  /** Parseo puro de la página del media (expuesto para tests). */
+  parseEpisodes(html: string, slug: string): ProviderEpisode[] {
+    let total = 0;
+    const rx = new RegExp(`href="/media/${slug}/(\\d+)"`, 'g');
+    let m;
+    while ((m = rx.exec(html)) !== null) {
+      const n = parseInt(m[1]);
+      if (n > total) total = n;
+    }
+
+    // Fallback seguro si la pagina no lo expone en anchors directamente
+    if (total === 0) total = 3000;
+
+    return Array.from({ length: total }, (_, i) => ({
+      id: `${slug}/${i + 1}`,
+      number: i + 1,
+      title: `Episodio ${i + 1}`,
+      url: `${this.baseUrl}/media/${slug}/${i + 1}`,
+    }));
   }
 
   async getStreamingSource(episodeId: string, _mode: PlayMode): Promise<StreamingSource[]> {

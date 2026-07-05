@@ -47,6 +47,11 @@ declare global {
       setNotificationsEnabled: (val: boolean) => Promise<void>;
       setAiringAnimes: (entries: AiringEntry[]) => Promise<void>;
 
+      // Discord Rich Presence
+      discordSetEnabled: (enabled: boolean) => Promise<void>;
+      discordSetActivity: (opts: { details: string; state: string }) => Promise<void>;
+      discordClear: () => Promise<void>;
+
       // Progreso de episodios persistido
       getWatchProgress: (animeId: number) => Promise<number | null>;
       setWatchProgress: (animeId: number, episode: number) => Promise<void>;

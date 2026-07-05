@@ -6,7 +6,7 @@
 
 **App de escritorio para streaming de anime y lectura de manga — sin anuncios, sin cuentas, en español.**
 
-[![Version](https://img.shields.io/badge/version-1.1.0-cb97ff?style=flat-square&labelColor=0e0e13)](https://github.com/pedromoorales9/kageview/releases/latest)
+[![Version](https://img.shields.io/badge/version-1.2.0-cb97ff?style=flat-square&labelColor=0e0e13)](https://github.com/pedromoorales9/kageview/releases/latest)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-cb97ff?style=flat-square&labelColor=0e0e13)](https://www.gnu.org/licenses/gpl-3.0)
 [![Electron](https://img.shields.io/badge/Electron-28-47c4ff?style=flat-square&labelColor=0e0e13)](https://electronjs.org)
 [![React](https://img.shields.io/badge/React-18-f673b7?style=flat-square&labelColor=0e0e13)](https://reactjs.org)
@@ -40,6 +40,8 @@
 | 🔔 **Notificaciones** | Aviso nativo de Windows cuando sale un episodio nuevo hoy |
 | 🎨 **Cinematic Shadow UI** | Design system oscuro con glows y glassmorphism |
 | 🔄 **Auto-updater** | Actualizaciones silenciosas automáticas en segundo plano |
+| 🎮 **Discord Rich Presence** | Muestra el anime y episodio que estás viendo en tu perfil de Discord (opcional) |
+| 💾 **Preferencias persistentes** | Idioma, providers, skips y ajustes se conservan entre sesiones |
 
 ---
 
@@ -72,7 +74,7 @@ KageView conecta múltiples fuentes y cambia automáticamente si una falla. Pued
 
 | Sistema | Archivo | |
 |---------|---------|--|
-| Windows 10/11 | `KageView-Setup-1.1.0.exe` | [**Descargar →**](https://github.com/pedromoorales9/kageview/releases/latest) |
+| Windows 10/11 | `KageView-Setup-1.2.0.exe` | [**Descargar →**](https://github.com/pedromoorales9/kageview/releases/latest) |
 | Linux / macOS | — | Próximamente |
 
 > Si ya tienes KageView instalado, la app se actualiza sola en cuanto detecta una nueva versión.
@@ -110,10 +112,31 @@ ANILIST_CLIENT_ID=tu_client_id
 
 > ⚠️ `.env` está en `.gitignore` y persiste entre builds. El valor se inyecta automáticamente en cada compilación, así que no hay que volver a tocar el código.
 
+### Discord Rich Presence (opcional)
+
+Crea una aplicación en el [Discord Developer Portal](https://discord.com/developers/applications)
+y añade su Application ID al `.env`:
+
+```bash
+DISCORD_CLIENT_ID=tu_application_id
+```
+
+Sin él, la función queda desactivada silenciosamente. Se puede apagar
+en cualquier momento desde **Ajustes → Integraciones**.
+
 ### Lanzar en desarrollo
 
 ```bash
 npm start
+```
+
+### Tests
+
+Los parsers de providers (la parte más frágil: dependen del HTML de sitios
+de terceros) y el title matcher tienen tests con fixtures:
+
+```bash
+npm test
 ```
 
 ### Compilar instalador Windows
@@ -140,7 +163,8 @@ electron-updater 6   →  Auto-actualizaciones desde GitHub Releases
 AniList GraphQL v2   →  Metadatos, autenticación OAuth y sync
 AniSkip API v2       →  Timestamps de intro/outro
 fastest-levenshtein  →  Title matching fuzzy entre providers
-discord-rpc 4        →  Discord Rich Presence
+Discord IPC nativo   →  Rich Presence sin dependencias (src/main/discordRpc.ts)
+Vitest               →  Tests de parsers de providers y title matcher
 ```
 
 ---
@@ -194,6 +218,11 @@ src/
 ---
 
 ## 📋 Changelog
+
+### v1.2.0 — Discord Rich Presence, prefs persistentes y tests
+- **Discord Rich Presence real** — muestra el anime y episodio que estás viendo en tu perfil de Discord. Implementación IPC nativa sin dependencias (el paquete `discord-rpc` estaba declarado pero nunca cableado; se eliminó). Opcional vía `DISCORD_CLIENT_ID` y toggle en Ajustes → Integraciones
+- **Preferencias persistentes** — idioma, providers, favoritos y skips ya no se pierden al cerrar la app: se guardan en electron-store y se restauran al arrancar
+- **Tests de parsers y matcher** — suite de Vitest para los parsers de los 3 providers de anime y el title matcher (`npm test`), portada de la versión nativa de macOS
 
 ### v1.1.0 — MangaOni, UI responsive y login propio
 - **Nuevo provider de manga: MangaOni** (manga-oni.com) — manga, manhwa y manhua en español, con filtro de contenido +18

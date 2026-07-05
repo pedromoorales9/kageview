@@ -48,14 +48,15 @@ export class AnimeFlvProvider implements IProvider {
         headers: this.headers(),
         timeout: 10000,
       });
-      return this.parseSearch(data as string, dubbed);
+      return this.parseSearch(data as string);
     } catch (err) {
       console.error('[AnimeFLV] search failed:', err);
       return [];
     }
   }
 
-  private parseSearch(html: string, _dubbed: boolean): ProviderAnime[] {
+  /** Parseo puro del HTML de búsqueda (expuesto para tests). */
+  parseSearch(html: string): ProviderAnime[] {
     const results: ProviderAnime[] = [];
     const articles = html.split('<article');
     for (let i = 1; i < articles.length; i++) {
@@ -80,19 +81,24 @@ export class AnimeFlvProvider implements IProvider {
         headers: this.headers(),
         timeout: 10000,
       });
-      const match = (data as string).match(/var episodes\s*=\s*(\[\[[\s\S]*?\]\])/);
-      if (!match) return [];
-      const eps: [number, number][] = JSON.parse(match[1]);
-      return eps.reverse().map(([num]) => ({
-        id: `${animeSlug}-${num}`,
-        number: num,
-        title: `Episodio ${num}`,
-        url: `${this.baseUrl}/ver/${animeSlug}-${num}`,
-      }));
+      return this.parseEpisodes(data as string, animeSlug);
     } catch (err) {
       console.error('[AnimeFLV] getEpisodes failed:', err);
       return [];
     }
+  }
+
+  /** Parseo puro del `var episodes = [[..]]` (expuesto para tests). */
+  parseEpisodes(html: string, animeSlug: string): ProviderEpisode[] {
+    const match = html.match(/var episodes\s*=\s*(\[\[[\s\S]*?\]\])/);
+    if (!match) return [];
+    const eps: [number, number][] = JSON.parse(match[1]);
+    return eps.reverse().map(([num]) => ({
+      id: `${animeSlug}-${num}`,
+      number: num,
+      title: `Episodio ${num}`,
+      url: `${this.baseUrl}/ver/${animeSlug}-${num}`,
+    }));
   }
 
   async getStreamingSource(episodeId: string, mode: PlayMode): Promise<StreamingSource[]> {
@@ -101,38 +107,43 @@ export class AnimeFlvProvider implements IProvider {
         headers: this.headers(),
         timeout: 10000,
       });
-      const match = (data as string).match(/var videos\s*=\s*(\{[\s\S]*?\});/);
-      if (!match) throw new Error('[AnimeFLV] No se encontraron videos');
-
-      const videos = JSON.parse(match[1]);
-      // LAT = Latino doblado, SUB = subtitulado español
-      const serverList: Array<{ server?: string; url?: string; code?: string }> = mode === 'dub'
-        ? (videos.LAT || videos.SUB || [])
-        : (videos.SUB || videos.LAT || []);
-
-      if (!serverList.length) throw new Error('[AnimeFLV] Sin servidores disponibles');
-
-      // Priorizar servidores que dan iframes directos limpios
-      const PREFERRED = ['sw', 'fembed', 'okru', 'netu', 'yourupload', 'stape'];
-      serverList.sort((a, b) => {
-        const aIdx = PREFERRED.indexOf(a.server?.toLowerCase() || '');
-        const bIdx = PREFERRED.indexOf(b.server?.toLowerCase() || '');
-        if (aIdx === -1 && bIdx === -1) return 0;
-        if (aIdx === -1) return 1;
-        if (bIdx === -1) return -1;
-        return aIdx - bIdx;
-      });
-
-      return serverList
-        .filter((s) => s.url || s.code)
-        .map((s) => ({
-          url: (s.url || s.code) as string,
-          type: 'iframe' as const,
-          quality: s.server || 'auto',
-        }));
+      return this.parseSources(data as string, mode);
     } catch (err) {
       console.error('[AnimeFLV] getStreamingSource failed:', err);
       return [];
     }
+  }
+
+  /** Parseo puro del `var videos = {..}` (expuesto para tests). */
+  parseSources(html: string, mode: PlayMode): StreamingSource[] {
+    const match = html.match(/var videos\s*=\s*(\{[\s\S]*?\});/);
+    if (!match) throw new Error('[AnimeFLV] No se encontraron videos');
+
+    const videos = JSON.parse(match[1]);
+    // LAT = Latino doblado, SUB = subtitulado español
+    const serverList: Array<{ server?: string; url?: string; code?: string }> = mode === 'dub'
+      ? (videos.LAT || videos.SUB || [])
+      : (videos.SUB || videos.LAT || []);
+
+    if (!serverList.length) throw new Error('[AnimeFLV] Sin servidores disponibles');
+
+    // Priorizar servidores que dan iframes directos limpios
+    const PREFERRED = ['sw', 'fembed', 'okru', 'netu', 'yourupload', 'stape'];
+    serverList.sort((a, b) => {
+      const aIdx = PREFERRED.indexOf(a.server?.toLowerCase() || '');
+      const bIdx = PREFERRED.indexOf(b.server?.toLowerCase() || '');
+      if (aIdx === -1 && bIdx === -1) return 0;
+      if (aIdx === -1) return 1;
+      if (bIdx === -1) return -1;
+      return aIdx - bIdx;
+    });
+
+    return serverList
+      .filter((s) => s.url || s.code)
+      .map((s) => ({
+        url: (s.url || s.code) as string,
+        type: 'iframe' as const,
+        quality: s.server || 'auto',
+      }));
   }
 }

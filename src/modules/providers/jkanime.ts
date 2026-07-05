@@ -48,21 +48,26 @@ export class JKAnimeProvider implements IProvider {
         { headers: this.headers(), timeout: 10000 }
       );
       
-      const results: ProviderAnime[] = [];
-      const regex = /<a\s+href="https:\/\/jkanime\.net\/([^/]+)\/">([^<]+)<\/a><\/h5>/g;
-      let match;
-      while ((match = regex.exec(data)) !== null) {
-        results.push({
-          id: match[1],
-          title: match[2].trim(),
-          url: `${this.baseUrl}/${match[1]}/`,
-        });
-      }
-      return results;
+      return this.parseSearch(data as string);
     } catch (err) {
       console.error('[JKAnime] search failed:', err);
       return [];
     }
+  }
+
+  /** Parseo puro del HTML de búsqueda (expuesto para tests). */
+  parseSearch(html: string): ProviderAnime[] {
+    const results: ProviderAnime[] = [];
+    const regex = /<a\s+href="https:\/\/jkanime\.net\/([^/]+)\/">([^<]+)<\/a><\/h5>/g;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+      results.push({
+        id: match[1],
+        title: match[2].trim(),
+        url: `${this.baseUrl}/${match[1]}/`,
+      });
+    }
+    return results;
   }
 
   async getEpisodes(slug: string): Promise<ProviderEpisode[]> {
@@ -71,28 +76,33 @@ export class JKAnimeProvider implements IProvider {
         headers: this.headers(),
         timeout: 10000,
       });
-      // Buscar enlaces de episodios en el HTML para sacar el último número
-      let total = 0;
-      const rx = new RegExp(`href="[^"]*/${slug}/(\\d+)[/"]`, 'g');
-      let m;
-      while ((m = rx.exec(data as string)) !== null) {
-        const n = parseInt(m[1]);
-        if (n > total) total = n;
-      }
-      // Si no logramos parsearlo, asumimos un límite alto porque
-      // KageView solo necesita generar el ID para consultar el getStreamingSource
-      if (total === 0) total = 3000;
-
-      return Array.from({ length: total }, (_, i) => ({
-        id: `${slug}/${i + 1}`,
-        number: i + 1,
-        title: `Episodio ${i + 1}`,
-        url: `${this.baseUrl}/${slug}/${i + 1}`,
-      }));
+      return this.parseEpisodes(data as string, slug);
     } catch (err) {
       console.error('[JKAnime] getEpisodes failed:', err);
       return [];
     }
+  }
+
+  /** Parseo puro de la página del anime (expuesto para tests). */
+  parseEpisodes(html: string, slug: string): ProviderEpisode[] {
+    // Buscar enlaces de episodios en el HTML para sacar el último número
+    let total = 0;
+    const rx = new RegExp(`href="[^"]*/${slug}/(\\d+)[/"]`, 'g');
+    let m;
+    while ((m = rx.exec(html)) !== null) {
+      const n = parseInt(m[1]);
+      if (n > total) total = n;
+    }
+    // Si no logramos parsearlo, asumimos un límite alto porque
+    // KageView solo necesita generar el ID para consultar el getStreamingSource
+    if (total === 0) total = 3000;
+
+    return Array.from({ length: total }, (_, i) => ({
+      id: `${slug}/${i + 1}`,
+      number: i + 1,
+      title: `Episodio ${i + 1}`,
+      url: `${this.baseUrl}/${slug}/${i + 1}`,
+    }));
   }
 
   async getStreamingSource(episodeId: string, _mode: PlayMode): Promise<StreamingSource[]> {

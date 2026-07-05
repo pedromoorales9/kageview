@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { AniListAnime, PlayMode } from '../types/types';
+import { AniListAnime, PlayMode, UserPreferences } from '../types/types';
 import { MangaModel, MangaChapterModel } from '../modules/manga';
 import { useAppStore } from '../modules/store';
+import { getCache } from '../modules/cache';
 import { getSkipTimes } from '../modules/aniskip';
 import useAniList from './hooks/useAniList';
 import useProvider from './hooks/useProvider';
@@ -50,6 +51,8 @@ export default function App() {
   const [mangaReaderConfig, setMangaReaderConfig] = useState<MangaReaderConfig | null>(null);
 
   const user = useAppStore((s) => s.user);
+  const prefs = useAppStore((s) => s.prefs);
+  const setPrefs = useAppStore((s) => s.setPrefs);
   const skipTimes = useAppStore((s) => s.skipTimes);
   const setSkipTimes = useAppStore((s) => s.setSkipTimes);
   const setCurrentAnime = useAppStore((s) => s.setCurrentAnime);
@@ -66,6 +69,15 @@ export default function App() {
   useEffect(() => {
     if (!window.electron?.getNotificationsEnabled) return;
     window.electron.getNotificationsEnabled().then((val) => setNotificationsEnabled(val));
+  }, []);
+
+  // ─── Restaurar preferencias persistidas al montar ────────────
+  useEffect(() => {
+    (async () => {
+      const saved = await getCache<Partial<UserPreferences>>('userPrefs');
+      if (saved) setPrefs(saved);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ─── Inicializar sesión al montar ────────────────────────
@@ -153,6 +165,18 @@ export default function App() {
     [setSkipTimes]
   );
 
+  /** Actualiza la presencia de Discord con el anime/episodio en curso. */
+  const updateDiscordWatching = useCallback(
+    (anime: AniListAnime, episode: number) => {
+      if (!prefs.discordRpc) return;
+      window.electron?.discordSetActivity?.({
+        details: anime.title.english || anime.title.romaji,
+        state: `Episodio ${episode}`,
+      });
+    },
+    [prefs.discordRpc]
+  );
+
   const handlePlay = useCallback(
     async (episode: number, mode: PlayMode) => {
       if (!modalAnime) return;
@@ -160,6 +184,7 @@ export default function App() {
       setPlayerConfig({ anime: modalAnime, episode, mode });
       setCurrentEpisode(episode);
       setModalAnime(null);
+      updateDiscordWatching(modalAnime, episode);
 
       // Guardar progreso en electron-store
       if (window.electron?.setWatchProgress) {
@@ -172,13 +197,14 @@ export default function App() {
       // Cargar skip times solo si no es iframe (fire-and-forget)
       loadSkipTimesIfNeeded(modalAnime.idMal, episode);
     },
-    [modalAnime, loadSource, setCurrentEpisode, loadSkipTimesIfNeeded]
+    [modalAnime, loadSource, setCurrentEpisode, loadSkipTimesIfNeeded, updateDiscordWatching]
   );
 
   const handleExitPlayer = useCallback(() => {
     setPlayerConfig(null);
     setCurrentEpisode(null);
     setSkipTimes([]);
+    window.electron?.discordClear?.();
   }, [setCurrentEpisode, setSkipTimes]);
 
   const handleNextEpisode = useCallback(async () => {
@@ -190,6 +216,7 @@ export default function App() {
 
     setPlayerConfig({ ...playerConfig, episode: nextEp });
     setCurrentEpisode(nextEp);
+    updateDiscordWatching(playerConfig.anime, nextEp);
 
     // Guardar progreso local
     if (window.electron?.setWatchProgress) {
@@ -200,7 +227,7 @@ export default function App() {
 
     // Cargar skip times solo si no es iframe
     loadSkipTimesIfNeeded(playerConfig.anime.idMal, nextEp);
-  }, [playerConfig, loadSource, saveProgress, setCurrentEpisode, loadSkipTimesIfNeeded]);
+  }, [playerConfig, loadSource, saveProgress, setCurrentEpisode, loadSkipTimesIfNeeded, updateDiscordWatching]);
 
   const handlePrevEpisode = useCallback(async () => {
     if (!playerConfig || playerConfig.episode <= 1) return;
@@ -208,6 +235,7 @@ export default function App() {
 
     setPlayerConfig({ ...playerConfig, episode: prevEp });
     setCurrentEpisode(prevEp);
+    updateDiscordWatching(playerConfig.anime, prevEp);
 
     // Guardar progreso local
     if (window.electron?.setWatchProgress) {
@@ -218,7 +246,7 @@ export default function App() {
 
     // Cargar skip times solo si no es iframe
     loadSkipTimesIfNeeded(playerConfig.anime.idMal, prevEp);
-  }, [playerConfig, loadSource, setCurrentEpisode, loadSkipTimesIfNeeded]);
+  }, [playerConfig, loadSource, setCurrentEpisode, loadSkipTimesIfNeeded, updateDiscordWatching]);
 
   const handleWatchProgress = useCallback(
     (_seconds: number) => {

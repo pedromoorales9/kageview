@@ -65,6 +65,16 @@ contextBridge.exposeInMainWorld('electron', {
   setAiringAnimes: (entries: Array<{ id: number; title: string; nextEpisode: number; airingAt: number }>): Promise<void> =>
     ipcRenderer.invoke('set-airing-animes', entries),
 
+  // ─── Discord Rich Presence ──────────────────────────────
+  discordSetEnabled: (enabled: boolean): Promise<void> =>
+    ipcRenderer.invoke('discord-set-enabled', enabled),
+
+  discordSetActivity: (opts: { details: string; state: string }): Promise<void> =>
+    ipcRenderer.invoke('discord-set-activity', opts),
+
+  discordClear: (): Promise<void> =>
+    ipcRenderer.invoke('discord-clear'),
+
   // ─── Progreso de Episodios ───────────────────────────────
   getWatchProgress: (animeId: number): Promise<number | null> =>
     ipcRenderer.invoke('get-watch-progress', animeId),
