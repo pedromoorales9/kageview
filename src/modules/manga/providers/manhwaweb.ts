@@ -61,7 +61,7 @@ export const ManhwaWebProvider: MangaProvider = {
       order_item: 'views',
       order_dir: 'desc',
     };
-    const res = await proxyGet<any>(`${API_BASE}/manhwa/library`, { params });
+    const res = await proxyGet<any>(`${API_BASE}/manhwa/library`, { params, retries: 1 });
     const parsed = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
     return (parsed?.data ?? []).map(parseMangaFromListing);
   },
@@ -72,7 +72,7 @@ export const ManhwaWebProvider: MangaProvider = {
       order_item: 'views',
       order_dir: 'desc',
     };
-    const res = await proxyGet<any>(`${API_BASE}/manhwa/library`, { params });
+    const res = await proxyGet<any>(`${API_BASE}/manhwa/library`, { params, retries: 1 });
     const parsed = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
     return (parsed?.data ?? []).map(parseMangaFromListing);
   },
@@ -83,14 +83,14 @@ export const ManhwaWebProvider: MangaProvider = {
       order_item: 'last_chapter_date',
       order_dir: 'desc',
     };
-    const res = await proxyGet<any>(`${API_BASE}/manhwa/library`, { params });
+    const res = await proxyGet<any>(`${API_BASE}/manhwa/library`, { params, retries: 1 });
     const parsed = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
     return (parsed?.data ?? []).map(parseMangaFromListing);
   },
 
   /** Get chapters for a manga from the detail endpoint */
   async getMangaChapters(mangaId: string): Promise<MangaChapterModel[]> {
-    const res = await proxyGet<any>(`${API_BASE}/manhwa/see/${mangaId}`);
+    const res = await proxyGet<any>(`${API_BASE}/manhwa/see/${mangaId}`, { retries: 1 });
     const parsed = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
 
     const chapters: any[] = parsed?.chapters ?? [];
@@ -116,7 +116,7 @@ export const ManhwaWebProvider: MangaProvider = {
   /** Get chapter image pages from /chapters/see/{chapterSlug} */
   async getChapterPages(chapterId: string): Promise<MangaPagesModel> {
     // chapterId is already in the format "mangaSlug-chapterNumber"
-    const res = await proxyGet<any>(`${API_BASE}/chapters/see/${chapterId}`);
+    const res = await proxyGet<any>(`${API_BASE}/chapters/see/${chapterId}`, { retries: 1 });
     const parsed = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
 
     const images: string[] = parsed?.chapter?.img ?? [];

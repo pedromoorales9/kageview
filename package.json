@@ -1,6 +1,6 @@
 {
   "name": "kageview",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "KageView — Anime Desktop Streaming App",
   "main": "dist/main/main.js",
   "author": "Sh4Dow",

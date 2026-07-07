@@ -29,13 +29,13 @@ export function isEnabled(): boolean {
   return CLIENT_ID !== '';
 }
 
-function socketPath(): string {
+function socketPath(index: number): string {
   if (process.platform === 'win32') {
-    return '\\\\?\\pipe\\discord-ipc-0';
+    return `\\\\?\\pipe\\discord-ipc-${index}`;
   }
   const base =
     process.env.XDG_RUNTIME_DIR || process.env.TMPDIR || '/tmp';
-  return path.join(base, 'discord-ipc-0');
+  return path.join(base, `discord-ipc-${index}`);
 }
 
 /** Codifica un frame IPC de Discord: header de 8 bytes LE (opcode + longitud) + JSON. */
@@ -67,14 +67,35 @@ function cleanup(): void {
 
 export function connect(): void {
   if (!isEnabled() || socket) return;
+  tryConnect(0);
+}
+
+/**
+ * Discord expone su IPC en discord-ipc-0…9 (la ranura depende de cuántos
+ * clientes haya o del orden de arranque). Probar solo la 0 hace que el
+ * Rich Presence falle en silencio para muchos usuarios.
+ */
+function tryConnect(index: number): void {
+  if (index > 9) return;
   try {
-    const s = net.createConnection(socketPath(), () => {
+    const s = net.createConnection(socketPath(index), () => {
       connected = true;
       send(OP_HANDSHAKE, { v: 1, client_id: CLIENT_ID });
     });
-    // Discord cerrado o socket inexistente → no-op silencioso.
-    s.on('error', cleanup);
-    s.on('close', cleanup);
+    s.on('error', () => {
+      if (!connected) {
+        // Ranura inexistente/ocupada → probar la siguiente
+        s.removeAllListeners();
+        s.destroy();
+        if (socket === s) socket = null;
+        tryConnect(index + 1);
+      } else {
+        cleanup();
+      }
+    });
+    s.on('close', () => {
+      if (socket === s) cleanup();
+    });
     socket = s;
   } catch {
     cleanup();

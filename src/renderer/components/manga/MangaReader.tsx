@@ -1,7 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MangaModel, MangaChapterModel, getMangaProvider } from '../../../modules/manga';
 import { saveProgress } from '../../../modules/manga/mangaLibrary';
+import { getCache, setCache } from '../../../modules/cache';
+import { proxyHead } from '../../../modules/httpProxy';
 import Spinner from '../ui/Spinner';
+
+/** Preferencias del lector persistidas entre sesiones. */
+interface ReaderPrefs {
+  readingMode?: 'cascade' | 'single' | 'double';
+  cascadeWidth?: 'md' | 'lg' | 'xl' | 'full';
+  brightness?: number;
+}
 
 interface ReaderConfig {
   manga: MangaModel;
@@ -33,8 +42,64 @@ export default function MangaReader({
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  // Ancho de página en modo cascada (los webtoons agradecen pantalla ancha)
+  const [cascadeWidth, setCascadeWidth] = useState<'md' | 'lg' | 'xl' | 'full'>('md');
+  const CASCADE_WIDTH_CLASS: Record<typeof cascadeWidth, string> = {
+    md: 'max-w-3xl',
+    lg: 'max-w-5xl',
+    xl: 'max-w-7xl',
+    full: 'max-w-none',
+  };
+
+  // Dimensiones naturales de cada página, para detectar tiras de webtoon
+  // (mucho más altas que anchas) y encajarlas por ancho en vez de por alto.
+  const [pageDims, setPageDims] = useState<Record<number, { w: number; h: number }>>({});
+  const registerDims = (i: number) => (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (img.naturalWidth > 0) {
+      setPageDims((prev) => (prev[i] ? prev : { ...prev, [i]: { w: img.naturalWidth, h: img.naturalHeight } }));
+    }
+  };
+  const isStrip = (i: number) => {
+    const d = pageDims[i];
+    return !!d && d.h / d.w > 2.5;
+  };
+
   // Modos paginados (single/double) vs cascada vertical
   const paged = readingMode !== 'cascade';
+
+  // En doble página, si alguna de las dos es una tira de webtoon el encaje
+  // por altura las vuelve ilegibles → columnas a lo ancho con scroll.
+  const doubleStripMode = readingMode === 'double' && (isStrip(pageIndex) || isStrip(pageIndex + 1));
+
+  // ─── Preferencias persistentes del lector ─────────────────────
+  const prefsLoadedRef = useRef(false);
+  useEffect(() => {
+    getCache<ReaderPrefs>('readerPrefs').then((saved) => {
+      if (saved?.readingMode) setReadingMode(saved.readingMode);
+      if (saved?.cascadeWidth) setCascadeWidth(saved.cascadeWidth);
+      if (typeof saved?.brightness === 'number') setBrightness(saved.brightness);
+      prefsLoadedRef.current = true;
+    }).catch(() => { prefsLoadedRef.current = true; });
+  }, []);
+
+  // Guardar con debounce (el slider de brillo dispara muchos cambios)
+  useEffect(() => {
+    if (!prefsLoadedRef.current) return;
+    const timer = setTimeout(() => {
+      setCache('readerPrefs', { readingMode, cascadeWidth, brightness } satisfies ReaderPrefs);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [readingMode, cascadeWidth, brightness]);
+
+  // ─── Precarga de las siguientes páginas en modos paginados ────
+  useEffect(() => {
+    if (!paged || pages.length === 0) return;
+    for (let i = pageIndex + 1; i <= pageIndex + 4 && i < pages.length; i++) {
+      const img = new Image();
+      img.src = pages[i];
+    }
+  }, [paged, pageIndex, pages]);
 
   // Load pages whenever chapter changes
   useEffect(() => {
@@ -45,6 +110,7 @@ export default function MangaReader({
     setError(null);
     setPages([]);
     setPageIndex(0);
+    setPageDims({});
 
     // Scroll back to top on chapter change
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
@@ -64,6 +130,26 @@ export default function MangaReader({
           }
           return filename; // For providers like InManga that return absolute urls
         });
+
+        // ManhwaWeb: su API sigue listando capítulos cuyas imágenes ya no
+        // existen (ImageShack purgó su hosting). Sondear la primera imagen
+        // evita mostrar un capítulo entero de imágenes rotas.
+        if (manga.sourceId === 'manhwaweb' && urls.length > 0) {
+          proxyHead(urls[0], { headers: { Referer: 'https://manhwaweb.com/' } })
+            .then(({ status }) => {
+              if (cancelled) return;
+              if (status === 403 || status === 404 || status === 410) {
+                setPages([]);
+                setError(
+                  'Las imágenes de este capítulo ya no están disponibles en ManhwaWeb ' +
+                  '(su hosting de imágenes fue eliminado). Prueba a buscar este título ' +
+                  'en MangaOni o MangaDex desde la pestaña Manga.'
+                );
+              }
+            })
+            .catch(() => { /* sonda fallida ≠ capítulo roto; no bloquear */ });
+        }
+
         setPages(urls);
         setLoadingChapter(false);
 
@@ -87,6 +173,14 @@ export default function MangaReader({
 
     return () => { cancelled = true; };
   }, [chapter?.id]);
+
+  // Al cambiar de página en modos paginados, volver arriba del scroll
+  // (las tiras de webtoon se leen con scroll vertical dentro de la página)
+  useEffect(() => {
+    if (readingMode !== 'cascade' && scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [pageIndex, readingMode]);
 
   const goPrevChapter = useCallback(() => {
     setChapterIndex((i) => Math.max(0, i - 1));
@@ -197,8 +291,8 @@ export default function MangaReader({
             </button>
           </div>
         ) : readingMode === 'cascade' ? (
-          <div 
-            className="flex flex-col items-center gap-0 w-full max-w-3xl mx-auto px-4 transition-transform duration-300 origin-top"
+          <div
+            className={`flex flex-col items-center gap-0 w-full ${CASCADE_WIDTH_CLASS[cascadeWidth]} mx-auto px-4 transition-transform duration-300 origin-top`}
             style={{ transform: `scale(${zoomLevel})` }}
           >
             {pages.map((url, i) => (
@@ -240,25 +334,24 @@ export default function MangaReader({
             </div>
           </div>
         ) : readingMode === 'double' ? (
-          /* Double Page Mode */
-          <div
-            className="flex-1 flex items-center justify-center p-4 lg:p-8 h-[calc(100vh-120px)] cursor-pointer select-none overflow-hidden"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const clickedRight = e.clientX - rect.left > rect.width / 2;
-              if (clickedRight) goNextPage();
-              else goPrevPage();
-            }}
-          >
+          doubleStripMode ? (
+            /* Doble página con tiras de webtoon: encaje por ANCHO en dos
+               columnas y scroll vertical (por alto quedarían ilegibles) */
             <div
-              className="flex items-center justify-center gap-1 max-h-full transition-transform duration-300"
-              style={{ transform: `scale(${zoomLevel})` }}
+              className="flex items-start justify-center gap-2 px-4 pb-10 cursor-pointer select-none min-h-full"
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const clickedRight = e.clientX - rect.left > rect.width / 2;
+                if (clickedRight) goNextPage();
+                else goPrevPage();
+              }}
             >
               {pages[pageIndex] && (
                 <img
                   src={pages[pageIndex]}
                   alt={`Página ${pageIndex + 1}`}
-                  className="max-h-[calc(100vh-150px)] w-auto object-contain shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] rounded-md select-none"
+                  onLoad={registerDims(pageIndex)}
+                  className="w-[46%] max-w-[760px] h-auto object-contain shadow-2xl rounded-md select-none"
                   draggable={false}
                 />
               )}
@@ -266,14 +359,70 @@ export default function MangaReader({
                 <img
                   src={pages[pageIndex + 1]}
                   alt={`Página ${pageIndex + 2}`}
-                  className="max-h-[calc(100vh-150px)] w-auto object-contain shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] rounded-md select-none"
+                  onLoad={registerDims(pageIndex + 1)}
+                  className="w-[46%] max-w-[760px] h-auto object-contain shadow-2xl rounded-md select-none"
                   draggable={false}
                 />
               )}
             </div>
-          </div>
+          ) : (
+            /* Double Page Mode (páginas de manga tradicionales) */
+            <div
+              className="flex-1 flex items-center justify-center p-4 lg:p-8 h-[calc(100vh-120px)] cursor-pointer select-none overflow-hidden"
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const clickedRight = e.clientX - rect.left > rect.width / 2;
+                if (clickedRight) goNextPage();
+                else goPrevPage();
+              }}
+            >
+              <div
+                className="flex items-center justify-center gap-1 max-h-full transition-transform duration-300"
+                style={{ transform: `scale(${zoomLevel})` }}
+              >
+                {pages[pageIndex] && (
+                  <img
+                    src={pages[pageIndex]}
+                    alt={`Página ${pageIndex + 1}`}
+                    onLoad={registerDims(pageIndex)}
+                    className="max-h-[calc(100vh-150px)] w-auto object-contain shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] rounded-md select-none"
+                    draggable={false}
+                  />
+                )}
+                {pages[pageIndex + 1] && (
+                  <img
+                    src={pages[pageIndex + 1]}
+                    alt={`Página ${pageIndex + 2}`}
+                    onLoad={registerDims(pageIndex + 1)}
+                    className="max-h-[calc(100vh-150px)] w-auto object-contain shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] rounded-md select-none"
+                    draggable={false}
+                  />
+                )}
+              </div>
+            </div>
+          )
         ) : (
           /* Single Page Mode */
+          isStrip(pageIndex) ? (
+            /* Tira de webtoon: encaje por ancho con scroll vertical */
+            <div
+              className="flex items-start justify-center px-4 pb-10 cursor-pointer select-none min-h-full"
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const clickedRight = e.clientX - rect.left > rect.width / 2;
+                if (clickedRight) goNextPage();
+                else goPrevPage();
+              }}
+            >
+              <img
+                src={pages[pageIndex]}
+                alt={`Página ${pageIndex + 1}`}
+                onLoad={registerDims(pageIndex)}
+                className="w-full max-w-3xl h-auto object-contain shadow-2xl rounded-md select-none"
+                draggable={false}
+              />
+            </div>
+          ) : (
           <div
             className={`flex-1 flex items-center justify-center p-8 lg:p-12 h-[calc(100vh-120px)] cursor-pointer select-none ${zoomLevel > 1 ? 'overflow-auto block items-start' : ''}`}
             onClick={(e) => {
@@ -284,15 +433,17 @@ export default function MangaReader({
             }}
           >
             {pages.length > 0 && (
-              <img 
-                src={pages[pageIndex]} 
+              <img
+                src={pages[pageIndex]}
                 alt={`Página ${pageIndex + 1}`}
+                onLoad={registerDims(pageIndex)}
                 style={{ transform: `scale(${zoomLevel})`, transformOrigin: zoomLevel > 1 ? 'top left' : 'center center' }}
                 className={`max-h-full max-w-full object-contain shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] rounded-md transition-transform duration-300 ${zoomLevel > 1 ? 'max-h-none max-w-none' : ''}`}
                 draggable={false}
               />
             )}
           </div>
+          )
         )}
       </div>
 
@@ -418,10 +569,35 @@ export default function MangaReader({
           {isSettingsOpen && (
             <div className="absolute bottom-16 right-0 w-64 bg-surface-container-high border border-white/10 shadow-2xl rounded-2xl p-4 flex flex-col gap-4">
               <h3 className="font-headline font-bold text-sm text-on-surface">Ajustes de Lectura</h3>
-              <p className="text-xs text-on-surface-variant leading-relaxed">
-                El modo lectura inmersiva se ha activado. Más configuraciones personales llegarán en próximas versiones.
-              </p>
-              <button 
+
+              {/* Ancho de página (modo cascada) */}
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                  Ancho de página (cascada)
+                </span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {([
+                    ['md', 'S'],
+                    ['lg', 'M'],
+                    ['xl', 'L'],
+                    ['full', 'XL'],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      onClick={() => setCascadeWidth(value)}
+                      className={`py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                        cascadeWidth === value
+                          ? 'bg-primary/25 text-primary border border-primary/40'
+                          : 'bg-surface-container text-on-surface-variant hover:bg-surface-variant/40 border border-transparent'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
                 onClick={() => setIsSettingsOpen(false)}
                 className="w-full py-2 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition text-xs font-bold uppercase tracking-widest"
               >
