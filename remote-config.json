@@ -2,12 +2,11 @@
   "announcement": {
     "id": "ann-2026-07-08-proveedores",
     "type": "warning",
-    "title": "AnimeFLV, JKanime y ManhwaWeb desactivados temporalmente",
-    "message": "Sus webs no están funcionando, así que KageView no puede obtener contenido de ellas. Se reactivarán en cuanto vuelvan a la normalidad. Mientras tanto: AnimeAV1 para anime (reproductor sin anuncios) y MangaOni o MangaDex para manga."
+    "title": "JKAnime vuelve a funcionar — actualiza a la 1.2.8 para recuperarlo",
+    "message": "JKAnime vuelve a funcionar!"
   },
   "providersDisabled": {
     "animeflv": "Su web no está funcionando; se reactivará cuando vuelva a la normalidad.",
-    "manhwaweb": "Su web no está funcionando; se reactivará cuando vuelva a la normalidad.",
-    "jkanime": "Desactivado temporalmente por mantenimiento."
+    "manhwaweb": "Su web no está funcionando; se reactivará cuando vuelva a la normalidad."
   }
 }
