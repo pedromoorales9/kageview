@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../../modules/store';
-import { PROVIDERS } from '../../modules/providers/registry';
+import { buildBuiltinProvider, buildCustomProvider } from '../../modules/providers/registry';
 import { getAllMangaProviders } from '../../modules/manga';
 import { clearCache } from '../../modules/cache';
 import { useToast } from '../components/ui/Toast';
 import useAniList from '../hooks/useAniList';
-import { ProviderId, AudioLang, SubLang } from '../../types/types';
+import DevPanel from '../components/DevPanel';
+import { ProviderId, AudioLang, SubLang, CustomProviderDef } from '../../types/types';
+
+const DEFAULT_BASE_URLS: Record<ProviderId, string> = {
+  animeflv: 'https://animeflv.net',
+  jkanime: 'https://jkanime.net',
+  animeav1: 'https://animeav1.com',
+};
 
 const PROVIDER_LIST: Array<{
   id: ProviderId;
@@ -30,30 +37,86 @@ export default function SettingsPage() {
   const user = useAppStore((s) => s.user);
   const providerStatus = useAppStore((s) => s.providerStatus);
   const setProviderStatus = useAppStore((s) => s.setProviderStatus);
+  const remoteConfig = useAppStore((s) => s.remoteConfig);
   const { logout } = useAniList();
   const toast = useToast();
 
   const [checkingProviders, setCheckingProviders] = useState(false);
   const [version, setVersion] = useState<string>('');
 
+  // Formulario de sitios personalizados
+  const [newSiteName, setNewSiteName] = useState('');
+  const [newSiteUrl, setNewSiteUrl] = useState('');
+  const [newSiteTemplate, setNewSiteTemplate] = useState<ProviderId>('animeflv');
+
+  /** Guarda (o limpia) la URL alternativa de un provider integrado. */
+  const commitMirror = (pid: ProviderId, raw: string) => {
+    const value = raw.trim().replace(/\/+$/, '');
+    const next = { ...prefs.providerBaseUrls };
+    if (!value || value === DEFAULT_BASE_URLS[pid]) {
+      delete next[pid];
+    } else if (!/^https?:\/\/./.test(value)) {
+      toast.warning('La URL debe empezar por http:// o https://', 'Mirror no válido');
+      return;
+    } else {
+      next[pid] = value;
+    }
+    setPrefs({ providerBaseUrls: next });
+  };
+
+  const handleAddCustomSite = () => {
+    const name = newSiteName.trim();
+    const baseUrl = newSiteUrl.trim().replace(/\/+$/, '');
+    if (!name) {
+      toast.warning('Ponle un nombre al sitio.', 'Falta el nombre');
+      return;
+    }
+    if (!/^https?:\/\/./.test(baseUrl)) {
+      toast.warning('La URL debe empezar por http:// o https://', 'URL no válida');
+      return;
+    }
+    const def: CustomProviderDef = {
+      id: `custom-${Date.now()}`,
+      name,
+      baseUrl,
+      template: newSiteTemplate,
+    };
+    setPrefs({ customProviders: [...(prefs.customProviders ?? []), def] });
+    setNewSiteName('');
+    setNewSiteUrl('');
+    toast.success(`"${name}" se probará después de los proveedores integrados.`, 'Sitio añadido');
+  };
+
+  const handleRemoveCustomSite = (id: string) => {
+    setPrefs({
+      customProviders: (prefs.customProviders ?? []).filter((c) => c.id !== id),
+    });
+  };
+
   useEffect(() => {
     window.electron.getVersion?.().then(setVersion);
   }, []);
 
-  // Comprobar estado de providers al montar
+  // Comprobar estado de providers al montar y cuando cambian mirrors/personalizados
   useEffect(() => {
     let cancelled = false;
     async function checkProviders() {
       setCheckingProviders(true);
-      for (const p of PROVIDER_LIST) {
+      const toCheck = [
+        ...PROVIDER_LIST.map((p) => buildBuiltinProvider(p.id, prefs)),
+        ...(prefs.customProviders ?? [])
+          .map(buildCustomProvider)
+          .filter((p): p is NonNullable<typeof p> => p !== null),
+      ];
+      for (const provider of toCheck) {
         try {
-          const healthy = await PROVIDERS[p.id].healthCheck();
+          const healthy = await provider.healthCheck();
           if (!cancelled) {
-            setProviderStatus(p.id, healthy ? 'online' : 'offline');
+            setProviderStatus(provider.id, healthy ? 'online' : 'offline');
           }
         } catch {
           if (!cancelled) {
-            setProviderStatus(p.id, 'offline');
+            setProviderStatus(provider.id, 'offline');
           }
         }
       }
@@ -61,7 +124,8 @@ export default function SettingsPage() {
     }
     checkProviders();
     return () => { cancelled = true; };
-  }, [setProviderStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setProviderStatus, prefs.providerBaseUrls, prefs.customProviders]);
 
   return (
     <div className="flex-1 overflow-y-auto pr-2 pb-8">
@@ -295,14 +359,17 @@ export default function SettingsPage() {
             <div className="space-y-3">
               {PROVIDER_LIST.map((p) => {
                 const isFavorite = prefs.preferredProvider === p.id;
+                const mirror = prefs.providerBaseUrls?.[p.id] ?? '';
+                const remoteReason = remoteConfig?.providersDisabled?.[p.id];
                 return (
                   <div
                     key={p.id}
                     className={`
-                      flex items-center gap-3 p-3 rounded-lg transition-colors
+                      p-3 rounded-lg transition-colors
                       ${isFavorite ? 'bg-primary/10 ring-1 ring-primary/20' : 'bg-surface-container-high/50'}
                     `}
                   >
+                    <div className="flex items-center gap-3">
                     {/* Initial */}
                     <div
                       className="w-9 h-9 rounded-lg flex items-center justify-center font-headline font-bold text-sm"
@@ -314,13 +381,18 @@ export default function SettingsPage() {
                     {/* Name */}
                     <span className="flex-1 text-sm font-label text-on-surface">
                       {p.name}
+                      {mirror && (
+                        <span className="ml-2 text-[10px] text-secondary font-bold uppercase tracking-wide">
+                          mirror
+                        </span>
+                      )}
                     </span>
 
                     {/* Status indicator */}
                     <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${STATUS_COLORS[providerStatus[p.id]]}`} />
+                      <div className={`w-2 h-2 rounded-full ${STATUS_COLORS[providerStatus[p.id] ?? 'offline']}`} />
                       <span className="text-[11px] text-on-surface-variant capitalize">
-                        {providerStatus[p.id]}
+                        {providerStatus[p.id] ?? 'offline'}
                       </span>
                     </div>
 
@@ -349,9 +421,119 @@ export default function SettingsPage() {
                         });
                       }}
                     />
+                    </div>
+
+                    {/* Desactivado remotamente por el desarrollador */}
+                    {remoteReason && (
+                      <p className="mt-2 pl-12 text-[11px] text-error flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[13px]">block</span>
+                        Desactivado por el desarrollador: {remoteReason}
+                      </p>
+                    )}
+
+                    {/* URL alternativa (mirror) */}
+                    <div className="flex items-center gap-2 mt-2 pl-12">
+                      <span className="material-symbols-outlined text-[14px] text-on-surface-variant/50">link</span>
+                      <input
+                        key={`${p.id}-${mirror}`}
+                        type="text"
+                        defaultValue={mirror}
+                        placeholder={`URL alternativa (por defecto ${DEFAULT_BASE_URLS[p.id]})`}
+                        onBlur={(e) => commitMirror(p.id, e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                        spellCheck={false}
+                        className="
+                          flex-1 px-2.5 py-1.5 rounded-lg text-[12px]
+                          bg-background/50 text-on-surface placeholder:text-on-surface-variant/40
+                          outline-none border border-transparent focus:border-primary/30
+                        "
+                      />
+                    </div>
                   </div>
                 );
               })}
+            </div>
+          </section>
+
+          {/* Sitios personalizados de anime */}
+          <section className="bg-surface-container rounded-xl p-5">
+            <h3 className="font-headline text-sm font-bold text-on-surface mb-1">
+              Sitios personalizados de anime
+            </h3>
+            <p className="text-[11px] text-on-surface-variant/70 mb-4 leading-relaxed">
+              Añade un sitio que use la misma estructura que uno de los proveedores
+              integrados (clones y mirrors de AnimeFLV, JKAnime o AnimeAV1). Se
+              intentan después de los integrados cuando estos fallan.
+            </p>
+
+            {/* Lista */}
+            {(prefs.customProviders ?? []).length > 0 && (
+              <div className="space-y-2 mb-4">
+                {(prefs.customProviders ?? []).map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-surface-container-high/50"
+                  >
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center font-headline font-bold text-sm bg-secondary/15 text-secondary">
+                      {c.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-label text-on-surface truncate">{c.name}</p>
+                      <p className="text-[11px] text-on-surface-variant/60 truncate">
+                        {c.baseUrl} · plantilla {c.template}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${STATUS_COLORS[providerStatus[c.id] ?? 'offline']}`} />
+                      <span className="text-[11px] text-on-surface-variant capitalize">
+                        {providerStatus[c.id] ?? 'offline'}
+                      </span>
+                    </div>
+                    <button
+                      title="Eliminar sitio"
+                      onClick={() => handleRemoveCustomSite(c.id)}
+                      className="w-7 h-7 rounded-md flex items-center justify-center text-on-surface-variant/50 hover:text-error hover:bg-error/10 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">delete</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Formulario de alta */}
+            <div className="grid grid-cols-12 gap-2">
+              <input
+                type="text"
+                value={newSiteName}
+                onChange={(e) => setNewSiteName(e.target.value)}
+                placeholder="Nombre"
+                spellCheck={false}
+                className="col-span-3 px-2.5 py-2 rounded-lg text-[12px] bg-surface-container-high text-on-surface placeholder:text-on-surface-variant/40 outline-none border border-transparent focus:border-primary/30"
+              />
+              <input
+                type="text"
+                value={newSiteUrl}
+                onChange={(e) => setNewSiteUrl(e.target.value)}
+                placeholder="https://sitio-clon.example"
+                spellCheck={false}
+                className="col-span-4 px-2.5 py-2 rounded-lg text-[12px] bg-surface-container-high text-on-surface placeholder:text-on-surface-variant/40 outline-none border border-transparent focus:border-primary/30"
+              />
+              <select
+                value={newSiteTemplate}
+                onChange={(e) => setNewSiteTemplate(e.target.value as ProviderId)}
+                className="col-span-3 px-2 py-2 rounded-lg text-[12px] bg-surface-container-high text-on-surface outline-none border border-transparent focus:border-primary/30 cursor-pointer"
+              >
+                <option value="animeflv">Tipo AnimeFLV</option>
+                <option value="animeav1">Tipo AnimeAV1</option>
+                <option value="jkanime">Tipo JKAnime</option>
+              </select>
+              <button
+                onClick={handleAddCustomSite}
+                className="col-span-2 py-2 rounded-lg bg-primary/15 text-primary text-[12px] font-headline font-semibold hover:bg-primary/25 transition-colors"
+              >
+                Añadir
+              </button>
             </div>
           </section>
 
@@ -371,6 +553,7 @@ export default function SettingsPage() {
                 const isEnabled = prefs.mangaProvidersEnabled?.[p.id] ?? true;
                 const isFavorite = prefs.preferredMangaProvider === p.id;
                 const initial = p.name ? p.name.charAt(0).toUpperCase() : 'M';
+                const remoteReason = remoteConfig?.providersDisabled?.[p.id];
 
                 // Deterministic color generation based on id
                 const colorHash = p.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -396,6 +579,11 @@ export default function SettingsPage() {
                     {/* Name */}
                     <span className="flex-1 text-sm font-label text-on-surface">
                       {p.name}
+                      {remoteReason && (
+                        <span className="block text-[10px] text-error mt-0.5">
+                          Desactivado por el desarrollador: {remoteReason}
+                        </span>
+                      )}
                     </span>
 
                     {/* Favorite star */}
@@ -449,6 +637,9 @@ export default function SettingsPage() {
               Borrar Caché de la Aplicación
             </button>
           </section>
+
+          {/* Panel de Desarrollador (discreto; requiere contraseña) */}
+          <DevPanel />
         </div>
       </div>
     </div>

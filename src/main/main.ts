@@ -371,6 +371,15 @@ ipcMain.handle('open-external', (_event, url: string) => {
 });
 
 // ─── Discord Rich Presence ────────────────────────────────
+// ─── Panel de Desarrollador ───────────────────────────────
+// La contraseña viene del .env (incrustada en build). Es una barrera de
+// UI, no de seguridad: sin el PAT de GitHub (solo en la máquina del dev)
+// el panel no puede publicar nada.
+ipcMain.handle('dev-panel-unlock', (_event, password: string) => {
+  const expected = process.env.DEV_PANEL_PASSWORD || '';
+  return expected !== '' && password === expected;
+});
+
 ipcMain.handle('discord-set-enabled', (_event, enabled: boolean) => {
   if (enabled) {
     discordRpc.connect();

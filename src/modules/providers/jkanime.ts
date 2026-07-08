@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import { proxyGet, proxyHead } from '../httpProxy';
-import { IProvider } from './IProvider';
+import { IProvider, ProviderOptions, normalizeBaseUrl } from './IProvider';
 import {
   AudioLang,
   PlayMode,
@@ -14,18 +14,24 @@ import {
 } from '../../types/types';
 
 export class JKAnimeProvider implements IProvider {
-  readonly id = 'jkanime' as const;
-  readonly name = 'JKAnime';
+  readonly id: string;
+  readonly name: string;
   readonly languages: AudioLang[] = ['es'];
   readonly supportsDub = true;
   readonly supportsSub = true;
 
-  private baseUrl = 'https://jkanime.net';
+  private baseUrl: string;
+
+  constructor(opts: ProviderOptions = {}) {
+    this.id = opts.id ?? 'jkanime';
+    this.name = opts.name ?? 'JKAnime';
+    this.baseUrl = normalizeBaseUrl(opts.baseUrl, 'https://jkanime.net');
+  }
 
   private headers(): Record<string, string> {
     return {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120',
-      Referer: 'https://jkanime.net',
+      Referer: this.baseUrl,
     };
   }
 
@@ -58,7 +64,14 @@ export class JKAnimeProvider implements IProvider {
   /** Parseo puro del HTML de búsqueda (expuesto para tests). */
   parseSearch(html: string): ProviderAnime[] {
     const results: ProviderAnime[] = [];
-    const regex = /<a\s+href="https:\/\/jkanime\.net\/([^/]+)\/">([^<]+)<\/a><\/h5>/g;
+    // El dominio del enlace depende de la URL base (mirrors/clones)
+    const host = this.baseUrl
+      .replace(/^https?:\/\//, '')
+      .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(
+      `<a\\s+href="https?:\\/\\/${host}\\/([^/]+)\\/">([^<]+)<\\/a><\\/h5>`,
+      'g'
+    );
     let match;
     while ((match = regex.exec(html)) !== null) {
       results.push({

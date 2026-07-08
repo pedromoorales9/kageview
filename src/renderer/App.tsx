@@ -5,6 +5,7 @@ import { useAppStore } from '../modules/store';
 import { getCache } from '../modules/cache';
 import { getSkipTimes } from '../modules/aniskip';
 import { recordWatch, updateWatchPosition, flushWatchPosition, ContinueWatchingItem } from '../modules/watchHistory';
+import { fetchRemoteConfig, isAnnouncementUnseen, markAnnouncementSeen } from '../modules/remoteConfig';
 import { evaluateAchievements } from '../modules/achievements';
 import { useToast } from './components/ui/Toast';
 import useAniList from './hooks/useAniList';
@@ -112,6 +113,35 @@ export default function App() {
   // ─── Persistir logros ya merecidos al arrancar (sin toasts) ───
   useEffect(() => {
     evaluateAchievements().catch(() => { /* noop */ });
+  }, []);
+
+  // ─── Config remota: kill-switches y anuncios del dev ─────────
+  const setRemoteConfig = useAppStore((s) => s.setRemoteConfig);
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      const rc = await fetchRemoteConfig();
+      if (cancelled || !rc) return;
+      setRemoteConfig(rc);
+
+      // Mostrar el anuncio si hay uno nuevo (una vez por id)
+      const a = rc.announcement;
+      if (a?.message && isAnnouncementUnseen(a)) {
+        markAnnouncementSeen(a);
+        toast.toast({
+          type: a.type === 'error' ? 'error' : a.type === 'warning' ? 'warning' : 'info',
+          title: a.title || '📢 Aviso de KageView',
+          message: a.message,
+          duration: 15000,
+        });
+      }
+    };
+
+    load();
+    const interval = window.setInterval(load, 30 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(interval); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ─── Inicializar sesión al montar ────────────────────────

@@ -11,6 +11,8 @@ import { describe, it, expect } from 'vitest';
 import { AnimeFlvProvider } from '../animeflv';
 import { JKAnimeProvider } from '../jkanime';
 import { AnimeAV1Provider } from '../animeav1';
+import { buildProviders } from '../registry';
+import { DEFAULT_PREFERENCES } from '../../../types/types';
 
 describe('AnimeFlvProvider', () => {
   const provider = new AnimeFlvProvider();
@@ -154,5 +156,54 @@ describe('AnimeAV1Provider', () => {
 
   it('parseEmbeds devuelve [] si no hay bloque embeds', () => {
     expect(provider.parseEmbeds('<html>sin datos</html>', 'sub')).toEqual([]);
+  });
+});
+
+describe('Mirrors y sitios personalizados', () => {
+  it('los providers aceptan una URL base alternativa', () => {
+    const flv = new AnimeFlvProvider({ baseUrl: 'https://clon-flv.tv/' });
+    const html = '<article><a href="/anime/naruto"><h3>Naruto</h3></a></article>';
+    const results = flv.parseSearch(html);
+    // La barra final se normaliza y las URLs apuntan al mirror
+    expect(results[0].url).toBe('https://clon-flv.tv/anime/naruto');
+  });
+
+  it('JKAnime parsea búsquedas con el dominio del mirror', () => {
+    const jk = new JKAnimeProvider({ baseUrl: 'https://jk-espejo.tv' });
+    const html = '<h5><a href="https://jk-espejo.tv/naruto/">Naruto</a></h5>';
+    const results = jk.parseSearch(html);
+    expect(results).toHaveLength(1);
+    expect(results[0].id).toBe('naruto');
+    expect(results[0].url).toBe('https://jk-espejo.tv/naruto/');
+  });
+
+  it('una URL base inválida cae al dominio oficial', () => {
+    const flv = new AnimeFlvProvider({ baseUrl: 'no-es-una-url' });
+    const html = '<article><a href="/anime/naruto"><h3>Naruto</h3></a></article>';
+    expect(flv.parseSearch(html)[0].url).toBe('https://animeflv.net/anime/naruto');
+  });
+
+  it('buildProviders ordena: favorito → integrados → personalizados', () => {
+    const prefs = {
+      ...DEFAULT_PREFERENCES,
+      customProviders: [
+        { id: 'custom-1', name: 'Mi Clon', baseUrl: 'https://clon.tv', template: 'animeflv' as const },
+      ],
+    };
+    const list = buildProviders(prefs);
+    expect(list.map((p) => p.id)).toEqual(['animeflv', 'animeav1', 'jkanime', 'custom-1']);
+    expect(list[3].name).toBe('Mi Clon');
+  });
+
+  it('buildProviders excluye integrados deshabilitados pero mantiene personalizados', () => {
+    const prefs = {
+      ...DEFAULT_PREFERENCES,
+      providersEnabled: { animeflv: false, jkanime: false, animeav1: true },
+      customProviders: [
+        { id: 'custom-2', name: 'Otro', baseUrl: 'https://otro.tv', template: 'jkanime' as const },
+      ],
+    };
+    const list = buildProviders(prefs);
+    expect(list.map((p) => p.id)).toEqual(['animeav1', 'custom-2']);
   });
 });

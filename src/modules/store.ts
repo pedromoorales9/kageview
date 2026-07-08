@@ -11,7 +11,6 @@ import {
   AniListViewer,
   StreamingSource,
   SkipTime,
-  ProviderId,
 } from '../types/types';
 import { setCache } from './cache';
 
@@ -31,6 +30,7 @@ export const useAppStore = create<AppState>((set) => ({
     animeflv: 'offline',
     jkanime: 'offline',
   },
+  remoteConfig: null,
 
   // ─── Acciones ───────────────────────────────────────────
   setToken: (token: string | null) => set({ token }),
@@ -54,10 +54,12 @@ export const useAppStore = create<AppState>((set) => ({
 
   setSkipTimes: (times: SkipTime[]) => set({ skipTimes: times }),
 
-  setProviderStatus: (id: ProviderId, status: 'online' | 'unstable' | 'offline') =>
+  setProviderStatus: (id: string, status: 'online' | 'unstable' | 'offline') =>
     set((state) => ({
       providerStatus: { ...state.providerStatus, [id]: status },
     })),
+
+  setRemoteConfig: (config) => set({ remoteConfig: config }),
 
   setLoading: (loading: boolean) => set({ isLoading: loading }),
 

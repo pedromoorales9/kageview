@@ -75,6 +75,10 @@ contextBridge.exposeInMainWorld('electron', {
   discordClear: (): Promise<void> =>
     ipcRenderer.invoke('discord-clear'),
 
+  // ─── Panel de Desarrollador ─────────────────────────────
+  devPanelUnlock: (password: string): Promise<boolean> =>
+    ipcRenderer.invoke('dev-panel-unlock', password),
+
   // ─── Progreso de Episodios ───────────────────────────────
   getWatchProgress: (animeId: number): Promise<number | null> =>
     ipcRenderer.invoke('get-watch-progress', animeId),

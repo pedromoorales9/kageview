@@ -108,6 +108,23 @@ export interface SubtitleTrack {
 }
 
 export type ProviderId = 'animeflv' | 'jkanime' | 'animeav1';
+
+/**
+ * Provider de anime definido por el usuario: un sitio alternativo que usa
+ * la misma estructura HTML que uno de los providers integrados (clones y
+ * mirrors de AnimeFLV/JKAnime/AnimeAV1 son muy comunes). Declarativo a
+ * propósito: no se ejecuta código de terceros.
+ */
+export interface CustomProviderDef {
+  /** Id interno único, p. ej. "custom-1751900000000". */
+  id: string;
+  /** Nombre visible elegido por el usuario. */
+  name: string;
+  /** URL base del sitio, p. ej. "https://mi-clon-de-animeflv.tv". */
+  baseUrl: string;
+  /** Plantilla de parsing a reutilizar. */
+  template: ProviderId;
+}
 export type AudioLang = 'ja' | 'en' | 'es';
 export type SubLang = 'en' | 'es' | 'off';
 export type PlayMode = 'sub' | 'dub';
@@ -133,6 +150,10 @@ export interface UserPreferences {
   providersEnabled: Record<ProviderId, boolean>;
   mangaProvidersEnabled: Record<string, boolean>;
   notificationsEnabled: boolean;
+  /** URL base alternativa (mirror) por provider integrado. Vacío = oficial. */
+  providerBaseUrls: Partial<Record<ProviderId, string>>;
+  /** Sitios añadidos por el usuario basados en plantillas de providers. */
+  customProviders: CustomProviderDef[];
 }
 
 // ─── AniList Auth ─────────────────────────────────────────
@@ -175,7 +196,9 @@ export interface AppState {
   skipTimes: SkipTime[];
   isLoading: boolean;
   error: string | null;
-  providerStatus: Record<ProviderId, 'online' | 'unstable' | 'offline'>;
+  providerStatus: Record<string, 'online' | 'unstable' | 'offline'>;
+  /** Config remota (kill-switches/anuncios del dev); null = no cargada. */
+  remoteConfig: import('../modules/remoteConfig').RemoteConfig | null;
 
   // Acciones
   setToken: (token: string | null) => void;
@@ -185,7 +208,8 @@ export interface AppState {
   setCurrentEpisode: (episode: number | null) => void;
   setCurrentSource: (source: StreamingSource | null) => void;
   setSkipTimes: (times: SkipTime[]) => void;
-  setProviderStatus: (id: ProviderId, status: 'online' | 'unstable' | 'offline') => void;
+  setProviderStatus: (id: string, status: 'online' | 'unstable' | 'offline') => void;
+  setRemoteConfig: (config: import('../modules/remoteConfig').RemoteConfig | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
@@ -213,4 +237,6 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     mangaoni: true,
   },
   notificationsEnabled: false,
+  providerBaseUrls: {},
+  customProviders: [],
 };

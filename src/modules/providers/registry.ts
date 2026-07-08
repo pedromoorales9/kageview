@@ -7,12 +7,14 @@ import { AnimeFlvProvider } from './animeflv';
 import { JKAnimeProvider } from './jkanime';
 import { AnimeAV1Provider } from './animeav1';
 import { findBestMatch } from '../titleMatcher';
+import { remoteDisableReason } from '../remoteConfig';
 import {
   ProviderId,
   PlayMode,
   StreamingSource,
   UserPreferences,
   AniListAnime,
+  CustomProviderDef,
 } from '../../types/types';
 
 export const PROVIDERS: Record<ProviderId, IProvider> = {
@@ -20,6 +22,61 @@ export const PROVIDERS: Record<ProviderId, IProvider> = {
   jkanime: new JKAnimeProvider(),
   animeav1: new AnimeAV1Provider(),
 };
+
+/** Clase de provider por plantilla, para mirrors y sitios personalizados. */
+const TEMPLATE_CLASSES: Record<
+  ProviderId,
+  new (opts?: { id?: string; name?: string; baseUrl?: string }) => IProvider
+> = {
+  animeflv: AnimeFlvProvider,
+  jkanime: JKAnimeProvider,
+  animeav1: AnimeAV1Provider,
+};
+
+/** Instancia un provider integrado respetando la URL alternativa (mirror). */
+export function buildBuiltinProvider(pid: ProviderId, prefs: UserPreferences): IProvider {
+  const Cls = TEMPLATE_CLASSES[pid];
+  return new Cls({ baseUrl: prefs.providerBaseUrls?.[pid] });
+}
+
+/** Instancia un provider personalizado a partir de su definición. */
+export function buildCustomProvider(def: CustomProviderDef): IProvider | null {
+  const Cls = TEMPLATE_CLASSES[def.template];
+  if (!Cls) return null;
+  return new Cls({ id: def.id, name: def.name, baseUrl: def.baseUrl });
+}
+
+/**
+ * Lista efectiva de providers según las preferencias, en orden de intento:
+ * favorito → resto de integrados habilitados → sitios personalizados.
+ * Se instancian en cada llamada para reflejar mirrors recién cambiados
+ * (las instancias no tienen estado, crearlas es gratis).
+ */
+export function buildProviders(prefs: UserPreferences): IProvider[] {
+  const baseOrder: ProviderId[] = ['animeflv', 'animeav1', 'jkanime'];
+  const list: IProvider[] = [];
+
+  if (prefs.providersEnabled[prefs.preferredProvider]) {
+    list.push(buildBuiltinProvider(prefs.preferredProvider, prefs));
+  }
+  for (const pid of baseOrder) {
+    if (pid !== prefs.preferredProvider && prefs.providersEnabled[pid]) {
+      list.push(buildBuiltinProvider(pid, prefs));
+    }
+  }
+  for (const custom of prefs.customProviders ?? []) {
+    const provider = buildCustomProvider(custom);
+    if (provider) list.push(provider);
+  }
+
+  // Kill-switch remoto: el dev puede desactivar un provider para todos
+  // los usuarios sin publicar versión (remote-config.json en gh-pages).
+  return list.filter((p) => {
+    const reason = remoteDisableReason(p.id);
+    if (reason) console.warn(`[Registry] ${p.id} desactivado remotamente: ${reason}`);
+    return !reason;
+  });
+}
 
 /**
  * Busca un anime en un provider específico usando title matching
@@ -59,27 +116,13 @@ export async function getSourceWithFallback(
   episodeNumber: number,
   mode: PlayMode,
   prefs: UserPreferences
-): Promise<{ sources: StreamingSource[]; providerId: ProviderId } | null> {
-  const baseOrder: ProviderId[] = prefs.audioLanguage === 'es'
-    ? ['animeflv', 'animeav1', 'jkanime']
-    : ['animeflv', 'animeav1', 'jkanime'];
+): Promise<{ sources: StreamingSource[]; providerId: string } | null> {
+  // Favorito → integrados habilitados → sitios personalizados del usuario,
+  // todos con sus URLs alternativas (mirrors) aplicadas.
+  const providers = buildProviders(prefs);
 
-  // Poner el preferido primero (si existe y está habilitado)
-  const order: ProviderId[] = [];
-  if (prefs.providersEnabled[prefs.preferredProvider]) {
-    order.push(prefs.preferredProvider);
-  }
-
-  // Añadir el resto respetando el orden base
-  for (const pid of baseOrder) {
-    if (pid !== prefs.preferredProvider && prefs.providersEnabled[pid]) {
-      order.push(pid);
-    }
-  }
-
-  for (const pid of order) {
-    const provider = PROVIDERS[pid];
-    if (!provider || !prefs.providersEnabled[pid]) continue;
+  for (const provider of providers) {
+    const pid = provider.id;
 
     try {
       // Verificar que el provider está operativo

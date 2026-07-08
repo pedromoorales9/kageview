@@ -1,5 +1,5 @@
 import { proxyGet, proxyHead } from '../httpProxy';
-import { IProvider } from './IProvider';
+import { IProvider, ProviderOptions, normalizeBaseUrl } from './IProvider';
 import {
   AudioLang,
   PlayMode,
@@ -9,13 +9,19 @@ import {
 } from '../../types/types';
 
 export class AnimeAV1Provider implements IProvider {
-  readonly id = 'animeav1' as const;
-  readonly name = 'AnimeAV1';
+  readonly id: string;
+  readonly name: string;
   readonly languages: AudioLang[] = ['es']; // Currently assuming primarily Spanish sub/dub
   readonly supportsDub = true;
   readonly supportsSub = true;
 
-  private baseUrl = 'https://animeav1.com';
+  private baseUrl: string;
+
+  constructor(opts: ProviderOptions = {}) {
+    this.id = opts.id ?? 'animeav1';
+    this.name = opts.name ?? 'AnimeAV1';
+    this.baseUrl = normalizeBaseUrl(opts.baseUrl, 'https://animeav1.com');
+  }
 
   private headers(): Record<string, string> {
     return {

@@ -11,7 +11,7 @@ interface UseProviderResult {
   source: StreamingSource | null;
   loading: boolean;
   error: string | null;
-  providerUsed: ProviderId | null;
+  providerUsed: string | null;
   loadSource: (anime: AniListAnime, episode: number, mode: PlayMode) => Promise<void>;
   /**
    * Salta al siguiente servidor disponible del episodio actual.
@@ -28,7 +28,7 @@ export default function useProvider(): UseProviderResult {
   const [sourceIndex, setSourceIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [providerUsed, setProviderUsed] = useState<ProviderId | null>(null);
+  const [providerUsed, setProviderUsed] = useState<string | null>(null);
 
   // Refs para que tryNextSource sea estable aunque se llame desde callbacks
   // del reproductor (evita cierres obsoletos).

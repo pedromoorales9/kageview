@@ -49,5 +49,10 @@ export function anilistDefinePlugin(): webpack.DefinePlugin {
     'process.env.ANILIST_CLIENT_SECRET': pick('ANILIST_CLIENT_SECRET', ''),
     'process.env.ANILIST_REDIRECT_URI': pick('ANILIST_REDIRECT_URI', 'kageview://auth'),
     'process.env.DISCORD_CLIENT_ID': pick('DISCORD_CLIENT_ID', ''),
+    // Contraseña del Panel de Desarrollador (Ajustes). Vacía = panel
+    // desactivado por completo. Solo es una barrera de UI: la
+    // autorización real para publicar cambios es el PAT de GitHub,
+    // que nunca se incrusta en la build.
+    'process.env.DEV_PANEL_PASSWORD': pick('DEV_PANEL_PASSWORD', ''),
   });
 }

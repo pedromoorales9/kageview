@@ -3,7 +3,6 @@
 // ═══════════════════════════════════════════════════════════
 
 import {
-  ProviderId,
   AudioLang,
   PlayMode,
   ProviderAnime,
@@ -11,8 +10,22 @@ import {
   StreamingSource,
 } from '../../types/types';
 
+/** Overrides para instanciar un provider contra un mirror o sitio clon. */
+export interface ProviderOptions {
+  id?: string;
+  name?: string;
+  baseUrl?: string;
+}
+
+/** Normaliza una URL base de usuario: sin barra final ni espacios. */
+export function normalizeBaseUrl(url: string | undefined, fallback: string): string {
+  const trimmed = (url ?? '').trim().replace(/\/+$/, '');
+  return /^https?:\/\/./.test(trimmed) ? trimmed : fallback;
+}
+
 export interface IProvider {
-  readonly id: ProviderId;
+  /** Id de provider integrado ('animeflv'…) o de uno personalizado ('custom-…'). */
+  readonly id: string;
   readonly name: string;
   readonly languages: AudioLang[];
   readonly supportsDub: boolean;

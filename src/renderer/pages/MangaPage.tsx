@@ -18,10 +18,16 @@ export default function MangaPage({ onSelectManga }: MangaPageProps) {
   const [reloadKey, setReloadKey] = useState(0);
   const [showAdult, setShowAdult] = useState(false);
   const prefs = useAppStore((s) => s.prefs);
-  
+  const remoteConfig = useAppStore((s) => s.remoteConfig);
+
   const enabledProviders = useMemo(
-    () => getAllMangaProviders().filter((p) => prefs.mangaProvidersEnabled?.[p.id] !== false),
-    [prefs.mangaProvidersEnabled]
+    () => getAllMangaProviders().filter(
+      (p) =>
+        prefs.mangaProvidersEnabled?.[p.id] !== false &&
+        // Kill-switch remoto del dev (remote-config.json)
+        !remoteConfig?.providersDisabled?.[p.id]
+    ),
+    [prefs.mangaProvidersEnabled, remoteConfig]
   );
 
   const [activeProviderId, setActiveProviderId] = useState(() => {
@@ -30,11 +36,13 @@ export default function MangaPage({ onSelectManga }: MangaPageProps) {
   });
 
   useEffect(() => {
-    if (prefs.mangaProvidersEnabled?.[activeProviderId] === false) {
+    const disabledByUser = prefs.mangaProvidersEnabled?.[activeProviderId] === false;
+    const disabledRemotely = !!remoteConfig?.providersDisabled?.[activeProviderId];
+    if (disabledByUser || disabledRemotely) {
       const nextId = enabledProviders[0]?.id;
       if (nextId) setActiveProviderId(nextId);
     }
-  }, [prefs.mangaProvidersEnabled, activeProviderId, enabledProviders]);
+  }, [prefs.mangaProvidersEnabled, remoteConfig, activeProviderId, enabledProviders]);
 
   useEffect(() => {
     const preferred = prefs.preferredMangaProvider;
