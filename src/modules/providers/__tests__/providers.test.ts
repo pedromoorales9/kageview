@@ -94,6 +94,36 @@ describe('JKAnimeProvider', () => {
     const eps = provider.parseEpisodes('<div>no links</div>', 'ghost');
     expect(eps).toHaveLength(3000);
   });
+
+  it('parseEpisodes lee el total de la ficha (estructura 2026)', () => {
+    const html = '<li><span>Idiomas:</span> Japonés</li><li><span>Episodios:</span> 12</li>';
+    const eps = provider.parseEpisodes(html, 'dandadan');
+    expect(eps).toHaveLength(12);
+    expect(eps[0].id).toBe('dandadan/1');
+  });
+
+  // Fixture con la estructura real de la página del episodio (2026-07):
+  // URLs de embeds codificadas en base64 dentro de `var servers`.
+  it('parseServers decodifica base64, filtra descargas y ordena por preferencia', () => {
+    const b64 = (s: string) => Buffer.from(s, 'utf8').toString('base64');
+    const html = `<script>bgservers(); var servers = [
+      {"remote":"${b64('https://mediafire.com/file/abc123/\n')}","server":"Mediafire","lang":1},
+      {"remote":"${b64('https://mega.nz/embed/XYZ#key')}","server":"Mega","lang":1},
+      {"remote":"${b64('https://sfastwish.com/e/hs0vkx')}","server":"Streamwish","lang":1},
+      {"remote":"${b64('https://voe.sx/e/xrl53w')}","server":"VOE","lang":1}
+    ];</script>`;
+    const sources = provider.parseServers(html);
+    // Mediafire (descarga) queda fuera; orden: Streamwish → VOE → Mega
+    expect(sources.map((s) => s.quality)).toEqual(['Streamwish', 'VOE', 'Mega']);
+    expect(sources[0].url).toBe('https://sfastwish.com/e/hs0vkx');
+    expect(sources[0].type).toBe('iframe');
+    expect(sources[2].url).toBe('https://mega.nz/embed/XYZ#key');
+  });
+
+  it('parseServers devuelve [] sin bloque servers o con JSON corrupto', () => {
+    expect(provider.parseServers('<html>nada</html>')).toEqual([]);
+    expect(provider.parseServers('var servers = [{rota];')).toEqual([]);
+  });
 });
 
 describe('AnimeAV1Provider', () => {
