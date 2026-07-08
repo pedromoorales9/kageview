@@ -1,4 +1,7 @@
 {
   "announcement": null,
-  "providersDisabled": {}
+  "providersDisabled": {
+    "animeflv": "Desactivado temporalmente por mantenimiento del provider",
+    "manhwaweb": "Desactivado temporalmente por mantenimiento del provider"
+  }
 }
