@@ -23,7 +23,9 @@ const OP_FRAME = 1;
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID || '';
 
 let socket: net.Socket | null = null;
-let connected = false;
+let connected = false; // socket abierto
+let ready = false;     // handshake respondido con READY
+let pendingActivity: { details: string; state: string } | null = null;
 
 export function isEnabled(): boolean {
   return CLIENT_ID !== '';
@@ -63,6 +65,48 @@ function cleanup(): void {
     socket = null;
   }
   connected = false;
+  ready = false;
+}
+
+function sendActivity(activity: { details: string; state: string }): void {
+  send(OP_FRAME, {
+    cmd: 'SET_ACTIVITY',
+    args: {
+      pid: process.pid,
+      activity: {
+        details: activity.details,
+        state: activity.state,
+        timestamps: { start: Math.floor(Date.now() / 1000) },
+        assets: { large_image: 'kageview', large_text: 'KageView' },
+      },
+    },
+    nonce: randomUUID(),
+  });
+}
+
+/** Procesa los frames entrantes; READY marca el fin del handshake. */
+function attachReader(s: net.Socket): void {
+  let buf = Buffer.alloc(0);
+  s.on('data', (chunk: Buffer) => {
+    buf = Buffer.concat([buf, chunk]);
+    while (buf.length >= 8) {
+      const len = buf.readUInt32LE(4);
+      if (buf.length < 8 + len) break;
+      const body = buf.slice(8, 8 + len).toString('utf8');
+      buf = buf.slice(8 + len);
+      try {
+        const msg = JSON.parse(body);
+        if (msg.evt === 'READY') {
+          ready = true;
+          // Enviar la actividad que quedó pendiente durante la conexión
+          if (pendingActivity) {
+            sendActivity(pendingActivity);
+            pendingActivity = null;
+          }
+        }
+      } catch { /* frame no-JSON: ignorar */ }
+    }
+  });
 }
 
 export function connect(): void {
@@ -82,6 +126,7 @@ function tryConnect(index: number): void {
       connected = true;
       send(OP_HANDSHAKE, { v: 1, client_id: CLIENT_ID });
     });
+    attachReader(s);
     s.on('error', () => {
       if (!connected) {
         // Ranura inexistente/ocupada → probar la siguiente
@@ -108,27 +153,20 @@ export function disconnect(): void {
 
 export function setActivity(details: string, state: string): void {
   if (!isEnabled()) return;
-  if (!connected) {
-    // Reintento perezoso: Discord pudo abrirse después de arrancar la app.
-    connect();
+  if (!ready) {
+    // Aún sin handshake completado (o Discord se abrió después de la app):
+    // guardar la actividad y conectar; se enviará al recibir READY.
+    // Antes esta llamada se PERDÍA, dejando la presencia vacía hasta el
+    // siguiente cambio de episodio.
+    pendingActivity = { details, state };
+    if (!connected) connect();
     return;
   }
-  send(OP_FRAME, {
-    cmd: 'SET_ACTIVITY',
-    args: {
-      pid: process.pid,
-      activity: {
-        details,
-        state,
-        timestamps: { start: Math.floor(Date.now() / 1000) },
-        assets: { large_image: 'kageview', large_text: 'KageView' },
-      },
-    },
-    nonce: randomUUID(),
-  });
+  sendActivity({ details, state });
 }
 
 export function clear(): void {
+  pendingActivity = null;
   if (!isEnabled() || !connected) return;
   send(OP_FRAME, {
     cmd: 'SET_ACTIVITY',

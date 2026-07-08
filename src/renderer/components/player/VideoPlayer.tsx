@@ -41,11 +41,17 @@ export default function VideoPlayer({
   const progressTimerRef = useRef<number | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  // Volumen y silencio persistidos: el player se desmonta al cambiar de
+  // episodio (source pasa por null), así que un useState(1) a secas
+  // devolvía el volumen al máximo en cada episodio.
+  const [isMuted, setIsMuted] = useState(() => localStorage.getItem('playerMuted') === '1');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
+  const [volume, setVolume] = useState(() => {
+    const saved = parseFloat(localStorage.getItem('playerVolume') ?? '1');
+    return Number.isFinite(saved) && saved >= 0 && saved <= 1 ? saved : 1;
+  });
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isBuffering, setIsBuffering] = useState(source.type !== 'iframe');
   const [showSkipIntro, setShowSkipIntro] = useState(false);
@@ -194,6 +200,10 @@ export default function VideoPlayer({
       }
     };
     video.addEventListener('loadedmetadata', seekToStart, { once: true });
+
+    // Restaurar volumen/silencio guardados en el elemento recién montado
+    video.volume = volume;
+    video.muted = isMuted;
 
     const onVideoError = () => {
       console.error('[VideoPlayer] Error del elemento <video>; probando siguiente source');
@@ -506,8 +516,10 @@ export default function VideoPlayer({
   const handleMute = () => {
     const video = videoRef.current;
     if (!video) return;
-    video.muted = !video.muted;
-    setIsMuted(!isMuted);
+    const next = !video.muted;
+    video.muted = next;
+    setIsMuted(next);
+    localStorage.setItem('playerMuted', next ? '1' : '0');
   };
 
   const handleVolumeChange = (v: number) => {
@@ -515,9 +527,11 @@ export default function VideoPlayer({
     if (!video) return;
     video.volume = v;
     setVolume(v);
+    localStorage.setItem('playerVolume', String(v));
     if (v > 0 && isMuted) {
       video.muted = false;
       setIsMuted(false);
+      localStorage.setItem('playerMuted', '0');
     }
   };
 
