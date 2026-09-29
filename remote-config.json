@@ -2,8 +2,8 @@
   "announcement": {
     "id": "ann-2026-07-08-proveedores",
     "type": "warning",
-    "title": "JKAnime vuelve a funcionar — actualiza a la 1.2.8 para recuperarlo",
-    "message": "JKAnime vuelve a funcionar!"
+    "title": "Dectado Error con Adblock!",
+    "message": "Se ha detectado que algunos servidores son capaces de mostrar publicidad, ya estamos trabajando en solucionarlo lo antes posible!\nAtt: Sh4d0w"
   },
   "providersDisabled": {
     "animeflv": "Su web no está funcionando; se reactivará cuando vuelva a la normalidad.",
