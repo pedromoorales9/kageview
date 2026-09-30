@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '../../modules/store';
 import { errorMessage, openAuth } from '../../modules/account';
 import { getBackend, Friend, FriendRequest, PublicProfile } from '../../modules/backend';
-import { isWatchingNow, refreshSocial, timeAgo, useSocialStore } from '../../modules/social';
+import { isReadingNow, isWatchingNow, refreshSocial, timeAgo, useSocialStore } from '../../modules/social';
 import { AniListAnime } from '../../types/types';
+import type { MangaModel } from '../../modules/manga';
+import { mangaFromReading, mangaFromShare } from '../../modules/manga/share';
 import useAniList from '../hooks/useAniList';
 import Avatar from '../components/account/Avatar';
 import FriendProfileModal from '../components/social/FriendProfileModal';
@@ -18,6 +20,7 @@ type Tab = 'friends' | 'chat' | 'requests' | 'add';
 
 interface FriendsPageProps {
   onSelectAnime: (anime: AniListAnime) => void;
+  onSelectManga: (manga: MangaModel) => void;
 }
 
 function EmptyState({ icon, title, children }: { icon: string; title: string; children?: React.ReactNode }) {
@@ -64,10 +67,12 @@ function SmallButton({
 function FriendsTab({
   onOpenFriend,
   onOpenAnime,
+  onOpenManga,
   onMessage,
 }: {
   onOpenFriend: (f: Friend) => void;
   onOpenAnime: (mediaId: number) => void;
+  onOpenManga: (manga: MangaModel) => void;
   onMessage: (f: Friend) => void;
 }) {
   const toast = useToast();
@@ -78,6 +83,8 @@ function FriendsTab({
 
   const byUser = useMemo(() => new Map(activity.map((a) => [a.userId, a])), [activity]);
   const watching = activity.filter(isWatchingNow);
+  const readingList = useSocialStore((s) => s.reading);
+  const readingNow = readingList.filter(isReadingNow);
 
   const remove = async (f: Friend) => {
     try {
@@ -136,6 +143,38 @@ function FriendsTab({
           </div>
         )}
       </section>
+
+      {/* Leyendo ahora */}
+      {readingNow.length > 0 && (
+        <section>
+          <h2 className="section-title font-headline text-[20px] font-bold text-white tracking-[-0.025em] mb-5">Leyendo ahora</h2>
+          <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
+            {readingNow.map((r) => (
+              <button
+                key={r.userId}
+                onClick={() => onOpenManga(mangaFromReading(r))}
+                className="group panel p-3.5 flex items-center gap-3.5 text-left transition-transform duration-300 ease-mac hover:-translate-y-0.5"
+              >
+                <CoverImage src={r.coverUrl} className="w-[52px] h-[74px] rounded-lg flex-none ring-[0.5px] ring-white/15" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Avatar profile={r.profile} size={22} />
+                    <span className="text-[13px] font-semibold text-white truncate">{r.profile.displayName || r.profile.username}</span>
+                    <span className="ml-auto flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-[#5cf08a] flex-none">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#35e66a] shadow-[0_0_6px_#35e66a]" />
+                      En directo
+                    </span>
+                  </div>
+                  <p className="text-[13.5px] text-on-surface truncate group-hover:text-white transition-colors">{r.title}</p>
+                  <p className="text-[12px] text-muted">
+                    {r.chapter ? `Capítulo ${r.chapter}` : 'Leyendo'}{r.pageCount > 0 ? ` · pág. ${r.page + 1}/${r.pageCount}` : ''} · {timeAgo(r.updatedAt)}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Todos */}
       <section>
@@ -396,7 +435,7 @@ function AddTab() {
 }
 
 // ─── Página ────────────────────────────────────────────────
-export default function FriendsPage({ onSelectAnime }: FriendsPageProps) {
+export default function FriendsPage({ onSelectAnime, onSelectManga }: FriendsPageProps) {
   const status = useAppStore((s) => s.account.status);
   const requests = useSocialStore((s) => s.requests);
   const friendCount = useSocialStore((s) => s.friends.length);
@@ -512,8 +551,8 @@ export default function FriendsPage({ onSelectAnime }: FriendsPageProps) {
         </div>
       )}
 
-      {tab === 'friends' && <FriendsTab onOpenFriend={setOpenFriend} onOpenAnime={openAnime} onMessage={messageFriend} />}
-      {tab === 'chat' && <ChatPanel onOpenAnime={openAnime} />}
+      {tab === 'friends' && <FriendsTab onOpenFriend={setOpenFriend} onOpenAnime={openAnime} onOpenManga={onSelectManga} onMessage={messageFriend} />}
+      {tab === 'chat' && <ChatPanel onOpenAnime={openAnime} onOpenManga={(share) => onSelectManga(mangaFromShare(share))} />}
       {tab === 'requests' && <RequestsTab />}
       {tab === 'add' && <AddTab />}
 
@@ -523,6 +562,7 @@ export default function FriendsPage({ onSelectAnime }: FriendsPageProps) {
           since={openFriend.since}
           onClose={() => setOpenFriend(null)}
           onSelectAnime={onSelectAnime}
+          onSelectManga={onSelectManga}
           onMessage={() => messageFriend(openFriend)}
         />
       )}

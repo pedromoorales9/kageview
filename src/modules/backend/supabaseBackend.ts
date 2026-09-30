@@ -6,8 +6,14 @@
 // ═══════════════════════════════════════════════════════════
 
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
+import { parseRanges } from '../manga/readRanges';
 import {
   AccountBackend,
+  FriendReading,
+  MangaShare,
+  MangaSyncItem,
+  MangaSyncRow,
+  ReadingActivityInput,
   AdminStats,
   AdminUser,
   AdminUserPage,
@@ -103,6 +109,35 @@ interface ActivityRow {
   updated_at: string;
 }
 
+interface MangaEntryRow {
+  source: string;
+  manga_id: string;
+  status: string | null;
+  manga: unknown;
+  last_chapter_id: string | null;
+  last_chapter_number: string | null;
+  last_page: number | null;
+  last_page_count: number | null;
+  last_read_at: string | null;
+  read_ranges: unknown;
+  read_reset_at: string | null;
+  deleted: boolean;
+  updated_at: string;
+  synced_at: string;
+}
+interface ReadingRow {
+  user_id: string;
+  source: string;
+  manga_id: string;
+  title: string;
+  cover_url: string | null;
+  chapter: string | null;
+  page: number;
+  page_count: number;
+  active: boolean;
+  updated_at: string;
+}
+
 interface MessageRow {
   id: number;
   sender_id: string;
@@ -125,13 +160,32 @@ interface ChatSummaryRow {
   unread: number | string;
 }
 
+/** Ficha de un manga compartido que llega de OTRA persona: se valida antes de usarla. */
+export function parseMangaShare(raw: unknown): MangaShare | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const p = raw as Record<string, unknown>;
+  if (typeof p.id !== 'string' || typeof p.sourceId !== 'string' || typeof p.title !== 'string') return null;
+  if (!/^[a-z0-9_-]{2,30}$/.test(p.sourceId) || !p.id || p.id.length > 200) return null;
+  return {
+    id: p.id,
+    sourceId: p.sourceId,
+    title: p.title.slice(0, 300),
+    coverUrl: typeof p.coverUrl === 'string' && /^https:\/\//.test(p.coverUrl) && p.coverUrl.length <= 500 ? p.coverUrl : '',
+    status: typeof p.status === 'string' ? p.status.slice(0, 20) : 'ongoing',
+    year: typeof p.year === 'number' && Number.isFinite(p.year) ? p.year : null,
+    lastChapter: typeof p.lastChapter === 'string' ? p.lastChapter.slice(0, 20) : null,
+    tags: Array.isArray(p.tags) ? p.tags.filter((t): t is string => typeof t === 'string').slice(0, 8) : [],
+  };
+}
+
 const toMessage = (r: MessageRow): ChatMessage => ({
   id: r.id,
   senderId: r.sender_id,
   recipientId: r.recipient_id,
   kind: r.kind,
   body: r.body ?? '',
-  media: r.payload ?? null,
+  media: r.kind === 'anime' ? (r.payload as MediaSnapshot | null) ?? null : null,
+  manga: r.kind === 'manga' ? parseMangaShare(r.payload) : null,
   createdAt: r.created_at,
   readAt: r.read_at ?? null,
   deleted: r.deleted_at != null,
@@ -267,6 +321,8 @@ export function mapError(err: unknown): BackendError {
   if (code === '23514') return make('invalid_username');
   if (code === '54000') return make(msg.includes('too many messages') ? 'too_many_messages' : 'too_many_requests');
   if (code === 'P0002') return make('not_found');
+  // La migración correspondiente aún no está aplicada (tabla o función inexistente)
+  if (code === 'PGRST205' || code === 'PGRST202' || code === '42P01' || code === '42883') return make('unavailable');
   // RLS / funciones de administración: hay sesión, pero sin permiso
   if (msg.includes('suspended')) return make('suspended');
   if (msg.includes('forbidden') || msg.includes('row-level security')) return make('forbidden');
@@ -651,6 +707,122 @@ export class SupabaseBackend implements AccountBackend {
       .filter((a): a is FriendActivity => a !== null);
   }
 
+  // ─── Manga en la cuenta ──────────────────────────────────
+  private static toMangaRow(r: MangaEntryRow): MangaSyncRow {
+    return {
+      source: r.source,
+      mangaId: r.manga_id,
+      status: (r.status as MangaSyncRow['status']) ?? null,
+      manga: (r.manga && typeof r.manga === 'object' ? r.manga : { id: r.manga_id, sourceId: r.source, title: 'Sin título' }) as MangaSyncRow['manga'],
+      lastChapterId: r.last_chapter_id,
+      lastChapterNumber: r.last_chapter_number,
+      lastPage: r.last_page,
+      lastPageCount: r.last_page_count,
+      lastReadAt: r.last_read_at,
+      readRanges: parseRanges(r.read_ranges),
+      readResetAt: r.read_reset_at,
+      deleted: r.deleted,
+      updatedAt: r.updated_at,
+      syncedAt: r.synced_at,
+    };
+  }
+
+  async pushMangaEntries(items: MangaSyncItem[]): Promise<number> {
+    if (items.length === 0) return 0;
+    await this.requireUserId();
+    const payload = items.map((i) => ({
+      source: i.source,
+      manga_id: i.mangaId,
+      status: i.status,
+      manga: i.manga,
+      last_chapter_id: i.lastChapterId,
+      last_chapter_number: i.lastChapterNumber,
+      last_page: i.lastPage,
+      last_page_count: i.lastPageCount,
+      last_read_at: i.lastReadAt,
+      read_ranges: i.readRanges,
+      read_reset_at: i.readResetAt,
+      deleted: i.deleted,
+      updated_at: i.updatedAt,
+    }));
+    const n = check(await this.sb.rpc('manga_sync_push', { items: payload }));
+    return typeof n === 'number' ? n : 0;
+  }
+
+  async pullMangaEntries(opts: { since?: string | null; limit?: number } = {}): Promise<MangaSyncRow[]> {
+    const uid = await this.requireUserId();
+    let q = this.sb
+      .from('manga_entries')
+      .select('*')
+      .eq('user_id', uid)
+      .order('synced_at', { ascending: true })
+      .limit(Math.min(opts.limit ?? 200, 500));
+    if (opts.since) q = q.gt('synced_at', opts.since);
+    const rows = check(await q) as unknown as MangaEntryRow[];
+    return rows.map(SupabaseBackend.toMangaRow);
+  }
+
+  async listFriendManga(userId: string): Promise<MangaSyncRow[]> {
+    if (!UUID_RE.test(userId)) throw new BackendError('not_found');
+    // RLS ya limita a amigos que comparten su lista y a lo que está en su biblioteca
+    const rows = check(
+      await this.sb.from('manga_entries').select('*').eq('user_id', userId).order('updated_at', { ascending: false }).limit(500)
+    ) as unknown as MangaEntryRow[];
+    return rows.map(SupabaseBackend.toMangaRow);
+  }
+
+  async setReadingActivity(a: ReadingActivityInput): Promise<void> {
+    const uid = await this.requireUserId();
+    check(
+      await this.sb.from('reading_activity').upsert(
+        {
+          user_id: uid,
+          source: a.source,
+          manga_id: a.mangaId.slice(0, 200),
+          title: a.title.slice(0, 200) || 'Manga',
+          cover_url: a.coverUrl && /^https:\/\//.test(a.coverUrl) ? a.coverUrl.slice(0, 500) : null,
+          chapter: a.chapter ? a.chapter.slice(0, 20) : null,
+          page: Math.max(0, Math.floor(a.page)),
+          page_count: Math.max(0, Math.floor(a.pageCount)),
+          active: true,
+        },
+        { onConflict: 'user_id' }
+      )
+    );
+  }
+
+  async clearReadingActivity(): Promise<void> {
+    const uid = await this.requireUserId();
+    check(await this.sb.from('reading_activity').update({ active: false }).eq('user_id', uid));
+  }
+
+  async listFriendsReading(): Promise<FriendReading[]> {
+    const uid = await this.requireUserId();
+    const rows = check(
+      await this.sb.from('reading_activity').select('*').neq('user_id', uid).order('updated_at', { ascending: false })
+    ) as unknown as ReadingRow[];
+    const profiles = await this.profilesById(rows.map((r) => r.user_id));
+    return rows
+      .map((r): FriendReading | null => {
+        const profile = profiles.get(r.user_id);
+        if (!profile) return null;
+        return {
+          userId: r.user_id,
+          source: r.source,
+          mangaId: r.manga_id,
+          title: r.title,
+          coverUrl: r.cover_url,
+          chapter: r.chapter,
+          page: r.page,
+          pageCount: r.page_count,
+          active: r.active,
+          updatedAt: r.updated_at,
+          profile,
+        };
+      })
+      .filter((a): a is FriendReading => a !== null);
+  }
+
   // ─── Chat ────────────────────────────────────────────────
   async listMessages(friendId: string, opts: { before?: MessageCursor; limit?: number } = {}): Promise<ChatMessage[]> {
     const me = await this.requireUserId();
@@ -686,7 +858,12 @@ export class SupabaseBackend implements AccountBackend {
     const body = (input.body ?? '').slice(0, 2000);
     const res = await this.sb
       .from('messages')
-      .insert({ recipient_id: friendId, kind, body, payload: input.media ?? null })
+      .insert({
+        recipient_id: friendId,
+        kind,
+        body,
+        payload: kind === 'manga' ? input.manga ?? null : input.media ?? null,
+      })
       .select('*')
       .single();
     if (res.error) {
@@ -751,6 +928,7 @@ export class SupabaseBackend implements AccountBackend {
     const channel = this.sb
       .channel(`kageview-social-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'activity' }, fire)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reading_activity' }, fire)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, fire)
       .subscribe();
     return () => {

@@ -16,6 +16,7 @@ import {
   CHAT_MAX_LENGTH,
   ChatMessage,
   ChatSummaryItem,
+  MangaShare,
   MediaSnapshot,
   SendMessageInput,
   getBackend,
@@ -67,6 +68,7 @@ function totalUnread(summaries: Record<string, ChatSummaryItem>): number {
 export function messagePreview(m: { kind: string; body: string; deleted: boolean }): string {
   if (m.deleted) return 'Mensaje eliminado';
   if (m.kind === 'anime') return '🎬 Anime compartido';
+  if (m.kind === 'manga') return '📖 Manga compartido';
   return m.body.replace(/\s+/g, ' ').trim();
 }
 
@@ -234,6 +236,7 @@ function enqueue(friendId: string, input: SendMessageInput): number | null {
     kind: input.kind ?? 'text',
     body: input.body ?? '',
     media: input.media ?? null,
+    manga: input.manga ?? null,
     createdAt: new Date().toISOString(),
     readAt: null,
     deleted: false,
@@ -256,11 +259,16 @@ export function sendAnime(friendId: string, media: MediaSnapshot): boolean {
   return enqueue(friendId, { kind: 'anime', media }) !== null;
 }
 
+/** Comparte un manga con un amigo (tarjeta con portada que abre la ficha). */
+export function sendManga(friendId: string, manga: MangaShare): boolean {
+  return enqueue(friendId, { kind: 'manga', manga }) !== null;
+}
+
 export function retryMessage(friendId: string, tempId: number): void {
   const m = (st().threads[friendId] ?? []).find((x) => x.id === tempId);
   if (!m) return;
   setThread(friendId, (list) => list.map((x) => (x.id === tempId ? { ...x, pending: true, failed: false } : x)));
-  void deliver(friendId, tempId, { kind: m.kind, body: m.body, media: m.media ?? undefined });
+  void deliver(friendId, tempId, { kind: m.kind, body: m.body, media: m.media ?? undefined, manga: m.manga ?? undefined });
 }
 
 export function discardMessage(friendId: string, tempId: number): void {
@@ -273,7 +281,7 @@ export async function removeMessage(friendId: string, id: number): Promise<void>
   if (!backend) return;
   try {
     await backend.deleteMessage(id);
-    setThread(friendId, (list) => list.map((m) => (m.id === id ? { ...m, deleted: true, body: '', media: null } : m)));
+    setThread(friendId, (list) => list.map((m) => (m.id === id ? { ...m, deleted: true, body: '', media: null, manga: null } : m)));
     refreshSummarySoon();
   } catch (err) {
     console.warn('[chat] No se pudo eliminar el mensaje:', err);

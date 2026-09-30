@@ -55,12 +55,17 @@ interface MangaCardProps {
   style?: React.CSSProperties;
   /** Muestra de qué fuente viene (útil al buscar en todas). */
   showSource?: boolean;
+  /** No mostrar MI estado (biblioteca/capítulos nuevos): para listas de otras personas. */
+  foreign?: boolean;
+  /** Texto extra bajo el título (p. ej. «Cap. 12» en la lista de un amigo). */
+  note?: string;
 }
 
-function MangaCard({ manga, onClick, className = '', style, showSource = false }: MangaCardProps) {
+function MangaCard({ manga, onClick, className = '', style, showSource = false, foreign = false, note }: MangaCardProps) {
   const [imgError, setImgError] = useState(false);
   // Estado propio (biblioteca, capítulos nuevos): la tarjeta lo sabe sola
-  const record = useMangaData((s) => s.records[mangaKey(manga)]);
+  const own = useMangaData((s) => s.records[mangaKey(manga)]);
+  const record = foreign ? undefined : own;
   const type = inferType(manga);
   const unread = record?.status === 'reading' ? record.unread ?? 0 : 0;
 
@@ -69,7 +74,7 @@ function MangaCard({ manga, onClick, className = '', style, showSource = false }
       type="button"
       onClick={onClick}
       style={style}
-      className={`relative group flex flex-col gap-2.5 text-left w-full transition-transform duration-[350ms] ease-mac hover:-translate-y-1.5 active:scale-[0.985] ${className}`}
+      className={`relative group flex flex-col items-stretch gap-2.5 text-left w-full min-w-0 transition-transform duration-[350ms] ease-mac hover:-translate-y-1.5 active:scale-[0.985] ${className}`}
     >
       <div className="relative">
         {/* Halo de hover: solo anima opacidad */}
@@ -140,10 +145,11 @@ function MangaCard({ manga, onClick, className = '', style, showSource = false }
           {manga.title}
         </h4>
         <p className="mt-1 text-[12px] text-muted flex items-center gap-1.5">
-          {manga.lastChapter && <span>Cap. {manga.lastChapter}</span>}
+          {!note && manga.lastChapter && <span>Cap. {manga.lastChapter}</span>}
           <span className={`w-1.5 h-1.5 rounded-full flex-none ${STATUS_DOT[manga.status] ?? 'bg-gray-400'}`} />
           <span className="truncate">{STATUS_I18N[manga.status] ?? manga.status}</span>
         </p>
+        {note && <p className="mt-0.5 text-[12px] text-secondary truncate">{note}</p>}
       </div>
     </button>
   );

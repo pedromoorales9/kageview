@@ -7,12 +7,14 @@
 // ═══════════════════════════════════════════════════════════
 
 import { create } from 'zustand';
-import { Activity, Friend, FriendActivity, FriendRequest, getBackend } from './backend';
+import { Activity, Friend, FriendActivity, FriendReading, FriendRequest, getBackend } from './backend';
 
 interface SocialState {
   friends: Friend[];
   requests: FriendRequest[];
   activity: FriendActivity[];
+  /** Amigos leyendo manga ahora o hace poco. */
+  reading: FriendReading[];
   loaded: boolean;
   loading: boolean;
   error: string | null;
@@ -22,6 +24,7 @@ const EMPTY: SocialState = {
   friends: [],
   requests: [],
   activity: [],
+  reading: [],
   loaded: false,
   loading: false,
   error: null,
@@ -35,6 +38,9 @@ export const WATCHING_FRESH_MS = 3.5 * 60 * 1000;
 export function isWatchingNow(a: Pick<Activity, 'active' | 'updatedAt'>): boolean {
   return a.active && Date.now() - new Date(a.updatedAt).getTime() < WATCHING_FRESH_MS;
 }
+
+/** Igual que isWatchingNow, para la lectura de manga. */
+export const isReadingNow = isWatchingNow;
 
 /** "ahora", "hace 5 min", "hace 3 h", "hace 2 días" */
 export function timeAgo(iso: string): string {
@@ -52,12 +58,14 @@ export async function refreshSocial(): Promise<void> {
   if (!backend) return;
   useSocialStore.setState({ loading: true });
   try {
-    const [friends, requests, activity] = await Promise.all([
+    const [friends, requests, activity, reading] = await Promise.all([
       backend.listFriends(),
       backend.listFriendRequests(),
       backend.listFriendsActivity(),
+      // Sin la migración de manga en la base de datos: simplemente no hay lecturas
+      backend.listFriendsReading().catch((): FriendReading[] => []),
     ]);
-    useSocialStore.setState({ friends, requests, activity, loaded: true, loading: false, error: null });
+    useSocialStore.setState({ friends, requests, activity, reading, loaded: true, loading: false, error: null });
   } catch (err) {
     console.warn('[social] Error al refrescar:', err);
     useSocialStore.setState({

@@ -22,6 +22,7 @@ import {
   resumePage,
   siblingIndex,
 } from '../../../modules/manga/readerLogic';
+import { startReading, stopReading, updateReadingPage } from '../../../modules/manga/readingPresence';
 import { getCache, setCache } from '../../../modules/cache';
 import { proxyHead } from '../../../modules/httpProxy';
 
@@ -222,6 +223,7 @@ export default function MangaReader({ manga, chapters, initialChapterIndex, onEx
         openAtEnd.current = false;
 
         recordOpen(manga, chapter, chapterIndex, urls.length);
+        startReading(manga, chapter.chapter, start, urls.length); // «leyendo ahora» para tus amigos
         setPages(urls);
         setLoadingChapter(false);
 
@@ -271,10 +273,11 @@ export default function MangaReader({ manga, chapters, initialChapterIndex, onEx
     if (loadingChapter || !chapter || pages.length === 0) return;
     if (resumeRef.current !== null) return; // aún colocando el scroll
     recordPage(manga, chapter.id, currentPage, pages.length);
+    updateReadingPage(currentPage, pages.length);
     const end = paged ? reachedEnd(pageIndex, pages.length, readingMode) : cascadePage >= pages.length - 1;
     if (end && !finishedRef.current) {
       finishedRef.current = true;
-      setChapterRead(manga, chapter.id, true);
+      setChapterRead(manga, chapter, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, pages.length, loadingChapter]);
@@ -286,6 +289,7 @@ export default function MangaReader({ manga, chapters, initialChapterIndex, onEx
     return () => {
       window.removeEventListener('beforeunload', flush);
       flush();
+      stopReading();
     };
   }, []);
 
@@ -407,7 +411,7 @@ export default function MangaReader({ manga, chapters, initialChapterIndex, onEx
       setCascadePage((p) => (p === page ? p : page));
       if (box.scrollTop + box.clientHeight >= box.scrollHeight - 120 && !finishedRef.current && pages.length > 0) {
         finishedRef.current = true;
-        setChapterRead(manga, chapter.id, true);
+        setChapterRead(manga, chapter, true);
       }
     });
   };

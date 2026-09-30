@@ -90,12 +90,12 @@ export function findChapterIndex(list: readonly Pick<MangaChapterModel, 'chapter
 }
 
 /**
- * Primer capítulo por leer: el siguiente al último leído (por número), o el
- * primero si no hay lectura. `read` son ids de capítulos leídos.
+ * Primer capítulo por leer: el siguiente al último leído (por posición), o el
+ * primero si no hay lectura. `isRead` decide si un capítulo cuenta como leído.
  */
-export function firstUnreadIndex(list: readonly Pick<MangaChapterModel, 'id'>[], read: ReadonlySet<string>): number {
+export function firstUnreadIndex<T extends { id: string }>(list: readonly T[], isRead: (ch: T) => boolean): number {
   let lastRead = -1;
-  list.forEach((c, i) => { if (read.has(c.id)) lastRead = i; });
+  list.forEach((c, i) => { if (isRead(c)) lastRead = i; });
   const next = lastRead + 1;
   return next < list.length ? next : Math.max(0, list.length - 1);
 }

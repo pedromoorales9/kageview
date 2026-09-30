@@ -1102,3 +1102,260 @@ describe('administración v2: auditoría, suspensiones, segmentación y usuarios
   });
 });
 
+// ═══════════════════════════════════════════════════════════════════
+describe('manga en la cuenta: sincronización, amigos y chat', () => {
+  const entry = (over: Record<string, unknown> = {}) => ({
+    source: 'mangadex',
+    manga_id: 'uuid-1',
+    status: 'reading',
+    manga: { id: 'uuid-1', sourceId: 'mangadex', title: 'Frieren', coverUrl: 'https://uploads.example/c.jpg', status: 'ongoing', tags: [] },
+    last_chapter_id: 'ch-9',
+    last_chapter_number: '9',
+    last_page: 4,
+    last_page_count: 20,
+    last_read_at: '2026-09-20T10:00:00Z',
+    read_ranges: [[1, 9]],
+    read_reset_at: null,
+    deleted: false,
+    updated_at: '2026-09-20T10:00:00Z',
+    ...over,
+  });
+  const push = (who: string, items: unknown[]) =>
+    asCommit(who, (q) => q(`select public.manga_sync_push($1::jsonb) as n`, [JSON.stringify(items)]));
+  const pushErr = (who: string, items: unknown) =>
+    asExpectError(who, `select public.manga_sync_push($1::jsonb)`, [JSON.stringify(items)]);
+  const rowsOf = (who: string, where = '') => as(who, (q) => q(`select source, manga_id, status, deleted, updated_at, last_page, read_ranges from public.manga_entries ${where} order by manga_id`));
+
+  const befriend = async (a: string, b: string) => {
+    await admin(`delete from public.friendships`);
+    await admin(`insert into public.friendships (requester_id, addressee_id, status, responded_at) values ($1,$2,'accepted',now())`, [ids[a], ids[b]]);
+  };
+
+  beforeAll(async () => {
+    await admin(`delete from public.manga_entries`);
+    await admin(`delete from public.reading_activity`);
+    await admin(`delete from public.friendships`);
+    await admin(`update public.profiles set show_library = true, show_activity = true`);
+    await admin(`delete from public.suspensions`);
+  });
+
+  // ── Escritura: solo por la función ───────────────────
+  it('sincroniza una entrada y solo su dueño la ve', async () => {
+    expect((await push('carol', [entry()]))[0].n).toBe(1);
+    expect(await rowsOf('carol')).toMatchObject([{ source: 'mangadex', manga_id: 'uuid-1', status: 'reading', last_page: 4 }]);
+    expect(await rowsOf('eve')).toHaveLength(0);
+    expect(await as('anon', (q) => q(`select 1`)).catch(() => 1)).toBeTruthy();
+    expect(await asExpectError('anon', `select * from public.manga_entries`)).toMatch(/permission denied/i);
+    expect(await asExpectError('anon', `select public.manga_sync_push('[]'::jsonb)`)).toMatch(/permission denied/i);
+  });
+
+  it('no se puede escribir directamente en la tabla (ni insertar, ni editar, ni borrar)', async () => {
+    const e = entry();
+    expect(await asExpectError('carol', `insert into public.manga_entries (user_id, source, manga_id, manga, updated_at) values ('${ids.carol}', 'x1', 'a', '{"title":"x"}', now())`)).toMatch(/permission denied/i);
+    expect(await asExpectError('carol', `update public.manga_entries set status = 'completed'`)).toMatch(/permission denied/i);
+    expect(await asExpectError('carol', `delete from public.manga_entries`)).toMatch(/permission denied/i);
+    expect(e.source).toBe('mangadex');
+  });
+
+  it('nadie puede escribir en la biblioteca de otro (la función usa siempre auth.uid())', async () => {
+    await push('eve', [entry({ manga_id: 'de-eve', manga: { id: 'de-eve', sourceId: 'mangadex', title: 'Mío' } })]);
+    expect((await rowsOf('eve')).map((r) => r.manga_id)).toEqual(['de-eve']);
+    expect((await rowsOf('carol')).map((r) => r.manga_id)).toEqual(['uuid-1']);
+    await admin(`delete from public.manga_entries where user_id = $1`, [ids.eve]);
+  });
+
+  // ── Conflictos ───────────────────────────────────────
+  it('gana el sello más nuevo; uno más viejo no pisa', async () => {
+    await push('carol', [entry({ status: 'completed', last_page: 19, updated_at: '2026-09-20T12:00:00Z' })]);
+    expect((await rowsOf('carol'))[0]).toMatchObject({ status: 'completed', last_page: 19 });
+    const n = (await push('carol', [entry({ status: 'dropped', last_page: 0, updated_at: '2026-09-20T11:00:00Z' })]))[0].n;
+    expect(n).toBe(0);
+    expect((await rowsOf('carol'))[0]).toMatchObject({ status: 'completed', last_page: 19 });
+    // sello igual tampoco pisa
+    expect((await push('carol', [entry({ status: 'dropped', updated_at: '2026-09-20T12:00:00Z' })]))[0].n).toBe(0);
+  });
+
+  it('un sello en el futuro se recorta (no bloquea la fila)', async () => {
+    await push('dave', [entry({ manga_id: 'fut', manga: { id: 'fut', sourceId: 'mangadex', title: 'F' }, updated_at: '2999-01-01T00:00:00Z' })]);
+    const r = await admin(`select updated_at <= now() + interval '11 minutes' as ok from public.manga_entries where user_id = $1 and manga_id = 'fut'`, [ids.dave]);
+    expect(r[0].ok).toBe(true);
+    await admin(`delete from public.manga_entries where user_id = $1`, [ids.dave]);
+  });
+
+  it('las entradas borradas conservan la marca para que otros dispositivos se enteren', async () => {
+    await push('carol', [entry({ deleted: true, status: null, updated_at: '2026-09-21T00:00:00Z' })]);
+    expect((await rowsOf('carol'))[0]).toMatchObject({ deleted: true, status: null });
+  });
+
+  // ── Validación ───────────────────────────────────────
+  it('rechaza datos inválidos', async () => {
+    const bad: Array<[string, Record<string, unknown>]> = [
+      ['fuente inválida', { source: 'Mala Fuente!' }],
+      ['fuente vacía', { source: '' }],
+      ['id vacío', { manga_id: '' }],
+      ['id larguísimo', { manga_id: 'x'.repeat(201) }],
+      ['estado desconocido', { status: 'leyendo' }],
+      ['ficha no objeto', { manga: 'texto' }],
+      ['título vacío', { manga: { title: '' } }],
+      ['título enorme', { manga: { title: 'x'.repeat(301) } }],
+      ['portada http', { manga: { title: 'T', coverUrl: 'http://inseguro.dev/c.jpg' } }],
+      ['portada javascript', { manga: { title: 'T', coverUrl: 'javascript:alert(1)' } }],
+      ['ficha gigante', { manga: { title: 'T', descripcion: 'x'.repeat(9000) } }],
+      ['página negativa', { last_page: -1 }],
+      ['página absurda', { last_page: 999999 }],
+      ['capítulo larguísimo', { last_chapter_number: 'x'.repeat(21) }],
+      ['rangos no array', { read_ranges: { a: 1 } }],
+      ['rango invertido', { read_ranges: [[5, 1]] }],
+      ['rango de 3', { read_ranges: [[1, 2, 3]] }],
+      ['rango con texto', { read_ranges: [['a', 2]] }],
+      ['rango negativo', { read_ranges: [[-1, 2]] }],
+      ['rango enorme', { read_ranges: [[1, 999999]] }],
+      ['demasiados rangos', { read_ranges: Array.from({ length: 2001 }, (_, i) => [i, i]) }],
+    ];
+    for (const [why, over] of bad) {
+      const msg = await pushErr('eve', [entry({ manga_id: `v-${why}`.slice(0, 40), ...over })]);
+      expect(msg, why).not.toBe('');
+    }
+    expect(await rowsOf('eve')).toHaveLength(0); // nada se coló
+    expect(await pushErr('eve', { no: 'array' })).toMatch(/invalid payload/i);
+    expect(await pushErr('eve', 'texto')).toMatch(/invalid payload/i);
+    expect(await pushErr('eve', Array.from({ length: 101 }, (_, i) => entry({ manga_id: `m${i}` })))).toMatch(/invalid payload/i);
+    expect(await pushErr('eve', [{ source: 'mangadex' }])).toMatch(/invalid entry/i);
+    expect(await pushErr('eve', [entry(), 'no-objeto'])).toMatch(/invalid entry/i);
+    expect(await rowsOf('eve')).toHaveLength(0);
+  });
+
+  it('acepta rangos válidos (enteros, decimales y vacíos) y hasta 100 entradas por llamada', async () => {
+    expect((await push('eve', [entry({ manga_id: 'ok1', manga: { title: 'a' }, read_ranges: [[1, 45], [47, 47], [12.5, 12.5]] })]))[0].n).toBe(1);
+    expect((await push('eve', [entry({ manga_id: 'ok2', manga: { title: 'b' }, read_ranges: [] })]))[0].n).toBe(1);
+    const hundred = Array.from({ length: 100 }, (_, i) => entry({ manga_id: `lote${i}`, manga: { title: `L${i}` }, updated_at: '2026-09-22T00:00:00Z' }));
+    expect((await push('eve', hundred))[0].n).toBe(100);
+    await admin(`delete from public.manga_entries where user_id = $1`, [ids.eve]);
+  });
+
+  it('una llamada con un error no aplica NADA (todo o nada)', async () => {
+    expect(await pushErr('eve', [entry({ manga_id: 'bueno', manga: { title: 'B' } }), entry({ manga_id: 'malo', status: 'roto' })])).not.toBe('');
+    expect(await rowsOf('eve')).toHaveLength(0);
+  });
+
+  it('tope de entradas por usuario', async () => {
+    await admin(
+      `insert into public.manga_entries (user_id, source, manga_id, manga, updated_at)
+       select $1, 'mangadex', 'bulk' || g, '{"title":"x"}'::jsonb, now() from generate_series(1, 3000) g`,
+      [ids.dave]
+    );
+    expect(await pushErr('dave', [entry({ manga_id: 'uno-mas', manga: { title: 'M' } })])).toMatch(/too many entries/i);
+    await admin(`delete from public.manga_entries where user_id = $1`, [ids.dave]);
+  });
+
+  // ── Amigos ───────────────────────────────────────────
+  it('los amigos ven la biblioteca (no el historial suelto ni lo borrado) si el dueño la comparte', async () => {
+    await admin(`delete from public.manga_entries where user_id = $1`, [ids.carol]);
+    await push('carol', [
+      entry({ manga_id: 'en-biblioteca', manga: { title: 'A' } }),
+      entry({ manga_id: 'solo-historial', manga: { title: 'B' }, status: null }),
+      entry({ manga_id: 'borrado', manga: { title: 'C' }, deleted: true }),
+    ]);
+    await befriend('carol', 'alice');
+
+    expect((await rowsOf('alice', `where user_id = '${ids.carol}'`)).map((r) => r.manga_id)).toEqual(['en-biblioteca']);
+    expect((await rowsOf('carol')).map((r) => r.manga_id)).toEqual(['borrado', 'en-biblioteca', 'solo-historial']); // el dueño lo ve todo
+    expect(await rowsOf('eve', `where user_id = '${ids.carol}'`)).toHaveLength(0);                                 // un desconocido, nada
+  });
+
+  it('si el dueño oculta su lista, los amigos dejan de verla (y él sigue viéndola)', async () => {
+    await admin(`update public.profiles set show_library = false where id = $1`, [ids.carol]);
+    expect(await rowsOf('alice', `where user_id = '${ids.carol}'`)).toHaveLength(0);
+    expect((await rowsOf('carol')).length).toBe(3);
+    await admin(`update public.profiles set show_library = true where id = $1`, [ids.carol]);
+    expect(await rowsOf('alice', `where user_id = '${ids.carol}'`)).toHaveLength(1);
+  });
+
+  it('dejar de ser amigos corta el acceso', async () => {
+    await admin(`delete from public.friendships`);
+    expect(await rowsOf('alice', `where user_id = '${ids.carol}'`)).toHaveLength(0);
+  });
+
+  // ── Actividad de lectura ─────────────────────────────
+  const reading = (who: string, extra = '') =>
+    asCommit(who, (q) => q(`insert into public.reading_activity (user_id, source, manga_id, title, cover_url, chapter, page, page_count) values ('${ids[who]}', 'mangadex', 'u1', 'Frieren', 'https://x.dev/c.jpg', '9', 3, 20) ${extra}`));
+
+  it('"leyendo ahora": solo los amigos, y respetando show_activity', async () => {
+    await admin(`delete from public.reading_activity`);
+    await befriend('carol', 'alice');
+    await reading('carol');
+    expect(await as('alice', (q) => q(`select title, chapter from public.reading_activity`))).toEqual([{ title: 'Frieren', chapter: '9' }]);
+    expect(await as('eve', (q) => q(`select 1 from public.reading_activity`))).toHaveLength(0);
+    await admin(`update public.profiles set show_activity = false where id = $1`, [ids.carol]);
+    expect(await as('alice', (q) => q(`select 1 from public.reading_activity`))).toHaveLength(0);
+    expect(await as('carol', (q) => q(`select 1 from public.reading_activity`))).toHaveLength(1);
+    await admin(`update public.profiles set show_activity = true where id = $1`, [ids.carol]);
+    expect(await asExpectError('anon', `select * from public.reading_activity`)).toMatch(/permission denied/i);
+  });
+
+  it('solo se puede escribir la propia actividad, con datos válidos', async () => {
+    expect(await asExpectError('eve', `update public.reading_activity set title = 'hackeada' where user_id = '${ids.carol}'`)).toBe('');
+    expect((await admin(`select title from public.reading_activity where user_id = $1`, [ids.carol]))[0].title).toBe('Frieren'); // 0 filas afectadas
+    expect(await asExpectError('eve', `insert into public.reading_activity (user_id, source, manga_id, title) values ('${ids.carol}', 'mangadex', 'x', 'suplanto')`)).toMatch(/row-level security/i);
+    expect(await as('eve', (q) => q(`delete from public.reading_activity where user_id = '${ids.carol}' returning 1`))).toHaveLength(0);
+    for (const bad of [`cover_url = 'http://x.dev/c.jpg'`, `page = -1`, `title = ''`, `source = 'MAL FUENTE'`]) {
+      expect(await asExpectError('carol', `update public.reading_activity set ${bad}`)).toMatch(/check|violates/i);
+    }
+  });
+
+  it('un usuario suspendido no publica su lectura', async () => {
+    await admin(`delete from public.reading_activity where user_id = $1`, [ids.eve]);
+    await admin(`insert into public.suspensions (user_id, reason) values ($1, 'x')`, [ids.eve]);
+    expect(await asExpectError('eve', `insert into public.reading_activity (user_id, source, manga_id, title) values ('${ids.eve}', 'mangadex', 'x', 'T')`)).toMatch(/row-level security/i);
+    await admin(`delete from public.suspensions`);
+  });
+
+  // ── Chat: compartir manga ────────────────────────────
+  it('se puede compartir un manga con un amigo; con ficha completa', async () => {
+    await admin(`delete from public.messages`);
+    await befriend('carol', 'alice');
+    const share = (who: string, to: string, payload: unknown, extra = 'manga') =>
+      asExpectError(who, `insert into public.messages (recipient_id, kind, payload) values ('${ids[to]}', '${extra}', $1::jsonb)`, [JSON.stringify(payload)]);
+    const ok = { id: 'u1', sourceId: 'mangadex', title: 'Frieren', coverUrl: 'https://x.dev/c.jpg' };
+    expect(await share('carol', 'alice', ok)).toBe('');
+    expect(await share('carol', 'alice', { id: 'u1', title: 'sin fuente' })).toMatch(/check/i);
+    expect(await share('carol', 'alice', { sourceId: 'mangadex', title: 'sin id' })).toMatch(/check/i);
+    expect(await share('carol', 'alice', 'texto')).toMatch(/check/i);
+    expect(await share('carol', 'alice', null)).toMatch(/check/i);
+    expect(await share('carol', 'alice', { ...ok, extra: 'x'.repeat(5000) })).toMatch(/check/i);   // < 4 KB
+    expect(await share('carol', 'alice', ok, 'gif')).toMatch(/check/i);                            // tipos desconocidos siguen prohibidos
+    expect(await share('eve', 'alice', ok)).toMatch(/row-level security/i);                        // no son amigos
+  });
+
+  it('el anime compartido sigue funcionando igual', async () => {
+    expect(await asExpectError('carol', `insert into public.messages (recipient_id, kind, payload) values ('${ids.alice}', 'anime', '{"id":1,"title":{"romaji":"A"}}'::jsonb)`)).toBe('');
+    expect(await asExpectError('carol', `insert into public.messages (recipient_id, kind) values ('${ids.alice}', 'anime')`)).toMatch(/check/i);
+    expect(await asExpectError('carol', `insert into public.messages (recipient_id, kind) values ('${ids.alice}', 'manga')`)).toMatch(/check/i);
+  });
+
+  it('borrar un mensaje de manga (borrado suave) vacía la ficha', async () => {
+    await admin(`delete from public.messages`);
+    const [{ id }] = await asCommit('carol', (q) =>
+      q(`insert into public.messages (recipient_id, kind, payload) values ('${ids.alice}', 'manga', '{"id":"u1","sourceId":"mangadex","title":"T"}'::jsonb) returning id`)
+    );
+    await asCommit('carol', (q) => q(`select public.delete_message(${id})`));
+    const m = await admin(`select kind, payload, deleted_at is not null as gone from public.messages where id = $1`, [id]);
+    expect(m[0]).toMatchObject({ kind: 'manga', payload: null, gone: true });
+  });
+
+  // ── Cuenta ───────────────────────────────────────────
+  it('al eliminar la cuenta se borra todo su manga (en cascada)', async () => {
+    const id = await signup('mangaghost', 'mangaghost');
+    await asCommit('mangaghost', (q) => q(`select public.manga_sync_push($1::jsonb)`, [JSON.stringify([entry({ manga_id: 'g1', manga: { title: 'G' } })])]));
+    await asCommit('mangaghost', (q) => q(`insert into public.reading_activity (user_id, source, manga_id, title) values ('${id}', 'mangadex', 'g1', 'G')`));
+    expect(await admin(`select 1 from public.manga_entries where user_id = $1`, [id])).toHaveLength(1);
+    await db.transaction(async (tx) => {
+      await tx.exec(`set local role authenticated`);
+      await tx.query(`select set_config('request.jwt.claim.sub', $1, true)`, [id]);
+      await tx.exec(`select public.delete_my_account()`);
+    });
+    expect(await admin(`select 1 from public.manga_entries where user_id = $1`, [id])).toHaveLength(0);
+    expect(await admin(`select 1 from public.reading_activity where user_id = $1`, [id])).toHaveLength(0);
+  });
+});
+

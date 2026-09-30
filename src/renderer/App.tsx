@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { AniListAnime, PlayMode, UserPreferences } from '../types/types';
 import { MangaModel, MangaChapterModel, configureMangaProviders, loadMangaChapters } from '../modules/manga';
-import { MangaRecord, flushMangaData, initMangaStore } from '../modules/manga/mangaStore';
+import { MangaRecord, flushMangaData, initMangaStore, readPredicate } from '../modules/manga/mangaStore';
 import { startMangaUpdateChecks } from '../modules/manga/mangaUpdates';
 import { firstUnreadIndex } from '../modules/manga/chapters';
 import { useAppStore } from '../modules/store';
@@ -457,7 +457,7 @@ export default function App() {
           return;
         }
         let index = record.last ? chapters.findIndex((c) => c.id === record.last!.chapterId) : -1;
-        if (index < 0) index = firstUnreadIndex(chapters, new Set(record.read));
+        if (index < 0) index = firstUnreadIndex(chapters, readPredicate(record));
         setMangaReaderConfig({ manga: record.manga, chapters, chapterIndex: index });
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'No se pudo abrir el manga.', record.manga.title);
@@ -529,7 +529,7 @@ export default function App() {
           {activePage === 'manga' && (
             <MangaPage onSelectManga={handleSelectManga} onContinueManga={handleContinueManga} searchRequest={mangaSearchRequest} />
           )}
-          {activePage === 'friends' && <FriendsPage onSelectAnime={handleSelectAnime} />}
+          {activePage === 'friends' && <FriendsPage onSelectAnime={handleSelectAnime} onSelectManga={handleSelectManga} />}
           {activePage === 'admin' && <AdminPage />}
         </main>
       )}

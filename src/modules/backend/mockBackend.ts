@@ -9,6 +9,11 @@
 
 import {
   AccountBackend,
+  FriendReading,
+  MangaSyncItem,
+  MangaSyncRow,
+  ReadingActivity,
+  ReadingActivityInput,
   AdminStats,
   AdminUser,
   AdminUserPage,
@@ -73,6 +78,9 @@ interface MockDb {
   nextAuditId: number;
   /** userId → motivo */
   suspensions: Record<string, string>;
+  /** Biblioteca/progreso de manga en la "nube" de cada usuario. */
+  mangaEntries: Array<MangaSyncRow & { userId: string }>;
+  reading: ReadingActivity[];
 }
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
@@ -99,6 +107,35 @@ function snapshot(id: number, romaji: string, cover: string, episodes: number) {
     episodes,
     genres: [] as string[],
   };
+}
+
+function seedManga(): Array<MangaSyncRow & { userId: string }> {
+  const entry = (userId: string, id: string, title: string, status: MangaSyncRow['status'], minutes: number, over: Partial<MangaSyncRow> = {}) => ({
+    userId,
+    source: 'mangadex',
+    mangaId: id,
+    status,
+    manga: { id, sourceId: 'mangadex', title, coverUrl: '', status: 'ongoing', tags: ['Fantasy'], year: 2020, lastChapter: '100' },
+    lastChapterId: `${id}-c10`,
+    lastChapterNumber: '10',
+    lastPage: 4,
+    lastPageCount: 20,
+    lastReadAt: ago(minutes),
+    readRanges: [[1, 10]] as Array<[number, number]>,
+    readResetAt: null,
+    deleted: false,
+    updatedAt: ago(minutes),
+    syncedAt: ago(minutes),
+    ...over,
+  });
+  return [
+    entry('seed-mika', 'mock-frieren', 'Sousou no Frieren', 'reading', 3),
+    entry('seed-mika', 'mock-dandadan', 'Dandadan', 'reading', 60),
+    entry('seed-mika', 'mock-berserk', 'Berserk', 'planning', 500),
+    entry('seed-mika', 'mock-vagabond', 'Vagabond', 'completed', 2000, { readRanges: [[1, 327]] }),
+    entry('seed-mika', 'mock-oculto', 'Historial suelto', null as unknown as MangaSyncRow['status'], 30),
+    entry('seed-ren', 'mock-op', 'One Piece', 'reading', 200),
+  ];
 }
 
 function seed(): MockDb {
@@ -136,6 +173,10 @@ function seed(): MockDb {
     ],
     nextAuditId: 2,
     suspensions: {},
+    mangaEntries: seedManga(),
+    reading: [
+      { userId: 'seed-mika', source: 'mangadex', mangaId: 'mock-frieren', title: 'Sousou no Frieren', coverUrl: null, chapter: '58', page: 6, pageCount: 22, active: true, updatedAt: ago(0) },
+    ],
   };
 }
 
@@ -154,6 +195,8 @@ function load(): MockDb {
       db.audit ??= fresh.audit;
       db.nextAuditId ??= fresh.nextAuditId;
       db.suspensions ??= {};
+      db.mangaEntries ??= fresh.mangaEntries;
+      db.reading ??= fresh.reading;
       for (const a of db.announcements) { a.platform ??= 'all'; a.belowVersion ??= null; }
       // usuarios de ejemplo añadidos después (p. ej. el owner) y roles antiguos
       for (const su of fresh.users) if (!db.users.some((u) => u.id === su.id)) db.users.push(su);
@@ -256,7 +299,7 @@ export class MockBackend implements AccountBackend {
     );
     this.db.messages.push({
       id: this.db.nextMessageId++, senderId: 'seed-mika', recipientId: id, kind: 'text',
-      body: '¡Hola! ¿Has visto Frieren? Te va a encantar 🍜', media: null,
+      body: '¡Hola! ¿Has visto Frieren? Te va a encantar 🍜', media: null, manga: null,
       createdAt: now, readAt: null, deleted: false,
     });
     this.db.sessionUserId = id;
@@ -482,9 +525,11 @@ export class MockBackend implements AccountBackend {
     const body = (input.body ?? '').slice(0, 2000);
     if (kind === 'text' && !body.trim()) throw new BackendError('unknown', 'mensaje vacío');
     if (kind === 'anime' && !input.media) throw new BackendError('unknown', 'falta el anime');
+    if (kind === 'manga' && !input.manga) throw new BackendError('unknown', 'falta el manga');
     const msg: ChatMessage = {
       id: this.db.nextMessageId++, senderId: me.id, recipientId: friendId, kind, body,
       media: kind === 'anime' ? input.media ?? null : null,
+      manga: kind === 'manga' ? input.manga ?? null : null,
       createdAt: new Date().toISOString(), readAt: null, deleted: false,
     };
     this.db.messages.push(msg);
@@ -498,7 +543,7 @@ export class MockBackend implements AccountBackend {
         if (!this.db.users.some((u) => u.id === me.id)) return;
         const r: ChatMessage = {
           id: this.db.nextMessageId++, senderId: friendId, recipientId: me.id, kind: 'text', body: reply,
-          media: null, createdAt: new Date().toISOString(), readAt: null, deleted: false,
+          media: null, manga: null, createdAt: new Date().toISOString(), readAt: null, deleted: false,
         };
         this.db.messages.push(r);
         this.save();
@@ -529,6 +574,7 @@ export class MockBackend implements AccountBackend {
     m.deleted = true;
     m.body = '';
     m.media = null;
+    m.manga = null;
     this.save();
     this.emitMessage(m);
   }
@@ -583,6 +629,68 @@ export class MockBackend implements AccountBackend {
         if (a.userId === me.id || !this.areFriends(me.id, a.userId)) return false;
         return this.db.users.find((u) => u.id === a.userId)?.profile.showActivity === true;
       })
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .map((a) => ({ ...a, profile: this.pub(a.userId) }));
+  }
+  // ─── Manga en la cuenta ──────────────────────────────────
+  async pushMangaEntries(items: MangaSyncItem[]): Promise<number> {
+    const me = this.me();
+    if (items.length > 100) throw new BackendError('unknown', 'invalid payload');
+    let applied = 0;
+    for (const it of items) {
+      if (!it.source || !it.mangaId || !it.manga?.title) throw new BackendError('unknown', 'invalid entry');
+      // el sello no puede ir al futuro (mismo recorte que el servidor)
+      const stamp = Math.min(Date.parse(it.updatedAt), Date.now() + 10 * 60_000);
+      const idx = this.db.mangaEntries.findIndex((e) => e.userId === me.id && e.source === it.source && e.mangaId === it.mangaId);
+      if (idx >= 0 && !(stamp > Date.parse(this.db.mangaEntries[idx].updatedAt))) continue; // gana el más nuevo
+      const row = { ...it, userId: me.id, updatedAt: new Date(stamp).toISOString(), syncedAt: new Date().toISOString() };
+      if (idx >= 0) this.db.mangaEntries[idx] = row;
+      else this.db.mangaEntries.push(row);
+      applied++;
+    }
+    this.save();
+    return applied;
+  }
+  async pullMangaEntries(opts: { since?: string | null; limit?: number } = {}): Promise<MangaSyncRow[]> {
+    const me = this.me();
+    const since = opts.since ? Date.parse(opts.since) : -1;
+    return this.db.mangaEntries
+      .filter((e) => e.userId === me.id && Date.parse(e.syncedAt) > since)
+      .sort((a, b) => Date.parse(a.syncedAt) - Date.parse(b.syncedAt))
+      .slice(0, Math.min(opts.limit ?? 200, 500))
+      .map(({ userId: _u, ...row }) => ({ ...row }));
+  }
+  async listFriendManga(userId: string): Promise<MangaSyncRow[]> {
+    const me = this.me();
+    const owner = this.db.users.find((u) => u.id === userId);
+    if (!owner || !this.areFriends(me.id, userId) || !owner.profile.showLibrary) return [];
+    return this.db.mangaEntries
+      .filter((e) => e.userId === userId && e.status && !e.deleted)
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+      .map(({ userId: _u, ...row }) => ({ ...row }));
+  }
+  async setReadingActivity(a: ReadingActivityInput) {
+    const me = this.me();
+    this.assertActive(me.id);
+    this.db.reading = this.db.reading.filter((r) => r.userId !== me.id);
+    this.db.reading.push({ ...a, userId: me.id, active: true, updatedAt: new Date().toISOString() });
+    this.save();
+    this.emitSocial();
+  }
+  async clearReadingActivity() {
+    const me = this.me();
+    const r = this.db.reading.find((x) => x.userId === me.id);
+    if (r) {
+      r.active = false;
+      r.updatedAt = new Date().toISOString();
+      this.save();
+      this.emitSocial();
+    }
+  }
+  async listFriendsReading(): Promise<FriendReading[]> {
+    const me = this.me();
+    return this.db.reading
+      .filter((a) => a.userId !== me.id && this.areFriends(me.id, a.userId) && this.db.users.find((u) => u.id === a.userId)?.profile.showActivity === true)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .map((a) => ({ ...a, profile: this.pub(a.userId) }));
   }

@@ -343,9 +343,9 @@ export default function ProfileModal() {
             <p className="text-[12.5px] text-muted -mt-2 leading-snug">
               Solo tus amigos aceptados pueden ver esto. Nadie más ve tu actividad ni tu lista.
             </p>
-            <SwitchRow title="Mostrar lo que estoy viendo" description="Tus amigos verán el anime y episodio que estás reproduciendo."
+            <SwitchRow title="Mostrar lo que estoy viendo" description="Tus amigos verán el anime y episodio que estás viendo, o el manga y capítulo que estás leyendo."
               checked={profile.showActivity} onChange={(v) => toggle('showActivity', v)} disabled={switchBusy} />
-            <SwitchRow title="Mostrar mi lista" description="Tus amigos podrán ver tus listas (viendo, completados…)."
+            <SwitchRow title="Mostrar mi lista" description="Tus amigos podrán ver tus listas de anime y tu biblioteca de manga (viendo, completados…)."
               checked={profile.showLibrary} onChange={(v) => toggle('showLibrary', v)} disabled={switchBusy} />
           </Section>
 

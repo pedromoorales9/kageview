@@ -9,6 +9,7 @@ import {
   clearReading,
   markReadUpTo,
   mangaKey,
+  readPredicate,
   removeFromLibrary,
   setChapterRead,
   setLibraryStatus,
@@ -17,6 +18,7 @@ import {
 import { useAppStore } from '../../../modules/store';
 import Spinner from '../ui/Spinner';
 import { inferType } from './MangaCard';
+import ShareMangaButton from './ShareMangaButton';
 
 const STATUS_I18N: Record<string, string> = {
   ongoing: 'En curso',
@@ -87,7 +89,7 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
     if (chapters.length === 0 || record?.status !== 'reading') return;
     applyUpdateCheck(manga, {
       latest: latestChapterNumber(chapters),
-      unread: computeUnread(chapters, record.read, record.last?.chapterId),
+      unread: computeUnread(chapters, readPredicate(record), record.last?.chapterId),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapters, record?.status]);
@@ -103,8 +105,9 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
   }, [onClose, menuOpen]);
 
   // ─── Derivados ───────────────────────────────────────────
-  const readSet = useMemo(() => new Set(record?.read ?? []), [record?.read]);
-  const readCount = useMemo(() => chapters.filter((c) => readSet.has(c.id)).length, [chapters, readSet]);
+  // Leído por id (este dispositivo) o por número (otros dispositivos / la cuenta)
+  const isRead = useMemo(() => readPredicate(record), [record?.read, record?.readRanges]); // eslint-disable-line react-hooks/exhaustive-deps
+  const readCount = useMemo(() => chapters.filter((c) => isRead(c)).length, [chapters, isRead]);
   const lastIdx = record?.last ? chapters.findIndex((c) => c.id === record.last!.chapterId) : -1;
 
   // Capítulo al que lleva el botón principal
@@ -117,9 +120,9 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
       if (finished) return { index: lastIdx, kind: 'reread' as const };
       return { index: lastIdx, kind: 'continue' as const, page: l.page, pageCount: l.pageCount };
     }
-    const first = firstUnreadIndex(chapters, readSet);
+    const first = firstUnreadIndex(chapters, isRead);
     return { index: first, kind: readCount > 0 ? ('next' as const) : ('start' as const) };
-  }, [chapters, lastIdx, record?.last, readSet, readCount]);
+  }, [chapters, lastIdx, record?.last, isRead, readCount]);
 
   const displayed = useMemo(() => {
     const list = chapters.map((ch, index) => ({ ch, index }));
@@ -268,6 +271,8 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
                   </div>
                 )}
               </div>
+
+              <ShareMangaButton manga={manga} />
             </div>
 
             {/* Progreso de lectura */}
@@ -365,7 +370,7 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
               <div ref={listRef} className="flex-1 overflow-y-auto pr-2 scrollbar-thin">
                 <ul className="flex flex-col gap-1">
                   {shown.map(({ ch, index }) => {
-                    const isRead = readSet.has(ch.id);
+                    const chRead = isRead(ch);
                     const isLast = index === lastIdx;
                     const isNew = ch.publishAt && Date.now() - Date.parse(ch.publishAt) < NEW_MS;
                     const date = ch.publishAt ? new Date(ch.publishAt).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
@@ -373,13 +378,13 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
                       <li key={ch.id} className="group flex items-center gap-1">
                         {/* Marca de leído */}
                         <button
-                          onClick={() => setChapterRead(manga, ch.id, !isRead)}
-                          title={isRead ? 'Marcar como no leído' : 'Marcar como leído'}
-                          aria-label={isRead ? 'Marcar como no leído' : 'Marcar como leído'}
-                          aria-pressed={isRead}
-                          className={`w-8 h-8 flex-none rounded-full flex items-center justify-center transition-colors ${isRead ? 'text-primary hover:bg-primary/10' : 'text-white/25 hover:text-white hover:bg-white/10'}`}
+                          onClick={() => setChapterRead(manga, ch, !chRead)}
+                          title={chRead ? 'Marcar como no leído' : 'Marcar como leído'}
+                          aria-label={chRead ? 'Marcar como no leído' : 'Marcar como leído'}
+                          aria-pressed={chRead}
+                          className={`w-8 h-8 flex-none rounded-full flex items-center justify-center transition-colors ${chRead ? 'text-primary hover:bg-primary/10' : 'text-white/25 hover:text-white hover:bg-white/10'}`}
                         >
-                          <span className={`material-symbols-outlined text-[20px] ${isRead ? 'filled' : ''}`}>{isRead ? 'check_circle' : 'radio_button_unchecked'}</span>
+                          <span className={`material-symbols-outlined text-[20px] ${chRead ? 'filled' : ''}`}>{chRead ? 'check_circle' : 'radio_button_unchecked'}</span>
                         </button>
 
                         <button
@@ -390,7 +395,7 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
                           }`}
                         >
                           <span className="flex-1 min-w-0">
-                            <span className={`text-[14px] font-medium ${isRead && !isLast ? 'text-on-surface-variant/70' : 'text-white'}`}>
+                            <span className={`text-[14px] font-medium ${chRead && !isLast ? 'text-on-surface-variant/70' : 'text-white'}`}>
                               {ch.chapter ? `Cap. ${ch.chapter}` : 'Extra'}
                             </span>
                             {ch.title && <span className="text-[12.5px] text-muted ml-2 truncate">— {ch.title}</span>}

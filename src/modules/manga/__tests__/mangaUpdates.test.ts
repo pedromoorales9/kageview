@@ -44,21 +44,27 @@ beforeEach(() => {
 describe('computeUnread', () => {
   let up: Awaited<ReturnType<typeof boot>>['up'];
   beforeEach(async () => { ({ up } = await boot()); });
+  const reads = (...ids: string[]) => (c: { id: string }) => ids.includes(c.id);
 
   it('cuenta lo posterior a donde vas', () => {
-    expect(up.computeUnread(list(10), ['c1', 'c2', 'c3'], 'c3')).toBe(7);
-    expect(up.computeUnread(list(10), [], 'c8')).toBe(2);              // solo se sabe el último abierto
-    expect(up.computeUnread(list(10), ['c10'], 'c10')).toBe(0);
+    expect(up.computeUnread(list(10), reads('c1', 'c2', 'c3'), 'c3')).toBe(7);
+    expect(up.computeUnread(list(10), reads(), 'c8')).toBe(2);              // solo se sabe el último abierto
+    expect(up.computeUnread(list(10), reads('c10'), 'c10')).toBe(0);
   });
 
   it('no cuenta como sin leer lo que saltaste pero marcaste como leído', () => {
-    expect(up.computeUnread(list(6), ['c1', 'c2', 'c4', 'c5'], 'c5')).toBe(1); // solo c6
-    expect(up.computeUnread(list(6), ['c1', 'c2', 'c6'], 'c6')).toBe(0);
+    expect(up.computeUnread(list(6), reads('c1', 'c2', 'c4', 'c5'), 'c5')).toBe(1); // solo c6
+    expect(up.computeUnread(list(6), reads('c1', 'c2', 'c6'), 'c6')).toBe(0);
+  });
+
+  it('también entiende lo leído por NÚMERO (otro dispositivo o fuente)', () => {
+    const byNumber = (c: { chapter: string | null }) => Number(c.chapter) <= 4;
+    expect(up.computeUnread(list(10), byNumber)).toBe(6);
   });
 
   it('sin empezar, o con lo leído en otra lista/idioma, es desconocido (null)', () => {
-    expect(up.computeUnread(list(5), [], undefined)).toBeNull();
-    expect(up.computeUnread(list(5), ['otro-idioma'], 'otro-idioma')).toBeNull();
+    expect(up.computeUnread(list(5), reads(), undefined)).toBeNull();
+    expect(up.computeUnread(list(5), reads('otro-idioma'), 'otro-idioma')).toBeNull();
   });
 });
 

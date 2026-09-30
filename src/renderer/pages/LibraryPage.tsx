@@ -9,6 +9,8 @@ import {
   useMangaData,
 } from '../../modules/manga/mangaStore';
 import { checkMangaUpdates } from '../../modules/manga/mangaUpdates';
+import { syncMangaNow, useMangaSync } from '../../modules/manga/mangaSync';
+import { timeAgo } from '../../modules/social';
 import MangaCard from '../components/manga/MangaCard';
 import useAniList from '../hooks/useAniList';
 import { useAppStore } from '../../modules/store';
@@ -210,6 +212,29 @@ const MANGA_SORT_LABEL: Record<MangaSort, string> = {
   unread: 'Con más capítulos nuevos',
 };
 
+/** Estado de la sincronización de la biblioteca de manga con la cuenta. */
+function SyncChip() {
+  const { state, lastSyncAt, error } = useMangaSync();
+  if (state === 'off' || state === 'unavailable') return null;
+  const label =
+    state === 'syncing' ? 'Sincronizando…'
+    : state === 'error' ? 'Sin sincronizar'
+    : lastSyncAt ? `Sincronizado · ${timeAgo(new Date(lastSyncAt).toISOString())}` : 'Sincronizado';
+  return (
+    <button
+      onClick={() => void syncMangaNow()}
+      disabled={state === 'syncing'}
+      title={state === 'error' ? `${error ?? 'Error al sincronizar'}. Pulsa para reintentar.` : 'Tu biblioteca y progreso están en tu cuenta. Pulsa para sincronizar ahora.'}
+      className={`h-9 px-3.5 rounded-full text-[12px] font-medium flex items-center gap-1.5 transition-colors disabled:opacity-70 ${
+        state === 'error' ? 'bg-primary/15 text-primary hover:bg-primary/25' : 'bg-white/[0.06] text-on-surface-variant hover:text-white hover:bg-white/[0.11]'
+      }`}
+    >
+      {state === 'syncing' ? <Spinner size={14} /> : <span className="material-symbols-outlined text-[16px]">{state === 'error' ? 'cloud_off' : 'cloud_done'}</span>}
+      {label}
+    </button>
+  );
+}
+
 function MangaSection({
   onSelectManga,
   onContinueManga,
@@ -263,7 +288,7 @@ function MangaSection({
   return (
     <div className="flex-1 overflow-y-auto pr-2 pb-8">
       <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 flex-1 min-w-0 hide-scrollbar">
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 flex-1 min-w-[min(100%,480px)] hide-scrollbar">
           {MANGA_STATUS_TABS.map((tab) => {
             const count = tab.id === 'ALL' ? library.length : library.filter((e) => e.status === tab.id).length;
             return (
@@ -313,6 +338,8 @@ function MangaSection({
           {checking ? <Spinner size={15} /> : <span className="material-symbols-outlined text-[16px]">refresh</span>}
           Buscar capítulos nuevos
         </button>
+
+        <SyncChip />
       </div>
 
       {!loaded ? (

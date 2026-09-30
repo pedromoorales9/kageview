@@ -18,6 +18,8 @@ import { useAppStore } from './store';
 import { clearMyList, loadMyList } from './library';
 import { startSocial, stopSocial } from './social';
 import { startChat, stopChat } from './chat';
+import { startMangaSync, stopMangaSync } from './manga/mangaSync';
+import { stopReading } from './manga/readingPresence';
 import { stopWatching } from './presence';
 import { notify } from './notify';
 import { AuthModalMode } from '../types/types';
@@ -105,10 +107,13 @@ async function onSignedIn(user: AuthUser): Promise<void> {
   await loadMyList();
   startSocial();
   startChat();
+  startMangaSync(user.id);
 }
 
 function onSignedOut(): void {
   stopWatching();
+  stopReading();
+  stopMangaSync();
   stopSocial();
   stopChat();
   clearMyList();

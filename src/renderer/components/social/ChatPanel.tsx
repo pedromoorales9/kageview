@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { CHAT_MAX_LENGTH, ChatMessage, Friend } from '../../../modules/backend';
+import { CHAT_MAX_LENGTH, ChatMessage, Friend, MangaShare } from '../../../modules/backend';
 import {
   closeConversation,
   discardMessage,
@@ -68,6 +68,27 @@ function AnimeShare({ m, mine, onOpen }: { m: ChatMessage; mine: boolean; onOpen
   );
 }
 
+function MangaShareCard({ m, mine, onOpen }: { m: ChatMessage; mine: boolean; onOpen: (s: MangaShare) => void }) {
+  const manga = m.manga!;
+  return (
+    <button
+      onClick={() => onOpen(manga)}
+      className={`group flex items-center gap-3 p-2.5 pr-4 rounded-2xl text-left w-[250px] transition-colors ${
+        mine ? 'bg-white/[0.16] hover:bg-white/[0.22]' : 'bg-white/[0.07] hover:bg-white/[0.12]'
+      } ring-[0.5px] ring-white/15`}
+      title="Abrir ficha del manga"
+    >
+      <CoverImage src={manga.coverUrl} className="w-[46px] h-[66px] rounded-lg flex-none ring-[0.5px] ring-white/15" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[10.5px] font-semibold uppercase tracking-[0.12em] text-white/60">Manga compartido</span>
+        <span className="block text-[13.5px] font-semibold text-white leading-snug line-clamp-2">{manga.title}</span>
+        {manga.lastChapter ? <span className="block text-[11.5px] text-white/60 mt-0.5">{manga.lastChapter} capítulos</span> : null}
+      </span>
+      <span className="material-symbols-outlined text-[18px] text-white/50 group-hover:text-white group-hover:translate-x-0.5 transition-all">chevron_right</span>
+    </button>
+  );
+}
+
 interface BubbleProps {
   m: ChatMessage;
   mine: boolean;
@@ -76,18 +97,21 @@ interface BubbleProps {
   friend: Friend['profile'];
   receipt: string | null;
   onOpenAnime: (id: number) => void;
+  onOpenManga: (s: MangaShare) => void;
   onDelete: (m: ChatMessage) => void;
   onRetry: (m: ChatMessage) => void;
   onDiscard: (m: ChatMessage) => void;
 }
 
-function Bubble({ m, mine, showTime, showAvatar, friend, receipt, onOpenAnime, onDelete, onRetry, onDiscard }: BubbleProps) {
+function Bubble({ m, mine, showTime, showAvatar, friend, receipt, onOpenAnime, onOpenManga, onDelete, onRetry, onDiscard }: BubbleProps) {
   const [confirming, setConfirming] = useState(false);
 
   const body = m.deleted ? (
     <div className="px-3.5 py-2 rounded-[18px] text-[13px] italic text-muted ring-1 ring-white/10 ring-inset">Mensaje eliminado</div>
   ) : m.kind === 'anime' && m.media ? (
     <AnimeShare m={m} mine={mine} onOpen={onOpenAnime} />
+  ) : m.kind === 'manga' && m.manga ? (
+    <MangaShareCard m={m} mine={mine} onOpen={onOpenManga} />
   ) : (
     <div
       className={`px-3.5 py-2 text-[14.5px] leading-[1.35] whitespace-pre-wrap break-words max-w-[520px] ${
@@ -148,7 +172,7 @@ function Bubble({ m, mine, showTime, showAvatar, friend, receipt, onOpenAnime, o
 }
 
 // ─── Hilo ──────────────────────────────────────────────────
-function Thread({ friend, onOpenAnime }: { friend: Friend; onOpenAnime: (id: number) => void }) {
+function Thread({ friend, onOpenAnime, onOpenManga }: { friend: Friend; onOpenAnime: (id: number) => void; onOpenManga: (s: MangaShare) => void }) {
   const me = useAppStore((s) => s.account.user?.id);
   const messages = useChatStore((s) => s.threads[friend.profile.id]);
   const hasMore = useChatStore((s) => s.hasMore[friend.profile.id]);
@@ -307,6 +331,7 @@ function Thread({ friend, onOpenAnime }: { friend: Friend; onOpenAnime: (id: num
                       friend={friend.profile}
                       receipt={receipt}
                       onOpenAnime={onOpenAnime}
+                      onOpenManga={onOpenManga}
                       onDelete={(x) => void removeMessage(id, x.id)}
                       onRetry={(x) => retryMessage(id, x.id)}
                       onDiscard={(x) => discardMessage(id, x.id)}
@@ -364,7 +389,7 @@ function Thread({ friend, onOpenAnime }: { friend: Friend; onOpenAnime: (id: num
 }
 
 // ─── Panel ─────────────────────────────────────────────────
-export default function ChatPanel({ onOpenAnime }: { onOpenAnime: (mediaId: number) => void }) {
+export default function ChatPanel({ onOpenAnime, onOpenManga }: { onOpenAnime: (mediaId: number) => void; onOpenManga: (s: MangaShare) => void }) {
   const friends = useSocialStore((s) => s.friends);
   const summaries = useChatStore((s) => s.summaries);
   const activeId = useChatStore((s) => s.activeFriendId);
@@ -445,7 +470,7 @@ export default function ChatPanel({ onOpenAnime }: { onOpenAnime: (mediaId: numb
 
       {/* Conversación */}
       {active ? (
-        <Thread key={active.profile.id} friend={active} onOpenAnime={onOpenAnime} />
+        <Thread key={active.profile.id} friend={active} onOpenAnime={onOpenAnime} onOpenManga={onOpenManga} />
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 text-on-surface-variant">
           <div className="w-16 h-16 rounded-full bg-white/[0.06] hairline flex items-center justify-center">

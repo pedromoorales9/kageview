@@ -7,7 +7,8 @@ supabase/
 ├── migrations/
 │   ├── 20260929000001_init.sql      tablas, RLS, funciones RPC y Realtime
 │   ├── 20260929000002_storage.sql   bucket público `avatars` + políticas
-│   └── 20260930000003_chat.sql      mensajes entre amigos (+ RPC y Realtime)
+│   ├── 20260930000003_chat.sql      mensajes entre amigos (+ RPC y Realtime)
+│   └── 20261002000006_manga_cloud.sql  biblioteca de manga en la nube, «leyendo ahora» y manga en el chat
 └── tests/rls.test.ts                pruebas de seguridad (Postgres real vía PGlite)
 ```
 
@@ -36,6 +37,7 @@ Dashboard → **SQL Editor** → *New query*: pega y ejecuta, **en este orden**:
 3. `migrations/20260930000003_chat.sql`
 4. `migrations/20261001000004_admin.sql`  (roles, anuncios y servicios)
 5. `migrations/20261001000005_admin_v2.sql`  (registro de auditoría, suspensiones, segmentación de anuncios, usuarios)
+6. `migrations/20261002000006_manga_cloud.sql`  (biblioteca y progreso de manga en tu cuenta, «leyendo ahora», manga compartido en el chat)
 
 > Si ya aplicaste las anteriores, ejecuta **solo la que falte** (cada archivo es independiente de los posteriores). Nunca edites una migración ya aplicada: añade una nueva.
 
@@ -85,6 +87,14 @@ npm test
 - No hay `UPDATE`/`DELETE` directos. Marcar como leído (`mark_conversation_read`) y borrar un mensaje propio (`delete_message`, borrado *suave*) van por RPC, así Realtime propaga los cambios.
 - Límites: 2000 caracteres, anime compartido < 4 KB y máximo 20 mensajes cada 10 s por remitente.
 - **No es cifrado de extremo a extremo**: el contenido queda en texto plano en tu base de datos.
+
+## Manga en la cuenta
+
+- **Biblioteca sincronizada** (`manga_entries`): estado (leyendo/pendiente/…), capítulos leídos (como rangos), último capítulo y página. Cada usuario solo escribe lo suyo, y **siempre por `manga_sync_push`** (RPC con validación; no hay `INSERT`/`UPDATE` directos). Gana el cambio más reciente por manga; el sello de tiempo del cliente se recorta a «ahora + 10 min» para que un reloj mal puesto no pueda bloquear futuras ediciones. Borrar = marca de borrado (para que se propague a otros dispositivos).
+- **Amigos**: ven tu biblioteca solo si dejas activado *Mostrar mi lista* (misma regla que el anime); el historial suelto (sin estado) y los borrados nunca se exponen.
+- **«Leyendo ahora»** (`reading_activity`): igual que «viendo ahora», controlado por *Mostrar lo que estoy viendo*. Las cuentas suspendidas no pueden publicar.
+- **Chat**: nuevo tipo de mensaje `manga` (id, fuente y título obligatorios).
+- Si la migración aún no está aplicada, la app sigue funcionando en local y no muestra el chip de sincronización.
 
 ## Administración (owner / admin)
 

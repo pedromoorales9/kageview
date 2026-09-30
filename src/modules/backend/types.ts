@@ -38,6 +38,7 @@ export type BackendErrorCode =
   | 'not_friends'
   | 'forbidden'
   | 'suspended'
+  | 'unavailable'
   | 'too_many_messages'
   | 'invalid_file'
   | 'network'
@@ -162,8 +163,83 @@ export interface FriendActivity extends Activity {
   profile: PublicProfile;
 }
 
+// ─── Manga en la cuenta ────────────────────────────────────
+export type MangaSyncStatus = 'reading' | 'planning' | 'completed' | 'dropped';
+
+/** Ficha mínima de un manga tal y como viaja a la nube (y a los amigos). */
+export interface MangaSnapshotWire {
+  id: string;
+  sourceId: string;
+  title: string;
+  description?: string;
+  /** Solo https; vacío si no hay o no es segura. */
+  coverUrl?: string;
+  status?: string;
+  tags?: string[];
+  year?: number | null;
+  lastChapter?: string | null;
+  isAdult?: boolean;
+}
+
+/** Una entrada de la biblioteca / historial de lectura en la nube. */
+export interface MangaSyncItem {
+  source: string;
+  mangaId: string;
+  /** null = solo historial de lectura (no está en la biblioteca). */
+  status: MangaSyncStatus | null;
+  manga: MangaSnapshotWire;
+  lastChapterId: string | null;
+  lastChapterNumber: string | null;
+  lastPage: number | null;
+  lastPageCount: number | null;
+  lastReadAt: string | null;
+  /** Capítulos leídos como rangos de números: [[1,45],[47,47]]. */
+  readRanges: Array<[number, number]>;
+  readResetAt: string | null;
+  deleted: boolean;
+  /** Sello del cliente: en un conflicto gana el más nuevo. */
+  updatedAt: string;
+}
+
+export interface MangaSyncRow extends MangaSyncItem {
+  /** Sello del servidor (para pedir solo lo nuevo). */
+  syncedAt: string;
+}
+
+/** Lo que se comparte por chat: lo justo para pintar la tarjeta y abrir la ficha. */
+export interface MangaShare {
+  id: string;
+  sourceId: string;
+  title: string;
+  coverUrl: string;
+  status: string;
+  year: number | null;
+  lastChapter: string | null;
+  tags: string[];
+}
+
+export interface ReadingActivityInput {
+  source: string;
+  mangaId: string;
+  title: string;
+  coverUrl: string | null;
+  chapter: string | null;
+  page: number;
+  pageCount: number;
+}
+
+export interface ReadingActivity extends ReadingActivityInput {
+  userId: string;
+  active: boolean;
+  updatedAt: string;
+}
+
+export interface FriendReading extends ReadingActivity {
+  profile: PublicProfile;
+}
+
 // ─── Chat ──────────────────────────────────────────────────
-export type MessageKind = 'text' | 'anime';
+export type MessageKind = 'text' | 'anime' | 'manga';
 
 export interface ChatMessage {
   id: number;
@@ -173,6 +249,8 @@ export interface ChatMessage {
   body: string;
   /** Anime compartido (kind = 'anime'). */
   media: MediaSnapshot | null;
+  /** Manga compartido (kind = 'manga'). */
+  manga: MangaShare | null;
   createdAt: string;
   readAt: string | null;
   /** Borrado por su autor: queda como "mensaje eliminado". */
@@ -186,6 +264,7 @@ export interface SendMessageInput {
   kind?: MessageKind;
   body?: string;
   media?: MediaSnapshot;
+  manga?: MangaShare;
 }
 
 export interface ChatSummaryItem {
@@ -343,6 +422,18 @@ export interface AccountBackend {
   listFriendsActivity(): Promise<FriendActivity[]>;
   /** Avisa cuando cambian amistades o actividad de mis amigos (para refrescar). */
   subscribeSocial(cb: () => void): () => void;
+
+  // Manga en la cuenta
+  /** Sube cambios de la biblioteca/historial (máx. 100). Gana el sello más nuevo. Devuelve cuántos se aplicaron. */
+  pushMangaEntries(items: MangaSyncItem[]): Promise<number>;
+  /** Mis entradas cambiadas desde `since` (sello del servidor), de más antigua a más reciente. */
+  pullMangaEntries(opts?: { since?: string | null; limit?: number }): Promise<MangaSyncRow[]>;
+  /** Biblioteca de un amigo (si la comparte): solo lo que tiene en su biblioteca. */
+  listFriendManga(userId: string): Promise<MangaSyncRow[]>;
+  /** "Leyendo ahora" para los amigos (como setActivity, pero de manga). */
+  setReadingActivity(a: ReadingActivityInput): Promise<void>;
+  clearReadingActivity(): Promise<void>;
+  listFriendsReading(): Promise<FriendReading[]>;
 
   // Chat (solo entre amigos aceptados)
   /**

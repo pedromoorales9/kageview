@@ -243,3 +243,136 @@ describe('guardado diferido', () => {
     expect(writes).toEqual([]);
   });
 });
+
+describe('leídos por número (para la nube)', () => {
+  let s: Awaited<ReturnType<typeof boot>>['s'];
+  beforeEach(async () => { ({ s } = await boot()); });
+  const ch = (id: string, chapter: string | null) => ({ id, chapter });
+
+  it('marcar con número lo guarda como rango, y desmarcar lo quita', () => {
+    const m = manga('1');
+    for (const n of [1, 2, 3, 5]) s.setChapterRead(m, ch(`c${n}`, String(n)), true);
+    expect(s.getRecord(m)?.readRanges).toEqual([[1, 3], [5, 5]]);
+    s.setChapterRead(m, ch('c2', '2'), false);
+    expect(s.getRecord(m)?.readRanges).toEqual([[1, 1], [3, 3], [5, 5]]);
+    expect(s.getRecord(m)?.read).not.toContain('c2');
+  });
+
+  it('un capítulo cuenta como leído por id O por número (otro dispositivo, otra fuente)', () => {
+    const m = manga('1');
+    s.setChapterRead(m, ch('idA', '7'), true);
+    const rec = s.getRecord(m);
+    expect(s.isChapterRead(rec, ch('idA', '7'))).toBe(true);        // mismo id
+    expect(s.isChapterRead(rec, ch('otro-id', '7'))).toBe(true);    // mismo número en otra lista
+    expect(s.isChapterRead(rec, ch('otro-id', '8'))).toBe(false);
+    expect(s.isChapterRead(rec, ch('extra', null))).toBe(false);
+    expect(s.isChapterRead(undefined, ch('x', '1'))).toBe(false);
+    const pred = s.readPredicate(rec);
+    expect(pred(ch('z', '7'))).toBe(true);
+    expect(pred(ch('z', '9'))).toBe(false);
+  });
+
+  it('un capítulo sin número solo se puede marcar por id (no viaja a la nube)', () => {
+    const m = manga('1');
+    s.setChapterRead(m, ch('extra1', null), true);
+    expect(s.getRecord(m)?.read).toEqual(['extra1']);
+    expect(s.getRecord(m)?.readRanges).toEqual([]);
+  });
+
+  it('marcar hasta aquí guarda un tramo continuo', () => {
+    const m = manga('1');
+    s.markReadUpTo(m, [ch('a', '1'), ch('b', '2'), ch('c', '5'), ch('d', '6')], 2);
+    expect(s.getRecord(m)?.readRanges).toEqual([[1, 5]]);
+    expect(s.getRecord(m)?.read).toEqual(['a', 'b', 'c']);
+  });
+
+  it('«olvidar lo leído» vacía los rangos y deja una marca para descartar lo antiguo de otros dispositivos', () => {
+    const m = manga('1');
+    s.addToLibrary(m);
+    s.setChapterRead(m, ch('c1', '1'), true);
+    s.clearReading(m);
+    expect(s.getRecord(m)).toMatchObject({ read: [], readRanges: [] });
+    expect(s.getRecord(m)?.readResetAt).toBeGreaterThan(0);
+  });
+});
+
+describe('borrados, avisos y cambio de cuenta', () => {
+  let s: Awaited<ReturnType<typeof boot>>['s'];
+  let disk: Record<string, unknown>;
+  beforeEach(async () => { ({ s, disk } = await boot()); });
+
+  it('borrar del todo deja un aviso pendiente; volver a añadir lo cancela', () => {
+    const m = manga('1');
+    s.addToLibrary(m);
+    s.removeFromLibrary(m);
+    expect(s.useMangaData.getState().tombstones['mangadex::1']).toBeGreaterThan(0);
+    s.addToLibrary(m);
+    expect(s.useMangaData.getState().tombstones).toEqual({});
+  });
+
+  it('si se conserva el historial no hay aviso de borrado', () => {
+    const m = manga('1');
+    s.addToLibrary(m);
+    s.recordOpen(m, { id: 'c1', chapter: '1' }, 0, 10);
+    s.removeFromLibrary(m);
+    expect(s.useMangaData.getState().tombstones).toEqual({});
+  });
+
+  it('los cambios del usuario avisan a la sincronización; los que llegan de la nube, no', () => {
+    const m = manga('1');
+    const seen = vi.fn();
+    s.onMangaChange(seen);
+    s.addToLibrary(m);
+    s.setChapterRead(m, { id: 'c1', chapter: '1' }, true);
+    expect(seen).toHaveBeenCalledTimes(2);
+    s.applyUpdateCheck(m, { latest: 5, unread: 4 });                       // comprobación de novedades
+    s.applyRemote({ 'mangadex::2': { manga: manga('2'), status: 'reading', updatedAt: 5, read: [], syncedAt: 99 } }, []);
+    s.markSynced(['mangadex::1'], 12345);
+    expect(seen).toHaveBeenCalledTimes(2);                                 // ninguno de esos cuenta
+  });
+
+  it('lo aplicado desde la nube y lo subido no queda como pendiente', () => {
+    const a = manga('1');
+    s.addToLibrary(a);
+    expect(s.dirtyRecords().map(([k]) => k)).toEqual(['mangadex::1']);
+    s.markSynced(['mangadex::1'], Date.now() + 1000);
+    expect(s.dirtyRecords()).toEqual([]);
+    s.applyRemote({ 'mangadex::9': { manga: manga('9'), status: 'reading', updatedAt: 100, read: [], syncedAt: 200 } }, ['mangadex::1']);
+    expect(s.getRecord(a)).toBeUndefined();
+    expect(s.dirtyRecords()).toEqual([]);
+  });
+
+  it('otra cuenta: copia de seguridad y punto de partida limpio', async () => {
+    s.addToLibrary(manga('1'));
+    s.setSyncMeta({ owner: 'cuenta-a', pulledAt: '2026-09-20T00:00:00Z' });
+    await s.resetForNewOwner('cuenta-b');
+    expect(s.libraryRecords()).toEqual([]);
+    expect(s.useMangaData.getState().meta).toEqual({ owner: 'cuenta-b', pulledAt: null });
+    expect((disk.mangaDataPrev as any).records['mangadex::1']).toBeDefined();
+    expect((disk.mangaData as any).meta.owner).toBe('cuenta-b');
+  });
+
+  it('borrados pendientes y meta sobreviven a un reinicio', async () => {
+    const m = manga('1');
+    s.addToLibrary(m);
+    s.removeFromLibrary(m);
+    s.setSyncMeta({ owner: 'cuenta-a', pulledAt: '2026-09-21T00:00:00Z' });
+    await s.flushMangaData();
+    vi.resetModules();
+    (globalThis as any).window.electron.getStore = async (k: string) => (k in disk ? JSON.parse(JSON.stringify(disk[k])) : undefined);
+    const again = await import('../mangaStore');
+    await again.initMangaStore();
+    expect(again.useMangaData.getState().tombstones['mangadex::1']).toBeGreaterThan(0);
+    expect(again.useMangaData.getState().meta).toEqual({ owner: 'cuenta-a', pulledAt: '2026-09-21T00:00:00Z' });
+  });
+});
+
+describe('migración: conserva lo leído por número', () => {
+  it('el último capítulo leído pasa a ser un rango', async () => {
+    const { s } = await boot({
+      mangaLibrary: [{ manga: manga('1'), status: 'reading', addedAt: 1, updatedAt: 2 }],
+      mangaProgress: { 'mangadex::1': { mangaId: '1', sourceId: 'mangadex', lastChapterId: 'c8', lastChapterNumber: '8', lastChapterIndex: 7, updatedAt: 9 } },
+    });
+    expect(s.getRecord({ id: '1', sourceId: 'mangadex' })?.readRanges).toEqual([[8, 8]]);
+  });
+});

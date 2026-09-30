@@ -1,21 +1,23 @@
 // ═══════════════════════════════════════════════════════════
 // mangaStore — biblioteca, historial y progreso de lectura del manga
 //
-// Un único registro por manga (`fuente::id`) que junta lo que antes estaba en
-// dos listas sueltas (biblioteca + último capítulo):
+// Un único registro por manga (`fuente::id`) que junta:
 //   · en biblioteca o no (`status`)
-//   · capítulos leídos (para marcar y para contar los que faltan)
+//   · capítulos leídos: ids (para marcar en la lista) y RANGOS DE NÚMEROS (para
+//     sincronizar con la cuenta y entender otras fuentes/dispositivos)
 //   · dónde te quedaste (capítulo Y PÁGINA)
 //   · resultado de la última comprobación de capítulos nuevos
+//   · estado de sincronización con la cuenta (`syncedAt`) y borrados pendientes
 //
 // El estado vive en memoria (zustand) y se guarda en disco con retraso, porque
-// el lector lo actualiza a cada página; así no se reescribe el archivo cada vez.
-// Al arrancar migra sin pérdidas las claves antiguas (`mangaLibrary` y
-// `mangaProgress`).
+// el lector lo actualiza a cada página. Al arrancar migra sin pérdidas las claves
+// antiguas (`mangaLibrary` y `mangaProgress`).
 // ═══════════════════════════════════════════════════════════
 
 import { create } from 'zustand';
 import { getCache, setCache } from '../cache';
+import { parseChapterNumber } from './chapters';
+import { Range, addNumber, addSpan, hasNumber, rangesFromNumbers, removeNumber } from './readRanges';
 import type { MangaModel } from './types';
 
 export type MangaLibraryStatus = 'reading' | 'completed' | 'planning' | 'dropped';
@@ -36,33 +38,68 @@ export interface MangaRecord {
   status?: MangaLibraryStatus;
   addedAt?: number;
   updatedAt: number;
-  /** Ids de capítulos marcados como leídos. */
+  /** Ids de capítulos marcados como leídos en ESTE dispositivo. */
   read: string[];
+  /** Capítulos leídos por número (lo que viaja a la nube). */
+  readRanges?: Range[];
+  /** «Olvidar lo leído»: lo leído en otros dispositivos antes de esta fecha se descarta. */
+  readResetAt?: number;
   last?: MangaLastRead;
   /** Mayor nº de capítulo conocido en la última comprobación. */
   latestKnown?: number | null;
   /** Capítulos sin leer en la última comprobación (solo si ya empezaste a leer). */
   unread?: number;
   checkedAt?: number;
+  /** Última vez que este registro coincidía con la nube (ms). */
+  syncedAt?: number;
+}
+
+export interface MangaSyncMeta {
+  /** Cuenta a la que pertenecen estos datos (null = aún sin vincular). */
+  owner: string | null;
+  /** Último `synced_at` del servidor recibido (ISO). */
+  pulledAt: string | null;
 }
 
 const DATA_KEY = 'mangaData';
+const BACKUP_KEY = 'mangaDataPrev';
 const OLD_LIBRARY_KEY = 'mangaLibrary';
 const OLD_PROGRESS_KEY = 'mangaProgress';
 const SAVE_DELAY_MS = 700;
-/** Tope de capítulos leídos guardados por manga (series larguísimas). */
+/** Tope de capítulos leídos (por id) guardados por manga. */
 const MAX_READ = 6000;
 
 export const mangaKey = (m: { id: string; sourceId: string }): string => `${m.sourceId}::${m.id}`;
 
+/** «Cuándo cambió por última vez»: lo más reciente entre el registro y la lectura. */
+export const recordStamp = (r: MangaRecord): number => Math.max(r.updatedAt, r.last?.at ?? 0);
+
 interface StoreState {
   records: Record<string, MangaRecord>;
   loaded: boolean;
+  /** Borrados locales pendientes de comunicar a la nube: clave → cuándo. */
+  tombstones: Record<string, number>;
+  meta: MangaSyncMeta;
 }
 
-export const useMangaData = create<StoreState>(() => ({ records: {}, loaded: false }));
+const EMPTY_META: MangaSyncMeta = { owner: null, pulledAt: null };
+
+export const useMangaData = create<StoreState>(() => ({
+  records: {},
+  loaded: false,
+  tombstones: {},
+  meta: { ...EMPTY_META },
+}));
 
 const get = () => useMangaData.getState().records;
+
+// ─── Avisos de cambio (los usa la sincronización) ──────────
+const changeListeners = new Set<() => void>();
+/** Se llama en cada cambio HECHO POR EL USUARIO (no en los que llegan de la nube). */
+export function onMangaChange(cb: () => void): () => void {
+  changeListeners.add(cb);
+  return () => void changeListeners.delete(cb);
+}
 
 // ─── Persistencia ──────────────────────────────────────────
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -80,15 +117,18 @@ export async function flushMangaData(): Promise<void> {
     clearTimeout(saveTimer);
     saveTimer = null;
   }
-  if (!useMangaData.getState().loaded) return;
-  await setCache(DATA_KEY, { v: 2, records: get() });
+  const { loaded, records, tombstones, meta } = useMangaData.getState();
+  if (!loaded) return;
+  await setCache(DATA_KEY, { v: 2, records, tombstones, meta });
 }
 
-function mutate(fn: (records: Record<string, MangaRecord>) => void): void {
-  const next = { ...get() };
-  fn(next);
-  useMangaData.setState({ records: next });
+function mutate(fn: (records: Record<string, MangaRecord>, tombstones: Record<string, number>) => void): void {
+  const records = { ...get() };
+  const tombstones = { ...useMangaData.getState().tombstones };
+  fn(records, tombstones);
+  useMangaData.setState({ records, tombstones });
   scheduleSave();
+  changeListeners.forEach((cb) => cb());
 }
 
 // ─── Carga y migración ─────────────────────────────────────
@@ -115,6 +155,8 @@ export function migrateOldManga(
     const rec = out[key];
     if (!rec || !p?.lastChapterId) continue; // sin ficha del manga no se puede mostrar en el historial
     rec.read = [p.lastChapterId];
+    const n = parseChapterNumber(p.lastChapterNumber);
+    if (n !== null) rec.readRanges = rangesFromNumbers([n]);
     rec.last = {
       chapterId: p.lastChapterId,
       chapterNumber: p.lastChapterNumber ?? null,
@@ -127,10 +169,17 @@ export function migrateOldManga(
   return out;
 }
 
+interface Saved {
+  v?: number;
+  records?: Record<string, MangaRecord>;
+  tombstones?: Record<string, number>;
+  meta?: Partial<MangaSyncMeta>;
+}
+
 /** Carga una sola vez (idempotente). Llamar al arrancar la app. */
 export function initMangaStore(): Promise<void> {
   loadPromise ??= (async () => {
-    const saved = await getCache<{ v?: number; records?: Record<string, MangaRecord> }>(DATA_KEY);
+    const saved = await getCache<Saved>(DATA_KEY);
     let records: Record<string, MangaRecord>;
     if (saved?.records && typeof saved.records === 'object') {
       records = saved.records;
@@ -141,7 +190,12 @@ export function initMangaStore(): Promise<void> {
       ]);
       records = migrateOldManga(lib, prog);
     }
-    useMangaData.setState({ records, loaded: true });
+    useMangaData.setState({
+      records,
+      tombstones: saved?.tombstones && typeof saved.tombstones === 'object' ? saved.tombstones : {},
+      meta: { ...EMPTY_META, ...(saved?.meta ?? {}) },
+      loaded: true,
+    });
     // Primera vez tras migrar: dejar ya guardado el formato nuevo
     if (!saved?.records) await flushMangaData();
   })();
@@ -153,11 +207,29 @@ export function __resetMangaStoreForTests(): void {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = null;
   loadPromise = null;
-  useMangaData.setState({ records: {}, loaded: false });
+  changeListeners.clear();
+  useMangaData.setState({ records: {}, loaded: false, tombstones: {}, meta: { ...EMPTY_META } });
 }
 
 // ─── Lectura ───────────────────────────────────────────────
 export const getRecord = (m: { id: string; sourceId: string }): MangaRecord | undefined => get()[mangaKey(m)];
+
+type ChapterRef = { id: string; chapter?: string | null };
+
+/** ¿Está leído? Por id (este dispositivo) o por número (otros dispositivos / la nube). */
+export function isChapterRead(rec: MangaRecord | undefined, ch: ChapterRef): boolean {
+  if (!rec) return false;
+  if (rec.read.includes(ch.id)) return true;
+  return hasNumber(rec.readRanges ?? [], parseChapterNumber(ch.chapter));
+}
+
+/** Predicado rápido para recorrer listas largas (construye el conjunto de ids una vez). */
+export function readPredicate(rec: MangaRecord | undefined): (ch: ChapterRef) => boolean {
+  if (!rec) return () => false;
+  const ids = new Set(rec.read);
+  const ranges = rec.readRanges ?? [];
+  return (ch) => ids.has(ch.id) || (ranges.length > 0 && hasNumber(ranges, parseChapterNumber(ch.chapter)));
+}
 
 export const readSet = (m: { id: string; sourceId: string }): Set<string> => new Set(getRecord(m)?.read ?? []);
 
@@ -178,13 +250,14 @@ export function historyRecords(records: Record<string, MangaRecord> = get(), lim
 
 // ─── Biblioteca ────────────────────────────────────────────
 export function addToLibrary(manga: MangaModel, status: MangaLibraryStatus = 'reading'): void {
-  mutate((r) => {
+  mutate((r, t) => {
     const key = mangaKey(manga);
     const now = Date.now();
     const cur = r[key];
     r[key] = cur
       ? { ...cur, manga: { ...cur.manga, ...manga }, status, addedAt: cur.addedAt ?? now, updatedAt: now }
       : { manga, status, addedAt: now, updatedAt: now, read: [] };
+    delete t[key];
   });
 }
 
@@ -197,15 +270,16 @@ export function setLibraryStatus(manga: { id: string; sourceId: string }, status
 
 /** Quita de la biblioteca. Si has leído algo, se conserva en el historial. */
 export function removeFromLibrary(manga: { id: string; sourceId: string }): void {
-  mutate((r) => {
+  mutate((r, t) => {
     const key = mangaKey(manga);
     const cur = r[key];
     if (!cur) return;
-    if (cur.read.length > 0 || cur.last) {
+    if (cur.read.length > 0 || (cur.readRanges?.length ?? 0) > 0 || cur.last) {
       const { status: _s, addedAt: _a, unread: _u, latestKnown: _l, checkedAt: _c, ...rest } = cur;
       r[key] = { ...rest, updatedAt: Date.now() };
     } else {
       delete r[key];
+      t[key] = Date.now();
     }
   });
 }
@@ -218,7 +292,7 @@ export function recordOpen(
   chapterIndex: number,
   pageCount = 0
 ): void {
-  mutate((r) => {
+  mutate((r, t) => {
     const key = mangaKey(manga);
     const cur = r[key] ?? { manga, updatedAt: Date.now(), read: [] };
     const same = cur.last?.chapterId === chapter.id;
@@ -235,6 +309,7 @@ export function recordOpen(
         at: Date.now(),
       },
     };
+    delete t[key];
   });
 }
 
@@ -249,49 +324,78 @@ export function recordPage(manga: { id: string; sourceId: string }, chapterId: s
   });
 }
 
-function withRead(rec: MangaRecord, ids: string[]): MangaRecord {
-  const set = new Set(rec.read);
-  ids.forEach((id) => set.add(id));
-  const read = [...set];
-  return { ...rec, read: read.length > MAX_READ ? read.slice(read.length - MAX_READ) : read };
+function withRead(rec: MangaRecord, chapters: ChapterRef[]): MangaRecord {
+  const ids = new Set(rec.read);
+  let ranges = rec.readRanges ?? [];
+  for (const c of chapters) {
+    ids.add(c.id);
+    const n = parseChapterNumber(c.chapter);
+    if (n !== null) ranges = addNumber(ranges, n);
+  }
+  const read = [...ids];
+  return { ...rec, read: read.length > MAX_READ ? read.slice(read.length - MAX_READ) : read, readRanges: ranges };
 }
 
-/** Marca (o desmarca) un capítulo como leído; actualiza el contador de nuevos. */
-export function setChapterRead(manga: MangaModel, chapterId: string, read: boolean): void {
-  mutate((r) => {
+/**
+ * Marca (o desmarca) un capítulo como leído; actualiza el contador de nuevos.
+ * `chapter` puede ser solo el id, pero con el número (`{id, chapter}`) el dato
+ * viaja a la nube y se entiende en otros dispositivos.
+ */
+export function setChapterRead(manga: MangaModel, chapter: string | ChapterRef, read: boolean): void {
+  const ref: ChapterRef = typeof chapter === 'string' ? { id: chapter } : chapter;
+  mutate((r, t) => {
     const key = mangaKey(manga);
     const cur = r[key] ?? { manga, updatedAt: Date.now(), read: [] };
-    const next = read
-      ? withRead(cur, [chapterId])
-      : { ...cur, read: cur.read.filter((id) => id !== chapterId) };
-    const delta = read === cur.read.includes(chapterId) ? 0 : read ? -1 : 1;
+    const was = isChapterRead(cur, ref);
+    let next: MangaRecord;
+    if (read) {
+      next = withRead(cur, [ref]);
+    } else {
+      const n = parseChapterNumber(ref.chapter);
+      next = {
+        ...cur,
+        read: cur.read.filter((id) => id !== ref.id),
+        readRanges: n !== null ? removeNumber(cur.readRanges ?? [], n) : cur.readRanges,
+      };
+    }
+    const delta = read === was ? 0 : read ? -1 : 1;
     r[key] = { ...next, updatedAt: Date.now(), ...(next.unread !== undefined ? { unread: Math.max(0, next.unread + delta) } : {}) };
+    delete t[key];
   });
 }
 
 /** «Marcar como leído hasta aquí»: todos los capítulos hasta ese índice (inclusive). */
-export function markReadUpTo(manga: MangaModel, chapters: readonly { id: string }[], index: number): void {
-  mutate((r) => {
+export function markReadUpTo(manga: MangaModel, chapters: readonly ChapterRef[], index: number): void {
+  mutate((r, t) => {
     const key = mangaKey(manga);
     const cur = r[key] ?? { manga, updatedAt: Date.now(), read: [] };
-    const ids = chapters.slice(0, index + 1).map((c) => c.id);
-    const next = withRead(cur, ids);
-    const total = chapters.length;
-    r[key] = { ...next, updatedAt: Date.now(), ...(next.unread !== undefined ? { unread: Math.max(0, total - chapters.filter((c) => next.read.includes(c.id)).length) } : {}) };
+    const upTo = chapters.slice(0, index + 1);
+    let next = withRead(cur, upTo);
+    // tramo continuo de números: más compacto y cubre huecos de la lista
+    const nums = upTo.map((c) => parseChapterNumber(c.chapter)).filter((n): n is number => n !== null);
+    if (nums.length > 0) next = { ...next, readRanges: addSpan(next.readRanges ?? [], Math.min(...nums), Math.max(...nums)) };
+    const isRead = readPredicate(next);
+    r[key] = {
+      ...next,
+      updatedAt: Date.now(),
+      ...(next.unread !== undefined ? { unread: Math.max(0, chapters.filter((c) => !isRead(c)).length) } : {}),
+    };
+    delete t[key];
   });
 }
 
 /** Olvida el historial y lo leído de un manga (no toca la biblioteca). */
 export function clearReading(manga: { id: string; sourceId: string }): void {
-  mutate((r) => {
+  mutate((r, t) => {
     const key = mangaKey(manga);
     const cur = r[key];
     if (!cur) return;
     if (cur.status) {
       const { last: _l, ...rest } = cur;
-      r[key] = { ...rest, read: [], unread: undefined, updatedAt: Date.now() };
+      r[key] = { ...rest, read: [], readRanges: [], readResetAt: Date.now(), unread: undefined, updatedAt: Date.now() };
     } else {
       delete r[key];
+      t[key] = Date.now();
     }
   });
 }
@@ -301,15 +405,71 @@ export function applyUpdateCheck(
   manga: { id: string; sourceId: string },
   result: { latest: number | null; unread: number | null; checkedAt?: number }
 ): void {
-  mutate((r) => {
-    const key = mangaKey(manga);
-    const cur = r[key];
-    if (!cur) return;
-    r[key] = {
-      ...cur,
-      latestKnown: result.latest,
-      unread: result.unread ?? undefined,
-      checkedAt: result.checkedAt ?? Date.now(),
-    };
+  // Sin avisar a la sincronización: no es un cambio del usuario
+  const key = mangaKey(manga);
+  const cur = get()[key];
+  if (!cur) return;
+  useMangaData.setState({
+    records: {
+      ...get(),
+      [key]: {
+        ...cur,
+        latestKnown: result.latest,
+        unread: result.unread ?? undefined,
+        checkedAt: result.checkedAt ?? Date.now(),
+      },
+    },
   });
+  scheduleSave();
+}
+
+// ─── Sincronización con la cuenta ──────────────────────────
+/**
+ * Aplica lo que llega de la nube en un solo paso. NO cuenta como cambio del
+ * usuario (no dispara una subida) y deja los registros marcados como sincronizados.
+ */
+export function applyRemote(upserts: Record<string, MangaRecord>, removeKeys: string[], metaPatch?: Partial<MangaSyncMeta>): void {
+  const records = { ...get(), ...upserts };
+  const tombstones = { ...useMangaData.getState().tombstones };
+  for (const k of removeKeys) {
+    delete records[k];
+    delete tombstones[k];
+  }
+  for (const k of Object.keys(upserts)) delete tombstones[k];
+  useMangaData.setState({ records, tombstones, meta: { ...useMangaData.getState().meta, ...metaPatch } });
+  scheduleSave();
+}
+
+/** Tras subir: marca los registros como al día y olvida los borrados ya comunicados. */
+export function markSynced(keys: string[], at: number, doneTombstones: string[] = []): void {
+  const records = { ...get() };
+  for (const k of keys) if (records[k]) records[k] = { ...records[k], syncedAt: at };
+  const tombstones = { ...useMangaData.getState().tombstones };
+  for (const k of doneTombstones) delete tombstones[k];
+  useMangaData.setState({ records, tombstones });
+  scheduleSave();
+}
+
+export function setSyncMeta(patch: Partial<MangaSyncMeta>): void {
+  useMangaData.setState({ meta: { ...useMangaData.getState().meta, ...patch } });
+  scheduleSave();
+}
+
+/** Registros con cambios que aún no están en la nube. */
+export function dirtyRecords(records: Record<string, MangaRecord> = get()): Array<[string, MangaRecord]> {
+  return Object.entries(records).filter(([, r]) => recordStamp(r) > (r.syncedAt ?? 0));
+}
+
+/**
+ * Otra cuenta inicia sesión en este equipo: los datos locales eran de la
+ * anterior, así que se guardan aparte (una copia) y se parte de cero para que
+ * NUNCA se suban a la cuenta equivocada.
+ */
+export async function resetForNewOwner(userId: string): Promise<void> {
+  const prev = useMangaData.getState();
+  if (Object.keys(prev.records).length > 0) {
+    await setCache(BACKUP_KEY, { v: 2, records: prev.records, tombstones: prev.tombstones, meta: prev.meta, savedAt: Date.now() });
+  }
+  useMangaData.setState({ records: {}, tombstones: {}, meta: { owner: userId, pulledAt: null } });
+  await flushMangaData();
 }

@@ -9,7 +9,7 @@
 
 import { loadMangaChapters } from './index';
 import { latestChapterNumber } from './chapters';
-import { MangaRecord, applyUpdateCheck, libraryRecords, useMangaData } from './mangaStore';
+import { MangaRecord, applyUpdateCheck, libraryRecords, readPredicate, useMangaData } from './mangaStore';
 import type { MangaChapterModel, MangaModel } from './types';
 
 /** No volver a consultar un manga comprobado hace menos de esto (salvo que se fuerce). */
@@ -20,20 +20,19 @@ const CHECK_EVERY_MS = 3 * 60 * 60 * 1000;
 
 /**
  * Capítulos SIN LEER posteriores al último que has leído (por posición en la
- * lista ascendente). null si aún no has empezado a leerlo.
+ * lista ascendente). null si aún no has empezado a leerlo o lo leído no aparece
+ * en esta lista (p. ej. otro idioma): no se puede saber.
  */
-export function computeUnread(
-  chapters: readonly Pick<MangaChapterModel, 'id'>[],
-  readIds: readonly string[],
+export function computeUnread<T extends { id: string }>(
+  chapters: readonly T[],
+  isRead: (ch: T) => boolean,
   lastChapterId?: string
 ): number | null {
-  const read = new Set(readIds);
-  if (lastChapterId) read.add(lastChapterId);
+  const read = (c: T) => isRead(c) || c.id === lastChapterId;
   let lastIdx = -1;
-  chapters.forEach((c, i) => { if (read.has(c.id)) lastIdx = i; });
-  // Sin lectura, o lo leído no está en esta lista (p. ej. otro idioma): no se puede saber
+  chapters.forEach((c, i) => { if (read(c)) lastIdx = i; });
   if (lastIdx === -1) return null;
-  return chapters.slice(lastIdx + 1).filter((c) => !read.has(c.id)).length;
+  return chapters.slice(lastIdx + 1).filter((c) => !read(c)).length;
 }
 
 /** Cuántos capítulos hay por encima del último que se conocía. */
@@ -83,7 +82,7 @@ export async function checkMangaUpdates(
       // Releer el registro: pudo cambiar mientras se consultaba (p. ej. leíste un capítulo)
       const fresh = useMangaData.getState().records[`${rec.manga.sourceId}::${rec.manga.id}`] ?? rec;
       const latest = latestChapterNumber(chapters);
-      const unread = computeUnread(chapters, fresh.read, fresh.last?.chapterId);
+      const unread = computeUnread(chapters, readPredicate(fresh), fresh.last?.chapterId);
       const added = countNewSince(chapters, fresh.latestKnown);
       applyUpdateCheck(rec.manga, { latest, unread, checkedAt: now });
       if (added > 0) found.push({ manga: rec.manga, added, unread });

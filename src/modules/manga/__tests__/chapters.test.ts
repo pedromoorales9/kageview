@@ -118,11 +118,12 @@ describe('utilidades', () => {
 
   it('primer capítulo por leer', () => {
     const ids = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
-    expect(firstUnreadIndex(ids, new Set())).toBe(0);
-    expect(firstUnreadIndex(ids, new Set(['a']))).toBe(1);
-    expect(firstUnreadIndex(ids, new Set(['a', 'b']))).toBe(2);
-    expect(firstUnreadIndex(ids, new Set(['a', 'b', 'c']))).toBe(2); // todo leído: se queda en el último
-    expect(firstUnreadIndex(ids, new Set(['b']))).toBe(2);           // se sigue desde el último leído
-    expect(firstUnreadIndex([], new Set())).toBe(0);
+    const read = (...r: string[]) => (c: { id: string }) => r.includes(c.id);
+    expect(firstUnreadIndex(ids, read())).toBe(0);
+    expect(firstUnreadIndex(ids, read('a'))).toBe(1);
+    expect(firstUnreadIndex(ids, read('a', 'b'))).toBe(2);
+    expect(firstUnreadIndex(ids, read('a', 'b', 'c'))).toBe(2); // todo leído: se queda en el último
+    expect(firstUnreadIndex(ids, read('b'))).toBe(2);           // se sigue desde el último leído
+    expect(firstUnreadIndex([], read())).toBe(0);
   });
 });

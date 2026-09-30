@@ -35,7 +35,7 @@
 | ⚡ **Fallback automático** | Si un provider falla, el siguiente entra solo sin interrumpir |
 | ⭐ **Proveedor favorito** | Marca tu provider preferido de anime y manga — siempre carga primero |
 | 👥 **Cuentas, amigos y chat** | Registro propio (Supabase): tus listas, foto de perfil, amigos, qué están viendo ahora y mensajería en tiempo real (con anime compartido) |
-| 📚 **Manga integrado** | Lector de manga con múltiples fuentes y biblioteca personal |
+| 📚 **Manga integrado** | Lector con 4 fuentes, retoma donde lo dejaste, biblioteca con capítulos nuevos y sincronizada en tu cuenta; tus amigos ven lo que lees y puedes compartir mangas por el chat |
 | 📅 **Calendario de emisión** | Vista semanal con cuenta atrás en tiempo real para nuevos episodios |
 | 🔔 **Notificaciones** | Aviso nativo de Windows cuando sale un episodio nuevo hoy |
 | 🎨 **Cinematic Shadow UI** | Design system oscuro con glows y glassmorphism |
@@ -251,6 +251,22 @@ src/
 ---
 
 ## 📋 Changelog
+
+### v1.6.0 — Manga a fondo y manga en tu cuenta
+**Lector y biblioteca**
+- **Retoma donde lo dejaste**: recuerda capítulo *y página*; el botón principal es «Continuar»
+- Biblioteca de manga con estados, insignia «+N» de capítulos nuevos (se comprueban cada 3 h y a petición) y orden por novedades
+- Lista completa de capítulos en MangaDex (paginada), ordenados igual en todas las fuentes; corrige numeraciones como «1,000» o «12,5»
+- Lector: modo derecha-a-izquierda, interfaz que se oculta sola, atajos de teclado, precarga y ahorro de datos, con reintento por página
+- Búsqueda en todas las fuentes a la vez, géneros y orden en MangaDex, paginación en todas las fuentes y opción de capítulos en inglés
+- Marcar capítulos como leídos/no leídos y «leído hasta aquí»
+
+**Manga en tu cuenta** *(requiere aplicar `20261002000006_manga_cloud.sql`, ver `supabase/README.md`)*
+- **Biblioteca y progreso sincronizados** entre dispositivos (gana el cambio más reciente; funciona sin conexión y sincroniza al volver)
+- **Tus amigos ven** lo que estás leyendo ahora y tu biblioteca de manga (respeta las opciones de privacidad); pestaña **Manga** en su perfil
+- **Compartir un manga por el chat** con una tarjeta que se abre directamente
+- Si otra cuenta inicia sesión en el mismo equipo, los datos locales se guardan aparte para no mezclarlos
+
 
 ### v1.5.0 — Actualizaciones automáticas en macOS
 - **Auto-actualización en Mac** — KageView avisa de cada versión nueva y se actualiza sola, igual que en Windows: *Inicializar actualización* → *Reiniciar e instalar*. La descarga se verifica (SHA-512, identificador, versión y firma) antes de sustituir la app, y si algo falla se restaura la anterior
