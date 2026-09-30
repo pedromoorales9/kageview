@@ -53,9 +53,10 @@ export function StatCard({
 }) {
   return (
     <div className="panel p-5 flex flex-col gap-3">
-      <div className="flex items-center gap-2 text-muted">
-        <span className="material-symbols-outlined text-[18px]">{icon}</span>
-        <span className="text-[12.5px] font-medium">{label}</span>
+      {/* Altura fija de dos líneas: con etiquetas largas las cifras siguen alineadas entre tarjetas */}
+      <div className="flex items-start gap-2 text-muted min-h-[38px]">
+        <span className="material-symbols-outlined text-[18px] mt-[1px]">{icon}</span>
+        <span className="text-[12.5px] font-medium leading-tight">{label}</span>
       </div>
       <p className="font-headline text-[32px] leading-none font-bold text-white tracking-[-0.03em] tabular-nums">{value}</p>
       {hint && <p className="text-[12px] text-muted leading-snug">{hint}</p>}

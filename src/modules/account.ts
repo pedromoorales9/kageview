@@ -62,6 +62,10 @@ export function errorMessage(err: unknown): string {
       return 'Ya hay una solicitud pendiente con esa persona.';
     case 'too_many_requests':
       return 'Tienes demasiadas solicitudes pendientes. Espera a que respondan.';
+    case 'forbidden':
+      return 'No tienes permiso para hacer eso. Si tu cuenta está suspendida, contacta con el equipo de KageView.';
+    case 'suspended':
+      return 'Tu cuenta está suspendida por el equipo de KageView: no puedes escribir mensajes, enviar solicitudes ni editar tu perfil.';
     case 'file_too_large':
       return 'La imagen es demasiado grande.';
     case 'invalid_file':

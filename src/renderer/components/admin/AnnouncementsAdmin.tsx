@@ -1,24 +1,34 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ANNOUNCEMENT_LIMITS,
   Announcement,
   AnnouncementDisplay,
   AnnouncementInput,
   AnnouncementKind,
+  AnnouncementPlatform,
   getBackend,
 } from '../../../modules/backend';
 import { errorMessage } from '../../../modules/account';
 import { refreshRemoteConfig } from '../../../modules/remoteConfig';
-import { KIND_META, KIND_ORDER, announcementState, isSafeLink, type AnnouncementState } from '../../../modules/announcements';
+import {
+  KIND_META,
+  KIND_ORDER,
+  PLATFORM_LABEL,
+  announcementState,
+  isSafeLink,
+  isValidVersion,
+  type AnnouncementState,
+} from '../../../modules/announcements';
 import { useToast } from '../ui/Toast';
 import Spinner from '../ui/Spinner';
-import { Field, Notice, Switch, ghostButtonClass, primaryButtonClass } from '../account/formKit';
+import { Field, Notice, Switch, ghostButtonClass, inputClass, primaryButtonClass } from '../account/formKit';
 import { BannerView, ModalCardView } from '../announcements/AnnouncementViews';
 import { STATE_LABEL, STATE_STYLE, formatWhen } from './format';
 import { SectionLabel, Segmented, SmallButton, textareaClass } from './adminKit';
 
 type Expiry = 'never' | '1h' | '24h' | '7d' | 'custom';
 type StartMode = 'now' | 'later';
+type Filter = 'all' | AnnouncementState;
 
 interface Draft {
   kind: AnnouncementKind;
@@ -32,6 +42,8 @@ interface Draft {
   startsLocal: string;
   expiry: Expiry;
   expiresLocal: string;
+  platform: AnnouncementPlatform;
+  belowVersion: string;
 }
 
 const EXPIRY_MS: Record<'1h' | '24h' | '7d', number> = { '1h': 3600e3, '24h': 24 * 3600e3, '7d': 7 * 24 * 3600e3 };
@@ -39,7 +51,49 @@ const EXPIRY_MS: Record<'1h' | '24h' | '7d', number> = { '1h': 3600e3, '24h': 24
 const EMPTY: Draft = {
   kind: 'info', display: 'banner', title: '', body: '', linkUrl: '', linkLabel: '',
   active: true, startMode: 'now', startsLocal: '', expiry: 'never', expiresLocal: '',
+  platform: 'all', belowVersion: '',
 };
+
+const RELEASES_URL = 'https://github.com/pedromoorales9/kageview/releases/latest';
+
+/** Puntos de partida para los avisos más habituales. */
+const TEMPLATES: Array<{ id: string; label: string; icon: string; make: (version: string) => Partial<Draft> }> = [
+  {
+    id: 'update', label: 'Nueva versión', icon: 'system_update_alt',
+    make: (version) => ({
+      kind: 'update', display: 'banner', title: 'Nueva versión disponible',
+      body: 'Ya puedes actualizar KageView: novedades y mejoras te esperan.',
+      linkUrl: RELEASES_URL, linkLabel: 'Descargar', belowVersion: version, expiry: '7d',
+    }),
+  },
+  {
+    id: 'maintenance', label: 'Mantenimiento', icon: 'build',
+    make: () => ({
+      kind: 'maintenance', display: 'modal', title: 'Mantenimiento programado',
+      body: 'KageView estará en mantenimiento durante un rato. Guarda tu progreso antes de esa hora.',
+      expiry: '24h',
+    }),
+  },
+  {
+    id: 'outage', label: 'Servicio caído', icon: 'warning',
+    make: () => ({
+      kind: 'warning', display: 'banner', title: 'Incidencia en un servidor',
+      body: 'Algunos capítulos pueden no cargar. Estamos trabajando en ello; prueba otro servidor mientras tanto.',
+      expiry: '24h',
+    }),
+  },
+  {
+    id: 'event', label: 'Evento / novedad', icon: 'celebration',
+    make: () => ({ kind: 'event', display: 'banner', title: '', body: '', expiry: '7d' }),
+  },
+  {
+    id: 'welcome', label: 'Bienvenida', icon: 'waving_hand',
+    make: () => ({
+      kind: 'info', display: 'modal', title: '¡Bienvenido a KageView!',
+      body: 'Crea tu cuenta para guardar tu lista, añadir amigos y ver qué están viendo.',
+    }),
+  },
+];
 
 /** ISO → valor de <input type="datetime-local"> (hora local). */
 function toLocalInput(iso: string | null): string {
@@ -57,6 +111,7 @@ function draftFrom(a: Announcement): Draft {
     linkUrl: a.linkUrl ?? '', linkLabel: a.linkLabel ?? '', active: a.active,
     startMode: future ? 'later' : 'now', startsLocal: toLocalInput(a.startsAt),
     expiry: a.expiresAt ? 'custom' : 'never', expiresLocal: toLocalInput(a.expiresAt),
+    platform: a.platform, belowVersion: a.belowVersion ?? '',
   };
 }
 
@@ -65,7 +120,8 @@ function buildInput(d: Draft, editing: Announcement | null): { input?: Announcem
   const errors: string[] = [];
   if (!d.body.trim()) errors.push('Escribe el mensaje del anuncio.');
   if (d.linkUrl.trim() && !/^https:\/\//i.test(d.linkUrl.trim())) errors.push('El enlace debe empezar por https://');
-  if (d.linkUrl.trim() && !isSafeLink(d.linkUrl.trim())) errors.push('El enlace no es una URL válida.');
+  else if (d.linkUrl.trim() && !isSafeLink(d.linkUrl.trim())) errors.push('El enlace no es una URL válida.');
+  if (d.belowVersion.trim() && !isValidVersion(d.belowVersion.trim())) errors.push('La versión debe tener el formato 1.4.0');
 
   let startsAt: string | undefined;
   if (d.startMode === 'later') {
@@ -92,9 +148,28 @@ function buildInput(d: Draft, editing: Announcement | null): { input?: Announcem
       kind: d.kind, display: d.display, title: d.title, body: d.body,
       linkUrl: d.linkUrl.trim() || null, linkLabel: d.linkLabel.trim() || null,
       active: d.active, startsAt, expiresAt,
+      platform: d.platform, belowVersion: d.belowVersion.trim() || null,
     },
   };
 }
+
+function inputFrom(a: Announcement, over: Partial<AnnouncementInput> = {}): AnnouncementInput {
+  return {
+    kind: a.kind, display: a.display, title: a.title, body: a.body,
+    linkUrl: a.linkUrl, linkLabel: a.linkLabel, active: a.active,
+    startsAt: a.startsAt, expiresAt: a.expiresAt,
+    platform: a.platform, belowVersion: a.belowVersion,
+    ...over,
+  };
+}
+
+const FILTERS: Array<{ id: Filter; label: string }> = [
+  { id: 'all', label: 'Todos' },
+  { id: 'live', label: 'En directo' },
+  { id: 'scheduled', label: 'Programados' },
+  { id: 'paused', label: 'Pausados' },
+  { id: 'expired', label: 'Caducados' },
+];
 
 export default function AnnouncementsAdmin() {
   const toast = useToast();
@@ -105,6 +180,13 @@ export default function AnnouncementsAdmin() {
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [filter, setFilter] = useState<Filter>('all');
+  const [search, setSearch] = useState('');
+  const [myVersion, setMyVersion] = useState('');
+
+  useEffect(() => {
+    window.electron?.getVersion?.().then((v) => setMyVersion(/^\d+\.\d+\.\d+$/.test(v) ? v : '')).catch(() => undefined);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -117,11 +199,7 @@ export default function AnnouncementsAdmin() {
   useEffect(() => { void load(); }, [load]);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => ({ ...d, [k]: v }));
-
-  const afterChange = async () => {
-    await Promise.all([load(), refreshRemoteConfig()]);
-  };
-
+  const afterChange = async () => { await Promise.all([load(), refreshRemoteConfig()]); };
   const reset = () => { setDraft(EMPTY); setEditing(null); setErrors([]); };
 
   const submit = async () => {
@@ -131,7 +209,7 @@ export default function AnnouncementsAdmin() {
     setBusy(true);
     try {
       await getBackend()!.adminSaveAnnouncement(input, editing?.id);
-      toast.success(editing ? 'Anuncio actualizado.' : 'Anuncio publicado.', 'Administración');
+      toast.success(editing ? 'Anuncio actualizado.' : draft.active ? 'Anuncio publicado.' : 'Borrador guardado.', 'Administración');
       reset();
       await afterChange();
     } catch (e) {
@@ -152,12 +230,9 @@ export default function AnnouncementsAdmin() {
   };
 
   const toggleActive = (a: Announcement) =>
-    run(
-      () => getBackend()!.adminSaveAnnouncement(inputFrom(a, { active: !a.active }), a.id),
-      a.active ? 'Anuncio pausado.' : 'Anuncio activado.'
-    );
+    run(() => getBackend()!.adminSaveAnnouncement(inputFrom(a, { active: !a.active }), a.id), a.active ? 'Anuncio pausado.' : 'Anuncio activado.');
 
-  /** Crea una copia nueva (la ven de nuevo quienes descartaron el original) y pausa el original. */
+  /** Copia nueva (la ven de nuevo quienes descartaron el original) y pausa el original. */
   const resend = (a: Announcement) =>
     run(async () => {
       const b = getBackend()!;
@@ -167,6 +242,36 @@ export default function AnnouncementsAdmin() {
 
   const remove = (a: Announcement) =>
     run(() => getBackend()!.adminDeleteAnnouncement(a.id), 'Anuncio eliminado.').finally(() => setConfirmDelete(null));
+
+  /** Carga el anuncio como borrador NUEVO (sin editar el original). */
+  const duplicate = (a: Announcement) => {
+    setEditing(null);
+    setDraft({ ...draftFrom(a), active: true, startMode: 'now', startsLocal: '', expiry: 'never', expiresLocal: '' });
+    setErrors([]);
+    toast.info('Copia cargada en el editor.', 'Administración');
+  };
+
+  const applyTemplate = (id: string) => {
+    const t = TEMPLATES.find((x) => x.id === id);
+    if (!t) return;
+    setEditing(null);
+    setDraft({ ...EMPTY, ...t.make(myVersion) });
+    setErrors([]);
+  };
+
+  const counts = useMemo(() => {
+    const c: Record<Filter, number> = { all: 0, live: 0, scheduled: 0, paused: 0, expired: 0 };
+    for (const a of list ?? []) { c.all++; c[announcementState(a)]++; }
+    return c;
+  }, [list]);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (list ?? []).filter(
+      (a) => (filter === 'all' || announcementState(a) === filter) &&
+        (!q || a.title.toLowerCase().includes(q) || a.body.toLowerCase().includes(q))
+    );
+  }, [list, filter, search]);
 
   const meta = KIND_META[draft.kind];
   const previewLike = {
@@ -178,15 +283,32 @@ export default function AnnouncementsAdmin() {
   };
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6">
+    <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6">
       {/* ── Editor ─────────────────────────────────────── */}
       <section className="panel p-6 flex flex-col gap-5 self-start">
         <div className="flex items-center justify-between gap-3">
           <SectionLabel>{editing ? `Editando anuncio #${editing.id}` : 'Nuevo anuncio'}</SectionLabel>
-          {editing && (
-            <SmallButton onClick={reset}>Cancelar edición</SmallButton>
-          )}
+          {editing && <SmallButton onClick={reset}>Cancelar edición</SmallButton>}
         </div>
+
+        {!editing && (
+          <div className="flex flex-col gap-2">
+            <span className="text-[12.5px] font-medium text-on-surface-variant">Empezar desde una plantilla</span>
+            <div className="flex flex-wrap gap-2">
+              {TEMPLATES.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => applyTemplate(t.id)}
+                  className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 bg-white/[0.06] text-on-surface-variant hover:text-white hover:bg-white/[0.12] transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[16px]">{t.icon}</span>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col gap-2">
           <span className="text-[12.5px] font-medium text-on-surface-variant">Tipo</span>
@@ -235,7 +357,7 @@ export default function AnnouncementsAdmin() {
           value={draft.title}
           maxLength={ANNOUNCEMENT_LIMITS.title}
           onChange={(e) => set('title', e.target.value)}
-          placeholder="Novedades de la 1.4"
+          placeholder="Novedades de la 1.5"
         />
 
         <div className="flex flex-col gap-1.5">
@@ -269,6 +391,43 @@ export default function AnnouncementsAdmin() {
             placeholder="Saber más"
             disabled={!draft.linkUrl.trim()}
           />
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <span className="text-[12.5px] font-medium text-on-surface-variant">Quién lo ve</span>
+          <div className="flex flex-wrap items-end gap-3">
+            <select
+              aria-label="Sistema operativo"
+              value={draft.platform}
+              onChange={(e) => set('platform', e.target.value as AnnouncementPlatform)}
+              className="h-10 px-3 rounded-xl bg-white/[0.06] text-white text-[13.5px] outline-none shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)] cursor-pointer [color-scheme:dark]"
+            >
+              {(Object.keys(PLATFORM_LABEL) as AnnouncementPlatform[]).map((p) => (
+                <option key={p} value={p}>{PLATFORM_LABEL[p]}</option>
+              ))}
+            </select>
+            <div className="flex items-center gap-2">
+              <label htmlFor="ann-below" className="text-[13px] text-on-surface-variant whitespace-nowrap">Versiones anteriores a</label>
+              <input
+                id="ann-below"
+                value={draft.belowVersion}
+                onChange={(e) => set('belowVersion', e.target.value.trim())}
+                placeholder="todas"
+                maxLength={11}
+                spellCheck={false}
+                className={`${inputClass} !h-10 !w-[96px] !text-[13.5px]`}
+              />
+              {myVersion && draft.belowVersion !== myVersion && (
+                <SmallButton onClick={() => set('belowVersion', myVersion)} title="Solo lo verá quien tenga una versión anterior a la tuya">
+                  Usar v{myVersion}
+                </SmallButton>
+              )}
+            </div>
+          </div>
+          <p className="text-[12px] text-muted leading-snug">
+            Por ejemplo, «Nueva versión» solo a quien aún no la tiene. Estos filtros los aplican las apps con la
+            actualización más reciente; las versiones anteriores mostrarán el anuncio a todos.
+          </p>
         </div>
 
         <div className="flex flex-col gap-3">
@@ -356,7 +515,9 @@ export default function AnnouncementsAdmin() {
             </div>
           )}
           <p className={`text-[12px] leading-snug ${meta.text}`}>
-            Así lo verán todos los usuarios de KageView (con o sin sesión iniciada).
+            Así lo verán los usuarios de KageView (con o sin sesión iniciada)
+            {draft.platform !== 'all' ? ` · ${PLATFORM_LABEL[draft.platform].toLowerCase()}` : ''}
+            {draft.belowVersion ? ` · versiones anteriores a ${draft.belowVersion}` : ''}.
           </p>
         </section>
 
@@ -368,16 +529,46 @@ export default function AnnouncementsAdmin() {
             </SmallButton>
           </div>
 
+          {list && list.length > 0 && (
+            <>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar en títulos y mensajes…"
+                aria-label="Buscar anuncios"
+                className={`${inputClass} !h-9 !text-[13.5px]`}
+              />
+              <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filtrar por estado">
+                {FILTERS.map((f) => (
+                  <button
+                    key={f.id}
+                    role="tab"
+                    aria-selected={filter === f.id}
+                    onClick={() => setFilter(f.id)}
+                    className={`h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 transition-colors ${
+                      filter === f.id ? 'bg-white/[0.16] text-white' : 'bg-white/[0.06] text-on-surface-variant hover:text-white'
+                    }`}
+                  >
+                    {f.label}
+                    <span className="text-[11px] text-muted tabular-nums">{counts[f.id]}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
           {loadError ? (
             <Notice kind="error">{loadError}</Notice>
           ) : list === null ? (
             <div className="flex justify-center py-8"><Spinner size={24} /></div>
           ) : list.length === 0 ? (
             <p className="text-[13.5px] text-muted py-6 text-center">Todavía no hay anuncios. Crea el primero desde el formulario.</p>
+          ) : visible.length === 0 ? (
+            <p className="text-[13.5px] text-muted py-6 text-center">Ningún anuncio coincide con el filtro.</p>
           ) : (
             <ul className="flex flex-col gap-3">
-              {list.map((a) => {
-                const st: AnnouncementState = announcementState(a);
+              {visible.map((a) => {
+                const st = announcementState(a);
                 const m = KIND_META[a.kind];
                 return (
                   <li key={a.id} className="rounded-2xl bg-white/[0.04] hairline p-4 flex flex-col gap-3">
@@ -392,6 +583,16 @@ export default function AnnouncementsAdmin() {
                           <span className="h-5 px-2 rounded-full text-[10.5px] font-medium inline-flex items-center bg-white/[0.06] text-muted">
                             {a.display === 'banner' ? 'Banner' : 'Ventana'}
                           </span>
+                          {a.platform !== 'all' && (
+                            <span className="h-5 px-2 rounded-full text-[10.5px] font-medium inline-flex items-center bg-white/[0.06] text-muted">
+                              {PLATFORM_LABEL[a.platform]}
+                            </span>
+                          )}
+                          {a.belowVersion && (
+                            <span className="h-5 px-2 rounded-full text-[10.5px] font-medium inline-flex items-center bg-white/[0.06] text-muted">
+                              {'< '}v{a.belowVersion}
+                            </span>
+                          )}
                         </div>
                         <p className="text-[13px] text-on-surface-variant leading-snug mt-1 line-clamp-3 break-words whitespace-pre-line">{a.body}</p>
                         <p className="text-[11.5px] text-muted mt-2">
@@ -411,6 +612,7 @@ export default function AnnouncementsAdmin() {
                         <>
                           <SmallButton onClick={() => { setEditing(a); setDraft(draftFrom(a)); setErrors([]); }}>Editar</SmallButton>
                           <SmallButton onClick={() => void toggleActive(a)}>{a.active ? 'Pausar' : 'Activar'}</SmallButton>
+                          <SmallButton onClick={() => duplicate(a)} title="Carga una copia en el editor">Duplicar</SmallButton>
                           <SmallButton onClick={() => void resend(a)} title="Crea una copia para que la vean de nuevo quienes ya la descartaron">
                             Reenviar
                           </SmallButton>
@@ -427,13 +629,4 @@ export default function AnnouncementsAdmin() {
       </div>
     </div>
   );
-}
-
-function inputFrom(a: Announcement, over: Partial<AnnouncementInput> = {}): AnnouncementInput {
-  return {
-    kind: a.kind, display: a.display, title: a.title, body: a.body,
-    linkUrl: a.linkUrl, linkLabel: a.linkLabel, active: a.active,
-    startsAt: a.startsAt, expiresAt: a.expiresAt,
-    ...over,
-  };
 }

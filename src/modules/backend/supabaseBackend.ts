@@ -9,6 +9,10 @@ import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
 import {
   AccountBackend,
   AdminStats,
+  AdminUser,
+  AdminUserPage,
+  AuditEntry,
+  SignupPoint,
   Announcement,
   AnnouncementInput,
   AppRole,
@@ -67,6 +71,9 @@ interface AnnouncementRow {
   starts_at: string;
   expires_at: string | null;
   created_at: string;
+  // Añadidas en la migración 0005: ausentes si aún no se ha aplicado
+  platform?: Announcement['platform'];
+  below_version?: string | null;
 }
 interface LibraryRow {
   media_type: MediaType;
@@ -156,9 +163,12 @@ const toAnnouncement = (r: AnnouncementRow): Announcement => ({
   startsAt: r.starts_at,
   expiresAt: r.expires_at,
   createdAt: r.created_at,
+  platform: r.platform ?? 'all',
+  belowVersion: r.below_version ?? null,
 });
 
-const ANNOUNCEMENT_COLUMNS = 'id, kind, display, title, body, link_url, link_label, active, starts_at, expires_at, created_at';
+const ANNOUNCEMENT_BASE_COLUMNS = 'id, kind, display, title, body, link_url, link_label, active, starts_at, expires_at, created_at';
+const ANNOUNCEMENT_COLUMNS = `${ANNOUNCEMENT_BASE_COLUMNS}, platform, below_version`;
 
 const toPublic = (
   r: Pick<ProfileRow, 'id' | 'username' | 'display_name' | 'avatar_url'> & { bio?: string | null }
@@ -258,6 +268,7 @@ export function mapError(err: unknown): BackendError {
   if (code === '54000') return make(msg.includes('too many messages') ? 'too_many_messages' : 'too_many_requests');
   if (code === 'P0002') return make('not_found');
   // RLS / funciones de administración: hay sesión, pero sin permiso
+  if (msg.includes('suspended')) return make('suspended');
   if (msg.includes('forbidden') || msg.includes('row-level security')) return make('forbidden');
   if (code === '42501') return make('not_authenticated');
 
@@ -749,22 +760,40 @@ export class SupabaseBackend implements AccountBackend {
   }
 
   // ─── Configuración pública ───────────────────────────────
+  /** Base de datos sin la migración 0005 (columnas `platform`/`below_version` ausentes). */
+  private legacyAnnouncements = false;
+
+  private get announcementColumns(): string {
+    return this.legacyAnnouncements ? ANNOUNCEMENT_BASE_COLUMNS : ANNOUNCEMENT_COLUMNS;
+  }
+
+  /** Ejecuta la consulta con las columnas nuevas y, si el esquema es antiguo, reintenta sin ellas. */
+  private async queryAnnouncements(
+    build: (columns: string) => PromiseLike<{ data: unknown; error: unknown }>
+  ): Promise<Announcement[]> {
+    let res = await build(this.announcementColumns);
+    if (res.error && (res.error as { code?: string }).code === '42703' && !this.legacyAnnouncements) {
+      this.legacyAnnouncements = true;
+      res = await build(this.announcementColumns);
+    }
+    return (check(res as { data: unknown; error: unknown }) as AnnouncementRow[]).map(toAnnouncement);
+  }
+
   async listActiveAnnouncements(): Promise<Announcement[]> {
     // Para el público RLS ya solo deja ver los vigentes, pero el staff ve TODOS
     // (borradores, programados…): se filtra también aquí para que a ellos no se
     // les muestren como si estuvieran publicados.
     const now = new Date().toISOString();
-    const rows = check(
-      await this.sb
+    return this.queryAnnouncements((cols) =>
+      this.sb
         .from('announcements')
-        .select(ANNOUNCEMENT_COLUMNS)
+        .select(cols)
         .eq('active', true)
         .lte('starts_at', now)
         .or(`expires_at.is.null,expires_at.gt.${now}`)
         .order('created_at', { ascending: false })
         .limit(20)
-    ) as unknown as AnnouncementRow[];
-    return rows.map(toAnnouncement);
+    );
   }
 
   async listProviderSwitches(): Promise<ProviderSwitch[]> {
@@ -775,19 +804,34 @@ export class SupabaseBackend implements AccountBackend {
   }
 
   // ─── Administración ──────────────────────────────────────
+  /**
+   * Las operaciones de administración devuelven "permission denied" (42501) cuando
+   * falta un permiso, y mapError lo traduce a `not_authenticated` (correcto para
+   * un usuario anónimo). Con sesión iniciada eso sería engañoso ("sesión
+   * caducada"), así que aquí se convierte en `forbidden`.
+   */
+  private async admin<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (err) {
+      if (err instanceof BackendError && err.code === 'not_authenticated') {
+        const { data } = await this.sb.auth.getSession();
+        if (data.session) throw new BackendError('forbidden', err.message);
+      }
+      throw err;
+    }
+  }
+
   async adminListAnnouncements(): Promise<Announcement[]> {
-    const rows = check(
-      await this.sb
-        .from('announcements')
-        .select(ANNOUNCEMENT_COLUMNS)
-        .order('created_at', { ascending: false })
-        .limit(100)
-    ) as unknown as AnnouncementRow[];
-    return rows.map(toAnnouncement);
+    return this.admin(() =>
+      this.queryAnnouncements((cols) =>
+        this.sb.from('announcements').select(cols).order('created_at', { ascending: false }).limit(100)
+      )
+    );
   }
 
   async adminSaveAnnouncement(input: AnnouncementInput, id?: number): Promise<Announcement> {
-    const values = {
+    const values: Record<string, unknown> = {
       kind: input.kind,
       display: input.display,
       title: input.title.trim(),
@@ -798,67 +842,150 @@ export class SupabaseBackend implements AccountBackend {
       starts_at: input.startsAt ?? new Date().toISOString(),
       expires_at: input.expiresAt ?? null,
     };
-    if (id === undefined) {
-      const row = check(
-        await this.sb.from('announcements').insert(values).select(ANNOUNCEMENT_COLUMNS).single()
-      ) as unknown as AnnouncementRow;
-      return toAnnouncement(row);
+    // Con esquema antiguo estas columnas no existen: no enviarlas (y avisar si se pedían)
+    const wantsTargeting = (input.platform && input.platform !== 'all') || !!input.belowVersion;
+    if (!this.legacyAnnouncements) {
+      values.platform = input.platform ?? 'all';
+      values.below_version = input.belowVersion ?? null;
+    } else if (wantsTargeting) {
+      throw new BackendError('unknown', 'La base de datos no tiene aplicada la migración 0005.');
     }
-    // Sin permiso, RLS no da error: simplemente no actualiza ninguna fila
-    const row = check(
-      await this.sb.from('announcements').update(values).eq('id', id).select(ANNOUNCEMENT_COLUMNS).maybeSingle()
-    ) as unknown as AnnouncementRow | null;
-    if (!row) throw new BackendError('forbidden');
-    return toAnnouncement(row);
+
+    return this.admin(async () => {
+      const run = async (cols: string) =>
+        id === undefined
+          ? this.sb.from('announcements').insert(values).select(cols).single()
+          : // Sin permiso, RLS no da error: simplemente no actualiza ninguna fila
+            this.sb.from('announcements').update(values).eq('id', id).select(cols).maybeSingle();
+
+      const res = await run(this.announcementColumns);
+      const row = check(res as { data: unknown; error: unknown }) as AnnouncementRow | null;
+      if (!row) throw new BackendError('forbidden');
+      return toAnnouncement(row);
+    });
   }
 
   async adminDeleteAnnouncement(id: number): Promise<void> {
-    const rows = check(await this.sb.from('announcements').delete().eq('id', id).select('id')) as unknown as unknown[];
-    if (rows.length === 0) throw new BackendError('forbidden');
+    await this.admin(async () => {
+      const rows = check(await this.sb.from('announcements').delete().eq('id', id).select('id')) as unknown as unknown[];
+      if (rows.length === 0) throw new BackendError('forbidden');
+    });
   }
 
   async adminSetProviderSwitch(providerId: string, reason: string | null): Promise<void> {
-    if (reason === null) {
-      // Reactivar: borrar la fila (idempotente; sin permiso RLS tampoco borra nada)
-      const { data: existing } = await this.sb.from('provider_switches').select('provider_id').eq('provider_id', providerId);
-      const rows = check(
-        await this.sb.from('provider_switches').delete().eq('provider_id', providerId).select('provider_id')
+    await this.admin(async () => {
+      if (reason === null) {
+        // Reactivar: borrar la fila (idempotente; sin permiso RLS tampoco borra nada)
+        const existing = check(
+          await this.sb.from('provider_switches').select('provider_id').eq('provider_id', providerId)
+        ) as unknown as unknown[];
+        const rows = check(
+          await this.sb.from('provider_switches').delete().eq('provider_id', providerId).select('provider_id')
+        ) as unknown as unknown[];
+        if (rows.length === 0 && existing.length > 0) throw new BackendError('forbidden');
+        return;
+      }
+      const clean = reason.trim().slice(0, 200);
+      // NO usar upsert: PostgREST hace ON CONFLICT DO UPDATE de todas las columnas
+      // enviadas, incluida la clave, y el staff solo tiene UPDATE sobre `reason`.
+      const updated = check(
+        await this.sb.from('provider_switches').update({ reason: clean }).eq('provider_id', providerId).select('provider_id')
       ) as unknown as unknown[];
-      if (rows.length === 0 && (existing?.length ?? 0) > 0) throw new BackendError('forbidden');
-      return;
-    }
-    check(
-      await this.sb
-        .from('provider_switches')
-        .upsert({ provider_id: providerId, reason: reason.trim().slice(0, 200) }, { onConflict: 'provider_id' })
-    );
+      if (updated.length === 0) {
+        check(await this.sb.from('provider_switches').insert({ provider_id: providerId, reason: clean }));
+      }
+    });
   }
 
   async adminStats(): Promise<AdminStats> {
-    const rows = check(await this.sb.rpc('admin_stats')) as unknown as Array<{
-      users_total: number | string;
-      users_7d: number | string;
-      watching_now: number | string;
-      announcements_live: number | string;
-    }>;
-    const r = rows[0];
-    return {
-      usersTotal: Number(r?.users_total) || 0,
-      usersLast7Days: Number(r?.users_7d) || 0,
-      watchingNow: Number(r?.watching_now) || 0,
-      announcementsLive: Number(r?.announcements_live) || 0,
-    };
+    return this.admin(async () => {
+      const rows = check(await this.sb.rpc('admin_stats')) as unknown as Array<{
+        users_total: number | string;
+        users_7d: number | string;
+        watching_now: number | string;
+        announcements_live: number | string;
+      }>;
+      const r = rows[0];
+      return {
+        usersTotal: Number(r?.users_total) || 0,
+        usersLast7Days: Number(r?.users_7d) || 0,
+        watchingNow: Number(r?.watching_now) || 0,
+        announcementsLive: Number(r?.announcements_live) || 0,
+      };
+    });
   }
 
   async adminListStaff(): Promise<StaffMember[]> {
-    const rows = check(await this.sb.rpc('list_staff')) as unknown as Array<
-      Pick<ProfileRow, 'id' | 'username' | 'display_name' | 'avatar_url' | 'role'>
-    >;
-    return rows.map((r) => ({ profile: toPublic(r), role: r.role }));
+    return this.admin(async () => {
+      const rows = check(await this.sb.rpc('list_staff')) as unknown as Array<
+        Pick<ProfileRow, 'id' | 'username' | 'display_name' | 'avatar_url' | 'role'>
+      >;
+      return rows.map((r) => ({ profile: toPublic(r), role: r.role }));
+    });
   }
 
   async adminSetRole(userId: string, role: 'user' | 'admin'): Promise<void> {
     if (!UUID_RE.test(userId)) throw new BackendError('not_found');
-    check(await this.sb.rpc('set_user_role', { target: userId, new_role: role }));
+    await this.admin(async () => {
+      check(await this.sb.rpc('set_user_role', { target: userId, new_role: role }));
+    });
+  }
+
+  async adminListUsers(opts: { query?: string; limit?: number; offset?: number } = {}): Promise<AdminUserPage> {
+    return this.admin(async () => {
+      const rows = check(
+        await this.sb.rpc('admin_list_users', {
+          q: (opts.query ?? '').slice(0, 40),
+          lim: opts.limit ?? 25,
+          off: opts.offset ?? 0,
+        })
+      ) as unknown as Array<{
+        id: string; username: string; display_name: string | null; avatar_url: string | null;
+        role: AppRole; created_at: string; last_active: string | null;
+        suspended: boolean; suspended_reason: string | null; total: number | string;
+      }>;
+      const users: AdminUser[] = rows.map((r) => ({
+        profile: toPublic(r),
+        role: r.role,
+        createdAt: r.created_at,
+        lastActive: r.last_active,
+        suspended: r.suspended,
+        suspendedReason: r.suspended_reason,
+      }));
+      return { users, total: rows.length ? Number(rows[0].total) || 0 : 0 };
+    });
+  }
+
+  async adminSetSuspended(userId: string, suspended: boolean, reason = ''): Promise<void> {
+    if (!UUID_RE.test(userId)) throw new BackendError('not_found');
+    await this.admin(async () => {
+      check(await this.sb.rpc('admin_set_suspended', { target: userId, suspend: suspended, why: reason }));
+    });
+  }
+
+  async adminAuditLog(opts: { before?: number; limit?: number } = {}): Promise<AuditEntry[]> {
+    return this.admin(async () => {
+      let q = this.sb
+        .from('admin_audit')
+        .select('id, actor_name, action, target, detail, created_at')
+        .order('id', { ascending: false })
+        .limit(Math.min(opts.limit ?? 30, 100));
+      if (opts.before !== undefined) q = q.lt('id', opts.before);
+      const rows = check(await q) as unknown as Array<{
+        id: number; actor_name: string; action: string; target: string | null;
+        detail: Record<string, unknown> | null; created_at: string;
+      }>;
+      return rows.map((r) => ({
+        id: r.id, actor: r.actor_name, action: r.action, target: r.target,
+        detail: r.detail ?? {}, createdAt: r.created_at,
+      }));
+    });
+  }
+
+  async adminSignups(days = 30): Promise<SignupPoint[]> {
+    return this.admin(async () => {
+      const rows = check(await this.sb.rpc('admin_signups', { days })) as unknown as Array<{ day: string; n: number | string }>;
+      return rows.map((r) => ({ day: r.day, count: Number(r.n) || 0 }));
+    });
   }
 }

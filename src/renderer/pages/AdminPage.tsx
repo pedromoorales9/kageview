@@ -5,15 +5,19 @@ import RoleBadge from '../components/account/RoleBadge';
 import OverviewAdmin from '../components/admin/OverviewAdmin';
 import AnnouncementsAdmin from '../components/admin/AnnouncementsAdmin';
 import ServicesAdmin from '../components/admin/ServicesAdmin';
+import UsersAdmin from '../components/admin/UsersAdmin';
 import TeamAdmin from '../components/admin/TeamAdmin';
+import AuditAdmin from '../components/admin/AuditAdmin';
 
-type Tab = 'overview' | 'announcements' | 'services' | 'team';
+export type AdminTab = 'overview' | 'announcements' | 'services' | 'users' | 'team' | 'audit';
 
-const TABS: Array<{ id: Tab; label: string; icon: string }> = [
-  { id: 'overview', label: 'Resumen', icon: 'space_dashboard' },
-  { id: 'announcements', label: 'Anuncios', icon: 'campaign' },
-  { id: 'services', label: 'Servicios', icon: 'tune' },
-  { id: 'team', label: 'Equipo', icon: 'shield_person' },
+const TABS: Array<{ id: AdminTab; label: string; icon: string; hint: string }> = [
+  { id: 'overview', label: 'Resumen', icon: 'space_dashboard', hint: 'Cifras y actividad' },
+  { id: 'announcements', label: 'Anuncios', icon: 'campaign', hint: 'Avisos para todos' },
+  { id: 'services', label: 'Servicios', icon: 'tune', hint: 'Apagar páginas caídas' },
+  { id: 'users', label: 'Usuarios', icon: 'group', hint: 'Buscar y moderar' },
+  { id: 'team', label: 'Equipo', icon: 'shield_person', hint: 'Administradores' },
+  { id: 'audit', label: 'Registro', icon: 'history', hint: 'Qué ha hecho el equipo' },
 ];
 
 /**
@@ -22,7 +26,9 @@ const TABS: Array<{ id: Tab; label: string; icon: string }> = [
  */
 export default function AdminPage() {
   const profile = useAppStore((s) => s.account.profile);
-  const [tab, setTab] = useState<Tab>('overview');
+  const liveAnnouncements = useAppStore((s) => s.remoteConfig?.announcements.length ?? 0);
+  const disabledServices = useAppStore((s) => Object.keys(s.remoteConfig?.providersDisabled ?? {}).length);
+  const [tab, setTab] = useState<AdminTab>('overview');
 
   if (!profile || !isStaff(profile.role)) {
     return (
@@ -38,45 +44,68 @@ export default function AdminPage() {
     );
   }
 
+  const badge = (id: AdminTab): { n: number; tone: string } | null => {
+    if (id === 'announcements' && liveAnnouncements) return { n: liveAnnouncements, tone: 'bg-emerald-400/20 text-emerald-300' };
+    if (id === 'services' && disabledServices) return { n: disabledServices, tone: 'bg-error/20 text-error' };
+    return null;
+  };
+
   return (
-    <div className="flex-1 overflow-y-auto pr-2 pb-10">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-3 mb-6">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 rounded-2xl bg-primary/15 ring-1 ring-primary/30 flex items-center justify-center">
+    <div className="flex-1 min-h-0 flex gap-6 pb-6">
+      {/* ── Menú lateral ─────────────────────────────── */}
+      <aside className="w-[214px] flex-none flex flex-col gap-4 overflow-y-auto">
+        <div className="flex items-center gap-3 px-1">
+          <div className="w-11 h-11 rounded-2xl bg-primary/15 ring-1 ring-primary/30 flex items-center justify-center flex-none">
             <span className="material-symbols-outlined text-[24px] text-primary">admin_panel_settings</span>
           </div>
           <div className="min-w-0">
-            <h1 className="font-headline text-[22px] font-bold text-white tracking-[-0.025em] leading-tight">Administración</h1>
-            <p className="text-[12.5px] text-muted flex items-center gap-2">
-              Sesión como @{profile.username} <RoleBadge role={profile.role} />
-            </p>
+            <h1 className="font-headline text-[17px] font-bold text-white tracking-[-0.02em] leading-tight">Administración</h1>
+            <div className="mt-1"><RoleBadge role={profile.role} /></div>
           </div>
         </div>
 
-        <nav aria-label="Secciones de administración" className="ml-auto inline-flex p-[3px] rounded-full bg-white/[0.06] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.1)]">
+        <nav aria-label="Secciones de administración" className="flex flex-col gap-1">
           {TABS.map((t) => {
             const on = tab === t.id;
+            const b = badge(t.id);
             return (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 aria-current={on ? 'page' : undefined}
-                className={`h-9 px-4 rounded-full text-[13px] font-medium flex items-center gap-1.5 transition-all ${
-                  on ? 'bg-white/[0.16] text-white shadow-sm' : 'text-on-surface-variant hover:text-white'
+                className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${
+                  on ? 'bg-white/[0.12] text-white' : 'text-on-surface-variant hover:bg-white/[0.06] hover:text-white'
                 }`}
               >
-                <span className="material-symbols-outlined text-[17px]">{t.icon}</span>
-                {t.label}
+                <span className={`material-symbols-outlined text-[20px] flex-none ${on ? 'text-primary' : ''}`}>{t.icon}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-medium leading-tight">{t.label}</span>
+                  <span className="block text-[11.5px] text-muted leading-tight truncate">{t.hint}</span>
+                </span>
+                {b && (
+                  <span className={`flex-none min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center tabular-nums ${b.tone}`}>
+                    {b.n}
+                  </span>
+                )}
               </button>
             );
           })}
         </nav>
-      </header>
 
-      {tab === 'overview' && <OverviewAdmin onGo={(t) => setTab(t)} />}
-      {tab === 'announcements' && <AnnouncementsAdmin />}
-      {tab === 'services' && <ServicesAdmin />}
-      {tab === 'team' && <TeamAdmin />}
+        <p className="px-1 text-[11.5px] text-muted leading-snug mt-auto">
+          Sesión como <strong className="text-on-surface-variant">@{profile.username}</strong>. Cada acción queda anotada en el registro.
+        </p>
+      </aside>
+
+      {/* ── Contenido ────────────────────────────────── */}
+      <div className="flex-1 min-w-0 overflow-y-auto pr-2 pb-4">
+        {tab === 'overview' && <OverviewAdmin onGo={setTab} />}
+        {tab === 'announcements' && <AnnouncementsAdmin />}
+        {tab === 'services' && <ServicesAdmin />}
+        {tab === 'users' && <UsersAdmin />}
+        {tab === 'team' && <TeamAdmin />}
+        {tab === 'audit' && <AuditAdmin />}
+      </div>
     </div>
   );
 }

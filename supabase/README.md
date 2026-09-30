@@ -35,6 +35,7 @@ Dashboard → **SQL Editor** → *New query*: pega y ejecuta, **en este orden**:
 2. `migrations/20260929000002_storage.sql`
 3. `migrations/20260930000003_chat.sql`
 4. `migrations/20261001000004_admin.sql`  (roles, anuncios y servicios)
+5. `migrations/20261001000005_admin_v2.sql`  (registro de auditoría, suspensiones, segmentación de anuncios, usuarios)
 
 > Si ya aplicaste las anteriores, ejecuta **solo la que falte** (cada archivo es independiente de los posteriores). Nunca edites una migración ya aplicada: añade una nueva.
 
@@ -101,7 +102,11 @@ update public.profiles
 Después, el owner nombra o quita administradores desde el propio panel (pestaña *Equipo*).
 
 - **Anuncios**: banner (franja descartable) o ventana emergente, con tipo, enlace https opcional, programación y caducidad. Los ve **todo el mundo**, incluso sin sesión. La app los consulta al arrancar, al volver a la ventana y cada 5 minutos.
-- **Servicios**: apagar AnimeFLV, MangaDex… para todos, con el motivo visible.
+- **Servicios**: apagar AnimeFLV, MangaDex… para todos, con el motivo visible y desde cuándo.
+- **Segmentación** (migración 0005): un anuncio puede ir solo a macOS/Windows/Linux y/o solo a versiones anteriores a una dada (p. ej. «hay una versión nueva» solo a quien aún no la tiene). Lo aplican las apps con esta actualización; las anteriores lo muestran a todos.
+- **Usuarios** (migración 0005): búsqueda y paginación (sin correos) y **suspensión**: un usuario suspendido conserva su cuenta y sus datos pero no puede escribir mensajes, enviar solicitudes, publicar «viendo ahora» ni editar su perfil. Nunca se puede suspender a un admin ni al owner.
+- **Registro** (migración 0005): todo lo que hace el equipo (anuncios, servicios, suspensiones, cambios de rol) queda anotado con quién y cuándo; nadie puede editarlo ni borrarlo. Lo hecho desde el SQL Editor aparece como «sistema».
+- **Resumen**: usuarios, actividad, gráfica de registros por día (7/30/90 días) y avisos de servicios apagados.
 - **Seguridad**: la autorización la impone la base de datos (RLS + `is_staff()`), no la interfaz. El rol no se puede cambiar desde el cliente (`role` no tiene privilegio de UPDATE); solo el owner puede llamar a `set_user_role()`. Las cifras (`admin_stats()`) son agregadas: no exponen listas ni mensajes.
 - El antiguo panel de desarrollador (contraseña + token de GitHub + `remote-config.json` en gh-pages) se ha retirado. Las versiones ≤ 1.2.x ya instaladas seguirán leyendo ese JSON hasta que se actualicen.
 

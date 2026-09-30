@@ -5,7 +5,7 @@
 // dispositivo; todo va envuelto en try/catch por si el almacenamiento falla).
 // ═══════════════════════════════════════════════════════════
 
-import type { Announcement, AnnouncementKind } from './backend';
+import type { Announcement, AnnouncementKind, AnnouncementPlatform } from './backend';
 
 export interface KindMeta {
   label: string;
@@ -62,6 +62,61 @@ export function isSafeLink(url: string | null | undefined): url is string {
   } catch {
     return false;
   }
+}
+
+// ─── Segmentación (sistema y versión) ──────────────────────
+export type AppPlatform = Exclude<AnnouncementPlatform, 'all'> | 'unknown';
+
+export const PLATFORM_LABEL: Record<AnnouncementPlatform, string> = {
+  all: 'Todos los sistemas',
+  mac: 'Solo macOS',
+  windows: 'Solo Windows',
+  linux: 'Solo Linux',
+};
+
+/** `process.platform` de Electron → plataforma de los anuncios. */
+export function toAppPlatform(nodePlatform: string | undefined): AppPlatform {
+  if (nodePlatform === 'darwin') return 'mac';
+  if (nodePlatform === 'win32') return 'windows';
+  if (nodePlatform === 'linux') return 'linux';
+  return 'unknown';
+}
+
+const VERSION_RE = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+
+export function isValidVersion(v: string): boolean {
+  return VERSION_RE.test(v);
+}
+
+/** Compara "1.4.0" con "1.10.2" numéricamente (-1, 0, 1); null si alguna no es válida. */
+export function compareVersions(a: string, b: string): number | null {
+  const pa = VERSION_RE.exec(a);
+  const pb = VERSION_RE.exec(b);
+  if (!pa || !pb) return null;
+  for (let i = 1; i <= 3; i++) {
+    const d = Number(pa[i]) - Number(pb[i]);
+    if (d !== 0) return d < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
+export interface AudienceContext {
+  platform: AppPlatform;
+  /** null = no se pudo leer (entonces no se filtra por versión). */
+  version: string | null;
+}
+
+/** ¿Debe ver este anuncio esta instalación? Ante la duda (contexto desconocido) sí. */
+export function matchesAudience(
+  a: Pick<Announcement, 'platform' | 'belowVersion'>,
+  ctx: AudienceContext
+): boolean {
+  if (a.platform && a.platform !== 'all' && ctx.platform !== 'unknown' && a.platform !== ctx.platform) return false;
+  if (a.belowVersion && ctx.version) {
+    const cmp = compareVersions(ctx.version, a.belowVersion);
+    if (cmp !== null && cmp >= 0) return false; // ya tiene esa versión o una más nueva
+  }
+  return true;
 }
 
 // ─── Descartados (por dispositivo) ─────────────────────────

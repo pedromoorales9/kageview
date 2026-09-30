@@ -10,6 +10,10 @@
 import {
   AccountBackend,
   AdminStats,
+  AdminUser,
+  AdminUserPage,
+  AuditEntry,
+  SignupPoint,
   Announcement,
   AnnouncementInput,
   AppRole,
@@ -65,6 +69,10 @@ interface MockDb {
   announcements: Announcement[];
   nextAnnouncementId: number;
   switches: ProviderSwitch[];
+  audit: AuditEntry[];
+  nextAuditId: number;
+  /** userId → motivo */
+  suspensions: Record<string, string>;
 }
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
@@ -118,10 +126,16 @@ function seed(): MockDb {
         body: 'Ya puedes crear tu cuenta, añadir amigos y chatear con ellos desde la pestaña Amigos.',
         linkUrl: null, linkLabel: null, active: true,
         startsAt: ago(60 * 24), expiresAt: null, createdAt: ago(60 * 24),
+        platform: 'all', belowVersion: null,
       },
     ],
     nextAnnouncementId: 2,
     switches: [],
+    audit: [
+      { id: 1, actor: 'kage', action: 'announcement.create', target: '1', detail: { title: 'Novedades de la 1.3', kind: 'update' }, createdAt: ago(60 * 24) },
+    ],
+    nextAuditId: 2,
+    suspensions: {},
   };
 }
 
@@ -137,6 +151,10 @@ function load(): MockDb {
       db.announcements ??= fresh.announcements;
       db.nextAnnouncementId ??= fresh.nextAnnouncementId;
       db.switches ??= [];
+      db.audit ??= fresh.audit;
+      db.nextAuditId ??= fresh.nextAuditId;
+      db.suspensions ??= {};
+      for (const a of db.announcements) { a.platform ??= 'all'; a.belowVersion ??= null; }
       // usuarios de ejemplo añadidos después (p. ej. el owner) y roles antiguos
       for (const su of fresh.users) if (!db.users.some((u) => u.id === su.id)) db.users.push(su);
       for (const u of db.users) u.profile.role ??= u.id === 'seed-kage' ? 'owner' : u.id === 'seed-sora' ? 'admin' : 'user';
@@ -188,6 +206,14 @@ export class MockBackend implements AccountBackend {
   private emitMessage(m: ChatMessage) {
     const me = this.db.sessionUserId;
     if (m.senderId === me || m.recipientId === me) this.messageListeners.forEach((cb) => cb({ ...m }));
+  }
+  /** Un usuario suspendido no escribe, no pide amistad ni publica actividad. */
+  private assertActive(userId: string) {
+    if (userId in this.db.suspensions) throw new BackendError('suspended');
+  }
+  private log(action: string, target: string | null, detail: Record<string, unknown> = {}) {
+    const actor = this.db.users.find((u) => u.id === this.db.sessionUserId)?.profile.username ?? 'sistema';
+    this.db.audit.push({ id: this.db.nextAuditId++, actor, action, target, detail, createdAt: new Date().toISOString() });
   }
   private areFriends(a: string, b: string) {
     return this.db.friendships.some(
@@ -279,6 +305,7 @@ export class MockBackend implements AccountBackend {
   }
   async updateMyProfile(patch: ProfilePatch) {
     const me = this.me();
+    this.assertActive(me.id);
     if (patch.username !== undefined) {
       const u = patch.username.trim().toLowerCase();
       if (!USERNAME_RE.test(u)) throw new BackendError('invalid_username');
@@ -389,6 +416,7 @@ export class MockBackend implements AccountBackend {
   }
   async sendFriendRequest(userId: string): Promise<'sent' | 'accepted'> {
     const me = this.me();
+    this.assertActive(me.id);
     if (userId === me.id) throw new BackendError('unknown', 'invalid target');
     if (!this.db.users.some((u) => u.id === userId)) throw new BackendError('not_found');
     const existing = this.db.friendships.find(
@@ -448,6 +476,7 @@ export class MockBackend implements AccountBackend {
   }
   async sendMessage(friendId: string, input: SendMessageInput): Promise<ChatMessage> {
     const me = this.me();
+    this.assertActive(me.id);
     if (friendId === me.id || !this.areFriends(me.id, friendId)) throw new BackendError('not_friends');
     const kind = input.kind ?? 'text';
     const body = (input.body ?? '').slice(0, 2000);
@@ -531,6 +560,7 @@ export class MockBackend implements AccountBackend {
   // ─── Actividad ───────────────────────────────────────────
   async setActivity(a: ActivityInput) {
     const me = this.me();
+    this.assertActive(me.id);
     this.db.activity = this.db.activity.filter((x) => x.userId !== me.id);
     this.db.activity.push({ ...a, userId: me.id, active: true, updatedAt: new Date().toISOString() });
     this.save();
@@ -598,32 +628,48 @@ export class MockBackend implements AccountBackend {
       active: input.active ?? true,
       startsAt: input.startsAt ?? new Date().toISOString(),
       expiresAt: input.expiresAt ?? null,
+      platform: input.platform ?? 'all',
+      belowVersion: input.belowVersion ?? null,
     };
+    if (values.belowVersion && !/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(values.belowVersion)) {
+      throw new BackendError('unknown', 'invalid version');
+    }
     let out: Announcement;
     if (id === undefined) {
       out = { id: this.db.nextAnnouncementId++, createdAt: new Date().toISOString(), ...values };
       this.db.announcements.push(out);
+      this.log('announcement.create', String(out.id), { title: out.title, kind: out.kind, display: out.display });
     } else {
       const cur = this.db.announcements.find((a) => a.id === id);
       if (!cur) throw new BackendError('forbidden');
+      const wasActive = cur.active;
       Object.assign(cur, values);
       out = cur;
+      if (wasActive !== cur.active) this.log(cur.active ? 'announcement.resume' : 'announcement.pause', String(id), { title: cur.title });
+      else this.log('announcement.update', String(id), { title: cur.title });
     }
     this.save();
     return { ...out };
   }
   async adminDeleteAnnouncement(id: number): Promise<void> {
     this.staff();
-    const before = this.db.announcements.length;
+    const gone = this.db.announcements.find((a) => a.id === id);
+    if (!gone) throw new BackendError('forbidden');
     this.db.announcements = this.db.announcements.filter((a) => a.id !== id);
-    if (this.db.announcements.length === before) throw new BackendError('forbidden');
+    this.log('announcement.delete', String(id), { title: gone.title, kind: gone.kind });
     this.save();
   }
   async adminSetProviderSwitch(providerId: string, reason: string | null): Promise<void> {
     this.staff();
+    const prev = this.db.switches.find((s) => s.providerId === providerId);
     this.db.switches = this.db.switches.filter((s) => s.providerId !== providerId);
     if (reason !== null) {
-      this.db.switches.push({ providerId, reason: reason.trim().slice(0, 200), updatedAt: new Date().toISOString() });
+      const clean = reason.trim().slice(0, 200);
+      this.db.switches.push({ providerId, reason: clean, updatedAt: new Date().toISOString() });
+      if (!prev) this.log('service.disable', providerId, { reason: clean });
+      else if (prev.reason !== clean) this.log('service.reason', providerId, { reason: clean });
+    } else if (prev) {
+      this.log('service.enable', providerId);
     }
     this.save();
   }
@@ -650,7 +696,59 @@ export class MockBackend implements AccountBackend {
     const target = this.db.users.find((u) => u.id === userId);
     if (!target) throw new BackendError('not_found');
     if (target.profile.role === 'owner') throw new BackendError('forbidden');
+    if (target.profile.role !== role) this.log('team.role', target.profile.username, { from: target.profile.role, to: role });
     target.profile.role = role;
     this.save();
+  }
+
+  async adminListUsers(opts: { query?: string; limit?: number; offset?: number } = {}): Promise<AdminUserPage> {
+    this.staff();
+    const needle = (opts.query ?? '').trim().toLowerCase();
+    const matches = this.db.users
+      .filter((u) => !needle || u.profile.username.includes(needle) || (u.profile.displayName ?? '').toLowerCase().includes(needle))
+      .sort((a, b) => b.profile.createdAt.localeCompare(a.profile.createdAt));
+    const limit = Math.max(1, Math.min(opts.limit ?? 25, 100));
+    const offset = Math.max(0, opts.offset ?? 0);
+    const users: AdminUser[] = matches.slice(offset, offset + limit).map((u) => ({
+      profile: this.pub(u.id),
+      role: u.profile.role,
+      createdAt: u.profile.createdAt,
+      lastActive: this.db.activity.find((a) => a.userId === u.id)?.updatedAt ?? null,
+      suspended: u.id in this.db.suspensions,
+      suspendedReason: this.db.suspensions[u.id] ?? null,
+    }));
+    return { users, total: matches.length };
+  }
+  async adminSetSuspended(userId: string, suspended: boolean, reason = ''): Promise<void> {
+    this.staff();
+    const target = this.db.users.find((u) => u.id === userId);
+    if (!target) throw new BackendError('not_found');
+    if (target.profile.role !== 'user') throw new BackendError('forbidden');
+    if (suspended) {
+      this.db.suspensions[userId] = reason.trim().slice(0, 200);
+      this.log('user.suspend', target.profile.username, { reason: this.db.suspensions[userId] });
+    } else {
+      delete this.db.suspensions[userId];
+      this.log('user.unsuspend', target.profile.username);
+    }
+    this.save();
+  }
+  async adminAuditLog(opts: { before?: number; limit?: number } = {}): Promise<AuditEntry[]> {
+    this.staff();
+    return this.db.audit
+      .filter((e) => opts.before === undefined || e.id < opts.before)
+      .sort((a, b) => b.id - a.id)
+      .slice(0, Math.min(opts.limit ?? 30, 100))
+      .map((e) => ({ ...e }));
+  }
+  async adminSignups(days = 30): Promise<SignupPoint[]> {
+    this.staff();
+    const span = Math.max(7, Math.min(days, 90));
+    const out: SignupPoint[] = [];
+    for (let i = span - 1; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10);
+      out.push({ day: d, count: this.db.users.filter((u) => u.profile.createdAt.slice(0, 10) === d).length });
+    }
+    return out;
   }
 }

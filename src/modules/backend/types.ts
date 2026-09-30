@@ -37,6 +37,7 @@ export type BackendErrorCode =
   | 'file_too_large'
   | 'not_friends'
   | 'forbidden'
+  | 'suspended'
   | 'too_many_messages'
   | 'invalid_file'
   | 'network'
@@ -204,6 +205,9 @@ export const CHAT_MAX_LENGTH = 2000;
 export type AnnouncementKind = 'info' | 'update' | 'event' | 'warning' | 'maintenance';
 export type AnnouncementDisplay = 'banner' | 'modal';
 
+/** A quién se muestra el anuncio (según el sistema operativo de la app). */
+export type AnnouncementPlatform = 'all' | 'mac' | 'windows' | 'linux';
+
 export interface Announcement {
   id: number;
   kind: AnnouncementKind;
@@ -216,6 +220,10 @@ export interface Announcement {
   startsAt: string;
   expiresAt: string | null;
   createdAt: string;
+  /** Solo para este sistema ('all' = todos). */
+  platform: AnnouncementPlatform;
+  /** Solo para versiones ANTERIORES a esta ("1.4.0"); null = todas. */
+  belowVersion: string | null;
 }
 
 export interface AnnouncementInput {
@@ -230,6 +238,8 @@ export interface AnnouncementInput {
   startsAt?: string;
   /** ISO; null = no caduca. */
   expiresAt?: string | null;
+  platform?: AnnouncementPlatform;
+  belowVersion?: string | null;
 }
 
 export const ANNOUNCEMENT_LIMITS = { title: 80, body: 600, linkLabel: 30, linkUrl: 500 } as const;
@@ -252,6 +262,40 @@ export interface AdminStats {
   /** Usuarios con "viendo ahora" activo en los últimos 15 min. */
   watchingNow: number;
   announcementsLive: number;
+}
+
+/** Usuario tal y como lo ve el staff (sin correo: es un dato privado). */
+export interface AdminUser {
+  profile: PublicProfile;
+  role: AppRole;
+  createdAt: string;
+  /** Último "viendo ahora" publicado (aproxima la última actividad). */
+  lastActive: string | null;
+  suspended: boolean;
+  suspendedReason: string | null;
+}
+
+export interface AdminUserPage {
+  users: AdminUser[];
+  /** Coincidencias totales de la búsqueda (para paginar). */
+  total: number;
+}
+
+/** Entrada del registro de auditoría del equipo. */
+export interface AuditEntry {
+  id: number;
+  actor: string;
+  /** p. ej. `announcement.create`, `service.disable`, `user.suspend`, `team.role`. */
+  action: string;
+  target: string | null;
+  detail: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface SignupPoint {
+  /** YYYY-MM-DD */
+  day: string;
+  count: number;
 }
 
 // ─── Interfaz ──────────────────────────────────────────────
@@ -330,4 +374,10 @@ export interface AccountBackend {
   adminListStaff(): Promise<StaffMember[]>;
   /** Solo el owner. Nombra o quita administradores. */
   adminSetRole(userId: string, role: 'user' | 'admin'): Promise<void>;
+  adminListUsers(opts?: { query?: string; limit?: number; offset?: number }): Promise<AdminUserPage>;
+  /** Suspende (sin chat, solicitudes ni actividad) o reactiva a un usuario normal. */
+  adminSetSuspended(userId: string, suspended: boolean, reason?: string): Promise<void>;
+  /** Más recientes primero; `before` = id de la última entrada cargada. */
+  adminAuditLog(opts?: { before?: number; limit?: number }): Promise<AuditEntry[]>;
+  adminSignups(days?: number): Promise<SignupPoint[]>;
 }
