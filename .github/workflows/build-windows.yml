@@ -1,0 +1,33 @@
+# Compila el instalador de Windows (NSIS) en un runner de Windows y lo deja como
+# artefacto del workflow: KageView-Setup-X.Y.Z.exe, su .blockmap y latest.yml
+# (lo que lee electron-updater). Se lanza a mano: Actions → Build Windows → Run.
+#
+# Secrets necesarios (Settings → Secrets and variables → Actions):
+#   SUPABASE_URL, SUPABASE_ANON_KEY   (públicos por diseño; ver supabase/README.md)
+name: Build Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run dist:win
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          if-no-files-found: error
+          path: |
+            release/build/KageView-Setup-*.exe
+            release/build/KageView-Setup-*.exe.blockmap
+            release/build/latest.yml
