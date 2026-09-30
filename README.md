@@ -250,6 +250,13 @@ src/
 
 ## 📋 Changelog
 
+### v1.4.0 — Panel de administración y anuncios para todos
+- **Roles y panel de administración** — nuevos roles *owner* y *admin* (Ajustes → Administración, solo visible para el equipo) con insignia en el perfil. La autorización la impone la base de datos (RLS), no la interfaz; el rol no se puede cambiar desde la app
+- **Anuncios para todos los usuarios** — banner descartable o ventana emergente, con tipo (información, novedad, evento, aviso, mantenimiento), enlace, programación, caducidad, borradores y reenvío. Los ve todo el mundo, incluso sin sesión
+- **Servicios apagables** — desactiva AnimeFLV, MangaDex… para todos con el motivo visible cuando una página se cae
+- **Equipo y resumen** — el owner nombra o quita administradores; cifras agregadas de usuarios y actividad (sin ver listas ni mensajes)
+- Se retira el panel de desarrollador antiguo (contraseña + token de GitHub). Requiere aplicar `supabase/migrations/20261001000004_admin.sql`
+
 ### v1.3.0 — Rediseño para macOS, cuentas, amigos e instalador .dmg
 - **Rediseño completo "Luna de sangre"** — nueva identidad a partir del logo: tinta con matiz vino, luna carmesí y sakura. Ventana nativa de macOS (semáforos integrados, *vibrancy*), barra lateral estilo Finder, barra superior de cristal con búsqueda ⌘K, héroe cinematográfico con lluvia de pétalos y nueva intro
 - **Cuentas propias (Supabase)** — registro con correo y contraseña, foto de perfil, listas (Viendo, Completado, Por ver…) y recuperación de contraseña. AniList pasa a ser solo el catálogo público: ya no hace falta cuenta de AniList
