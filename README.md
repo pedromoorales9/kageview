@@ -250,6 +250,16 @@ src/
 
 ## 📋 Changelog
 
+### v1.4.1 — Panel de administración v2 y corrección de Servicios
+- **Corregido:** activar/desactivar servicios en el panel fallaba con «sesión caducada» aunque la sesión estuviera bien (era un permiso de la base de datos, mal explicado). Ahora funciona y, si falta un permiso, el mensaje lo dice claro
+- **Nuevo menú lateral** con Resumen, Anuncios, Servicios, Usuarios, Equipo y Registro
+- **Resumen** con gráfica de registros por día (7/30/90 días), actividad reciente del equipo y aviso si hay servicios apagados
+- **Usuarios** — búsqueda y moderación: se puede **suspender** a alguien (conserva su cuenta pero no puede escribir mensajes, enviar solicitudes, publicar «viendo ahora» ni editar su perfil). Nunca a un admin ni al owner. Sin mostrar correos
+- **Registro de actividad** — todo lo que hace el equipo queda anotado (quién, qué y cuándo) y nadie puede editarlo ni borrarlo
+- **Anuncios** — plantillas (nueva versión, mantenimiento, servicio caído…), **segmentación** por sistema (macOS/Windows/Linux) y por «versiones anteriores a X», filtros por estado, búsqueda y duplicar
+- **Servicios** — desde cuándo está apagado cada uno, motivos rápidos y «Reactivar todos»
+- Requiere aplicar `supabase/migrations/20261001000005_admin_v2.sql`
+
 ### v1.4.0 — Panel de administración y anuncios para todos
 - **Roles y panel de administración** — nuevos roles *owner* y *admin* (Ajustes → Administración, solo visible para el equipo) con insignia en el perfil. La autorización la impone la base de datos (RLS), no la interfaz; el rol no se puede cambiar desde la app
 - **Anuncios para todos los usuarios** — banner descartable o ventana emergente, con tipo (información, novedad, evento, aviso, mantenimiento), enlace, programación, caducidad, borradores y reenvío. Los ve todo el mundo, incluso sin sesión
