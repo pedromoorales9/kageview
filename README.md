@@ -39,7 +39,7 @@
 | 📅 **Calendario de emisión** | Vista semanal con cuenta atrás en tiempo real para nuevos episodios |
 | 🔔 **Notificaciones** | Aviso nativo de Windows cuando sale un episodio nuevo hoy |
 | 🎨 **Cinematic Shadow UI** | Design system oscuro con glows y glassmorphism |
-| 🔄 **Auto-updater** | Actualizaciones silenciosas automáticas en segundo plano |
+| 🔄 **Auto-updater** | Avisa de cada versión nueva y se actualiza sola, en Windows y en macOS |
 | 🎮 **Discord Rich Presence** | Muestra el anime y episodio que estás viendo en tu perfil de Discord (opcional) |
 | 💾 **Preferencias persistentes** | Idioma, providers, skips y ajustes se conservan entre sesiones |
 
@@ -87,6 +87,8 @@ KageView conecta múltiples fuentes y cambia automáticamente si una falla. Pued
    - **macOS 15 (Sequoia) o posterior:** intenta abrir KageView → *Ajustes del Sistema → Privacidad y seguridad* → baja hasta el aviso de KageView y pulsa **Abrir igualmente**.
    - **macOS 14 o anterior:** en *Aplicaciones*, **clic derecho sobre KageView → Abrir → Abrir**.
 3. Si macOS dijera que la app "está dañada", abre la Terminal y ejecuta: `xattr -dr com.apple.quarantine /Applications/KageView.app`
+
+**Actualizaciones:** a partir de la 1.5.0, KageView se actualiza sola también en Mac (avisa al abrir; basta pulsar *Inicializar actualización* y *Reiniciar e instalar*). No hace falta volver a autorizarla. Si la app no está en *Aplicaciones* (o macOS la ejecuta aislada), el aviso te lo explica y ofrece descargar a mano.
 
 ---
 
@@ -174,7 +176,7 @@ npm run dist:mac
 Genera `release/build/KageView-x.x.x-mac.dmg`: un único instalador **universal** (Apple Silicon + Intel) con ventana de instalación propia (fondo, tarjetas y flecha "arrastra a Aplicaciones"). Necesita el `.env` con las claves públicas de Supabase, que se incrustan en la build.
 
 - **Iconos y fondo del instalador:** se generan con `npm run assets:build` (`scripts/make-icons.js` recorta el logo y crea `build/icon.icns`; `scripts/make-dmg-background.js` renderiza `scripts/dmg-background.html` a `build/dmg-background.tiff`). Solo hay que repetirlo si cambian `assets/icon.png` o el diseño del fondo.
-- **Firma:** sin certificado, la app se firma *ad-hoc* (necesario para arrancar en Apple Silicon) y los usuarios deben autorizarla la primera vez (ver arriba). Con una cuenta de [Apple Developer Program](https://developer.apple.com/programs/) (99 $/año) se elimina ese paso: define `CSC_LINK` + `CSC_KEY_PASSWORD` (certificado *Developer ID Application*) y las credenciales de notarización `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, y el mismo `npm run dist:mac` firma con *hardened runtime*, notariza y genera también el `.zip` que permite la actualización automática. Ver `electron-builder.config.js`.
+- **Firma:** sin certificado, la app se firma *ad-hoc* (necesario para arrancar en Apple Silicon) y los usuarios deben autorizarla la primera vez (ver arriba). Con una cuenta de [Apple Developer Program](https://developer.apple.com/programs/) (99 $/año) se elimina ese paso: define `CSC_LINK` + `CSC_KEY_PASSWORD` (certificado *Developer ID Application*) y las credenciales de notarización `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, y el mismo `npm run dist:mac` firma con *hardened runtime* y notariza. La actualización automática **no** depende de ello: en Mac usa un actualizador propio (`src/main/macUpdater.ts`) que descarga el `.zip` de la release, comprueba su SHA-512 (de `latest-mac.yml`) y sustituye la app al reiniciar. **Al publicar una release hay que subir también `KageView-x.y.z-mac.zip` y `latest-mac.yml`** (además del `.dmg`). Ver `electron-builder.config.js`.
 - **Publicar:** sube a la release de GitHub el `.dmg` y `latest-mac.yml`.
 
 ---
@@ -189,7 +191,7 @@ Tailwind CSS 3       →  Estilos con design tokens
 Zustand 4            →  Estado global
 HLS.js               →  Streaming HLS nativo
 electron-store 8     →  Persistencia local cifrada
-electron-updater 6   →  Auto-actualizaciones desde GitHub Releases
+electron-updater 6   →  Auto-actualizaciones (Windows) desde GitHub Releases; en macOS, actualizador propio
 AniList GraphQL v2   →  Catálogo público de anime (sin cuenta)
 Supabase            →  Cuentas, listas, amigos y "viendo ahora" (RLS + Realtime)
 AniSkip API v2       →  Timestamps de intro/outro

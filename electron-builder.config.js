@@ -15,7 +15,12 @@
 //         CSC_LINK / CSC_KEY_PASSWORD   (o tener el certificado en el llavero)
 //         APPLE_API_KEY, APPLE_API_KEY_ID, APPLE_API_ISSUER   (notarización)
 //     y el mismo comando firma con hardened runtime y notariza. Entonces los
-//     usuarios abren la app sin avisos y la autoactualización funciona.
+//     usuarios abren la app sin avisos.
+//   · Autoactualización en macOS: NO depende de la firma. Squirrel.Mac (electron-updater)
+//     exige Developer ID, así que la app usa su propio actualizador
+//     (src/main/macUpdater.ts): baja el .zip de la release, verifica su SHA-512 con
+//     latest-mac.yml y sustituye la app al reiniciar. Por eso cada release de Mac debe
+//     publicar el .dmg, el .zip y latest-mac.yml.
 // ═══════════════════════════════════════════════════════════
 
 const hasDeveloperId = Boolean(process.env.CSC_LINK || process.env.CSC_NAME);
@@ -41,10 +46,12 @@ module.exports = {
   // ─── macOS ───────────────────────────────────────────────
   mac: {
     // Un único .dmg que sirve para Apple Silicon e Intel
-    target: [{ target: 'dmg', arch: ['universal'] }].concat(
-      // El .zip solo hace falta para la autoactualización, que exige firma real
-      hasDeveloperId ? [{ target: 'zip', arch: ['universal'] }] : []
-    ),
+    // El .zip lo descarga el actualizador de la app (src/main/macUpdater.ts) junto con
+    // latest-mac.yml; el .dmg es para la instalación manual la primera vez.
+    target: [
+      { target: 'dmg', arch: ['universal'] },
+      { target: 'zip', arch: ['universal'] },
+    ],
     icon: 'build/icon.icns',
     category: 'public.app-category.entertainment',
     darkModeSupport: true,

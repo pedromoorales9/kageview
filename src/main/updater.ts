@@ -1,13 +1,21 @@
 import { autoUpdater } from 'electron-updater';
 import { BrowserWindow, ipcMain } from 'electron';
 import log from 'electron-log';
+import { initMacUpdater } from './macUpdater';
 
 export function initUpdater(mainWindow: BrowserWindow) {
+  // macOS: electron-updater (Squirrel.Mac) exige firma de Developer ID, que no
+  // tenemos → actualizador propio con los mismos eventos y comandos IPC.
+  if (process.platform === 'darwin') {
+    initMacUpdater(mainWindow);
+    return;
+  }
+
   autoUpdater.logger = log;
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
 
-  if (process.env.NODE_ENV === 'production' && process.platform !== 'darwin') {
+  if (process.env.NODE_ENV === 'production') {
     autoUpdater.checkForUpdates();
   }
 

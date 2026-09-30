@@ -178,14 +178,8 @@ export function UpdaterModal() {
             {state.status === 'available' && (
               <button
                 onClick={() => {
-                  const isMac = navigator.userAgent.toLowerCase().includes('mac os');
-                  if (isMac) {
-                    window.open('https://github.com/pedromoorales9/KageView/releases/latest');
-                    setDismissed(true);
-                  } else {
-                    setState({ status: 'downloading', percent: 0 });
-                    window.electron.updaterDownload();
-                  }
+                  setState({ status: 'downloading', percent: 0 });
+                  window.electron.updaterDownload();
                 }}
                 className="group relative w-full py-5 rounded-full font-headline font-extrabold text-sm tracking-[0.1em] text-on-primary-fixed flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                 style={{
@@ -193,12 +187,9 @@ export function UpdaterModal() {
                   boxShadow: '0 0 20px 2px rgba(255, 143, 168, 0.2)'
                 }}
               >
-                {(() => {
-                  const isMac = navigator.userAgent.toLowerCase().includes('mac os');
-                  return isMac ? 'DESCARGAR MANUALMENTE' : 'INICIALIZAR ACTUALIZACIÓN';
-                })()}
+                INICIALIZAR ACTUALIZACIÓN
                 <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">
-                  {navigator.userAgent.toLowerCase().includes('mac os') ? 'open_in_new' : 'bolt'}
+                  bolt
                 </span>
               </button>
             )}
@@ -227,14 +218,14 @@ export function UpdaterModal() {
                 >
                   {state.status === 'error' ? 'Cerrar' : 'Actualizar después'}
                 </button>
-                {state.status === 'available' && (
+                {(state.status === 'available' || state.status === 'error') && (
                   <>
                     <div className="w-1 h-1 rounded-full bg-outline-variant" />
                     <button
-                      onClick={() => window.open('https://github.com/pedromoorales9/KageView/releases/latest')}
+                      onClick={() => window.electron?.openExternal('https://github.com/pedromoorales9/kageview/releases/latest')}
                       className="text-on-surface-variant font-headline text-[11px] font-bold tracking-[0.15em] uppercase hover:text-secondary transition-colors"
                     >
-                      Ver Changelog completo
+                      {state.status === 'error' ? 'Descargar manualmente' : 'Ver Changelog completo'}
                     </button>
                   </>
                 )}
