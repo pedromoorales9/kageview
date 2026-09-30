@@ -254,7 +254,7 @@ export default function MangaReader({
         <div className="flex items-center gap-6 pointer-events-auto">
           <button
             onClick={onExit}
-            className="w-12 h-12 flex items-center justify-center rounded-full bg-surface-container-high/40 backdrop-blur-md text-on-surface hover:bg-surface-bright hover:text-primary transition-all duration-300 group"
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-surface-container-high/70 text-on-surface hover:bg-surface-bright hover:text-primary transition-all duration-300 group"
           >
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
@@ -448,7 +448,7 @@ export default function MangaReader({
       </div>
 
       {/* Grand Unified Dashboard - Bottom Float */}
-      <nav className="fixed bottom-6 lg:bottom-10 left-1/2 -translate-x-1/2 z-50 flex items-center px-4 py-2 bg-[#1A1820]/90 backdrop-blur-2xl rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] border border-white/5">
+      <nav className="fixed bottom-6 lg:bottom-10 left-1/2 -translate-x-1/2 z-50 flex items-center px-4 py-2 bg-[#1a0d14]/95 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] border border-white/5">
         
         {/* Pagination Section (Visible mainly in single/double mode, but kept for chapter tracking in cascade) */}
         <div className="flex items-center gap-1 sm:gap-2 pr-6 border-r border-white/10">
@@ -500,7 +500,7 @@ export default function MangaReader({
         <div className="flex items-center gap-1.5 px-6 border-r border-white/10">
           <button 
             onClick={() => setReadingMode('single')}
-            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${readingMode === 'single' ? 'bg-[#E3C6FF] text-[#30005C] shadow-[0_0_20px_rgba(227,198,255,0.4)]' : 'text-on-surface-variant hover:bg-white/5 hover:text-white'}`}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${readingMode === 'single' ? 'bg-[#ffc2d1] text-[#3a0a18] shadow-[0_0_20px_rgba(227,198,255,0.4)]' : 'text-on-surface-variant hover:bg-white/5 hover:text-white'}`}
             title="Por Páginas"
           >
             <span className="material-symbols-outlined text-xl">description</span>
@@ -508,7 +508,7 @@ export default function MangaReader({
           
           <button 
             onClick={() => setReadingMode('cascade')}
-            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${readingMode === 'cascade' ? 'bg-[#E3C6FF] text-[#30005C] shadow-[0_0_20px_rgba(227,198,255,0.4)]' : 'text-on-surface-variant hover:bg-white/5 hover:text-white'}`}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${readingMode === 'cascade' ? 'bg-[#ffc2d1] text-[#3a0a18] shadow-[0_0_20px_rgba(227,198,255,0.4)]' : 'text-on-surface-variant hover:bg-white/5 hover:text-white'}`}
             title="Cascada"
           >
             <span className="material-symbols-outlined text-xl">view_day</span>
@@ -516,7 +516,7 @@ export default function MangaReader({
 
           <button
             onClick={() => { setReadingMode('double'); setPageIndex((i) => i - (i % 2)); }}
-            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${readingMode === 'double' ? 'bg-[#E3C6FF] text-[#30005C] shadow-[0_0_20px_rgba(227,198,255,0.4)]' : 'text-on-surface-variant hover:bg-white/5 hover:text-white'}`}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${readingMode === 'double' ? 'bg-[#ffc2d1] text-[#3a0a18] shadow-[0_0_20px_rgba(227,198,255,0.4)]' : 'text-on-surface-variant hover:bg-white/5 hover:text-white'}`}
             title="Lectura Doble"
           >
             <span className="material-symbols-outlined text-xl">menu_book</span>
@@ -535,7 +535,7 @@ export default function MangaReader({
               max="100" 
               value={brightness}
               onChange={(e) => setBrightness(Number(e.target.value))}
-              className="w-24 h-1.5 bg-surface-variant/30 rounded-full appearance-none cursor-pointer accent-[#E3C6FF] transition-all group-hover:bg-surface-variant/50"
+              className="w-24 h-1.5 bg-surface-variant/30 rounded-full appearance-none cursor-pointer accent-[#ffc2d1] transition-all group-hover:bg-surface-variant/50"
             />
           </div>
           

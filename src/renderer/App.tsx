@@ -7,6 +7,10 @@ import { getSkipTimes } from '../modules/aniskip';
 import { recordWatch, updateWatchPosition, flushWatchPosition, ContinueWatchingItem } from '../modules/watchHistory';
 import { fetchRemoteConfig, isAnnouncementUnseen, markAnnouncementSeen } from '../modules/remoteConfig';
 import { evaluateAchievements } from '../modules/achievements';
+import { initAccount } from '../modules/account';
+import { markStarted, saveProgress as saveListProgress } from '../modules/library';
+import { startWatching, stopWatching } from '../modules/presence';
+import { NOTICE_EVENT, Notice } from '../modules/notify';
 import { useToast } from './components/ui/Toast';
 import useAniList from './hooks/useAniList';
 import useProvider from './hooks/useProvider';
@@ -19,6 +23,9 @@ import SettingsPage from './pages/SettingsPage';
 import OraclePage from './pages/OraclePage';
 import CalendarPage from './pages/CalendarPage';
 import MangaPage from './pages/MangaPage';
+import FriendsPage from './pages/FriendsPage';
+import AuthModal from './components/account/AuthModal';
+import ProfileModal from './components/account/ProfileModal';
 import AnimeModal from './components/modals/AnimeModal';
 import HistoryModal from './components/modals/HistoryModal';
 import AchievementsModal from './components/modals/AchievementsModal';
@@ -31,7 +38,7 @@ import SplashScreen from './components/ui/SplashScreen';
 import DemonOverlay from './components/ui/DemonOverlay';
 import { UpdaterModal } from './components/UpdaterModal';
 
-type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings' | 'calendar' | 'manga';
+type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings' | 'calendar' | 'manga' | 'friends';
 
 interface MangaReaderConfig {
   manga: MangaModel;
@@ -60,7 +67,8 @@ export default function App() {
   const [mangaModal, setMangaModal] = useState<MangaModel | null>(null);
   const [mangaReaderConfig, setMangaReaderConfig] = useState<MangaReaderConfig | null>(null);
 
-  const user = useAppStore((s) => s.user);
+  const authModalOpen = useAppStore((s) => s.authModal !== null);
+  const profileModalOpen = useAppStore((s) => s.profileModalOpen);
   const prefs = useAppStore((s) => s.prefs);
   const setPrefs = useAppStore((s) => s.setPrefs);
   const skipTimes = useAppStore((s) => s.skipTimes);
@@ -68,7 +76,7 @@ export default function App() {
   const setCurrentAnime = useAppStore((s) => s.setCurrentAnime);
   const setCurrentEpisode = useAppStore((s) => s.setCurrentEpisode);
 
-  const { initSession, saveProgress, login, getAnimeDetail } = useAniList();
+  const { getAnimeDetail } = useAniList();
   const { source, loading: sourceLoading, error: sourceError, loadSource, tryNextSource } = useProvider();
   const toast = useToast();
 
@@ -144,28 +152,22 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ─── Inicializar sesión al montar ────────────────────────
+  // ─── Inicializar la cuenta (Supabase) al montar ──────────
   useEffect(() => {
-    initSession();
+    initAccount();
 
-    // Escuchar el access_token de AniList desde el deep link (implicit grant)
-    if (window.electron) {
-      window.electron.onOAuthCode(async (token: string) => {
-        console.log('[App] Token de AniList recibido desde deep link');
-        try {
-          await login(token);
-        } catch (err) {
-          console.error('[App] Error al iniciar sesión con AniList:', err);
-        }
-      });
-    }
-
-    return () => {
-      if (window.electron) {
-        window.electron.removeOAuthListener();
-      }
+    // Avisos que emite la lógica fuera de React (listas, enlaces del correo…)
+    const onNotice = (e: Event) => {
+      const n = (e as CustomEvent<Notice>).detail;
+      if (n) toast[n.type](n.message, n.title);
     };
-  }, [initSession, login]);
+    window.addEventListener(NOTICE_EVENT, onNotice);
+    return () => {
+      window.removeEventListener(NOTICE_EVENT, onNotice);
+      window.electron?.removeAuthCallbackListener?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ─── Keyboard shortcuts ────────────────────────────────
   useEffect(() => {
@@ -229,9 +231,15 @@ export default function App() {
     [setSkipTimes]
   );
 
-  /** Actualiza la presencia de Discord con el anime/episodio en curso. */
+  /**
+   * Se llama al empezar CUALQUIER episodio (play, siguiente, anterior,
+   * reanudar): actualiza Discord, publica "viendo ahora" para tus amigos y
+   * asegura que el anime figure como "Viendo" en tu lista.
+   */
   const updateDiscordWatching = useCallback(
     (anime: AniListAnime, episode: number) => {
+      startWatching(anime, episode);
+      markStarted(anime, episode).catch(() => { /* ya se avisó al usuario */ });
       if (!prefs.discordRpc) return;
       window.electron?.discordSetActivity?.({
         details: anime.title.english || anime.title.romaji,
@@ -273,6 +281,7 @@ export default function App() {
     setPlayerConfig(null);
     setCurrentEpisode(null);
     setSkipTimes([]);
+    stopWatching();
     window.electron?.discordClear?.();
     celebrateAchievements();
   }, [setCurrentEpisode, setSkipTimes, celebrateAchievements]);
@@ -284,8 +293,8 @@ export default function App() {
     // Persistir la posición del episodio que se abandona
     flushWatchPosition();
 
-    // Guardar progreso del episodio actual en AniList
-    await saveProgress(playerConfig.anime.id, playerConfig.episode);
+    // Guardar progreso del episodio actual en mi lista (sin bloquear la carga)
+    saveListProgress(playerConfig.anime, playerConfig.episode).catch(() => { /* ya se avisó */ });
 
     setPlayerConfig({ ...playerConfig, episode: nextEp, startAt: undefined });
     setCurrentEpisode(nextEp);
@@ -303,7 +312,7 @@ export default function App() {
 
     // Cargar skip times solo si no es iframe
     loadSkipTimesIfNeeded(playerConfig.anime.idMal, nextEp);
-  }, [playerConfig, loadSource, saveProgress, setCurrentEpisode, loadSkipTimesIfNeeded, updateDiscordWatching]);
+  }, [playerConfig, loadSource, setCurrentEpisode, loadSkipTimesIfNeeded, updateDiscordWatching]);
 
   const handlePrevEpisode = useCallback(async () => {
     if (!playerConfig || playerConfig.episode <= 1) return;
@@ -340,12 +349,24 @@ export default function App() {
     }
   }, [tryNextSource, toast]);
 
+  // Episodio ya marcado como visto en mi lista (evita repetir la petición)
+  const watchedMarkRef = useRef<string | null>(null);
+
   const handleWatchProgress = useCallback(
     (seconds: number, duration: number) => {
       const cfg = playerConfigRef.current;
       if (!cfg) return;
       // Guardar la posición de reproducción para "Continuar viendo"
       updateWatchPosition(cfg.anime, cfg.episode, cfg.mode, seconds, duration);
+
+      // Al pasar el 80 % del episodio cuenta como visto en mi lista
+      if (duration > 0 && seconds / duration >= 0.8) {
+        const key = `${cfg.anime.id}:${cfg.episode}`;
+        if (watchedMarkRef.current !== key) {
+          watchedMarkRef.current = key;
+          saveListProgress(cfg.anime, cfg.episode).catch(() => { watchedMarkRef.current = null; });
+        }
+      }
     },
     []
   );
@@ -397,10 +418,19 @@ export default function App() {
   // ─── Render ────────────────────────────────────────────
   const isPlayerActive = playerConfig !== null && source !== null;
   const isMangaReaderActive = mangaReaderConfig !== null;
-  const userAvatar = user?.avatar?.large || null;
+  // Sidebar + barra superior visibles (no en reproductor ni lector de manga)
+  const showChrome = !isPlayerActive && !isMangaReaderActive;
 
   return (
-    <div className="flex h-screen w-screen bg-background overflow-hidden relative">
+    <div className="flex h-screen w-screen overflow-hidden relative">
+      {/* Fondo ambiental opaco (luna de sangre). En macOS deja libre la
+          zona del sidebar para que se vea el vibrancy nativo. */}
+      <div
+        aria-hidden
+        className="app-ambient fixed inset-y-0 right-0 pointer-events-none"
+        style={{ left: showChrome ? '232px' : 0 }}
+      />
+
       {/* Intro Personalizable */}
       {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
 
@@ -410,12 +440,11 @@ export default function App() {
           <Sidebar
             activePage={activePage}
             onNavigate={setActivePage}
-            userAvatar={userAvatar}
           />
           <TopBar
             activePage={activePage}
-            userAvatar={userAvatar}
             onOpenHistory={() => setShowHistory(true)}
+            onNavigate={setActivePage}
           />
         </>
       )}
@@ -423,8 +452,8 @@ export default function App() {
       {/* Main Content */}
       {!isPlayerActive && !isMangaReaderActive && (
         <main
-          className="flex-1 flex flex-col pt-20 px-6"
-          style={{ marginLeft: '80px' }}
+          className="relative flex-1 min-w-0 flex flex-col pt-[68px] px-8"
+          style={{ marginLeft: '232px' }}
         >
           {activePage === 'discover' && (
             <DiscoverPage onSelectAnime={handleSelectAnime} onResume={handleResume} />
@@ -448,6 +477,7 @@ export default function App() {
           {activePage === 'manga' && (
             <MangaPage onSelectManga={handleSelectManga} />
           )}
+          {activePage === 'friends' && <FriendsPage onSelectAnime={handleSelectAnime} />}
         </main>
       )}
 
@@ -530,6 +560,10 @@ export default function App() {
         />
       )}
 
+      {/* Cuenta: acceso / registro y perfil */}
+      <AuthModal />
+      <ProfileModal />
+
       {/* Actualizador Modal Global */}
       <UpdaterModal />
 
@@ -537,7 +571,8 @@ export default function App() {
       <DemonOverlay
         visible={
           !playerConfig && !isMangaReaderActive &&
-          !modalAnime && !mangaModal && !showHistory && !showAchievements
+          !modalAnime && !mangaModal && !showHistory && !showAchievements &&
+          !authModalOpen && !profileModalOpen
         }
         notificationsEnabled={notificationsEnabled}
         onOpenAchievements={() => setShowAchievements(true)}

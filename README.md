@@ -34,7 +34,7 @@
 | ⏭️ **Auto-play** | Cuenta atrás de 5 segundos para reproducir el siguiente episodio |
 | ⚡ **Fallback automático** | Si un provider falla, el siguiente entra solo sin interrumpir |
 | ⭐ **Proveedor favorito** | Marca tu provider preferido de anime y manga — siempre carga primero |
-| 🔗 **AniList Sync** | Watchlist, progreso de episodios y puntuaciones en tiempo real |
+| 👥 **Cuentas, amigos y chat** | Registro propio (Supabase): tus listas, foto de perfil, amigos, qué están viendo ahora y mensajería en tiempo real (con anime compartido) |
 | 📚 **Manga integrado** | Lector de manga con múltiples fuentes y biblioteca personal |
 | 📅 **Calendario de emisión** | Vista semanal con cuenta atrás en tiempo real para nuevos episodios |
 | 🔔 **Notificaciones** | Aviso nativo de Windows cuando sale un episodio nuevo hoy |
@@ -75,9 +75,18 @@ KageView conecta múltiples fuentes y cambia automáticamente si una falla. Pued
 | Sistema | Archivo | |
 |---------|---------|--|
 | Windows 10/11 | `KageView-Setup-1.2.0.exe` | [**Descargar →**](https://github.com/pedromoorales9/kageview/releases/latest) |
-| Linux / macOS | — | Próximamente |
+| macOS 11+ (Apple Silicon e Intel) | `KageView-x.x.x-mac.dmg` | [**Descargar →**](https://github.com/pedromoorales9/kageview/releases/latest) |
+| Linux | — | Próximamente |
 
-> Si ya tienes KageView instalado, la app se actualiza sola en cuanto detecta una nueva versión.
+> En Windows la app se actualiza sola. En macOS, al haber una versión nueva te avisa y te lleva a la página de descargas.
+
+### 🍎 Instalar en macOS
+
+1. Abre `KageView-x.x.x-mac.dmg` y **arrastra KageView a Aplicaciones**.
+2. La **primera vez**, macOS mostrará un aviso porque la app aún no está firmada con un Developer ID de Apple. Es normal; se autoriza una sola vez:
+   - **macOS 15 (Sequoia) o posterior:** intenta abrir KageView → *Ajustes del Sistema → Privacidad y seguridad* → baja hasta el aviso de KageView y pulsa **Abrir igualmente**.
+   - **macOS 14 o anterior:** en *Aplicaciones*, **clic derecho sobre KageView → Abrir → Abrir**.
+3. Si macOS dijera que la app "está dañada", abre la Terminal y ejecuta: `xattr -dr com.apple.quarantine /Applications/KageView.app`
 
 ---
 
@@ -87,7 +96,7 @@ KageView conecta múltiples fuentes y cambia automáticamente si una falla. Pued
 
 - [Node.js 20+](https://nodejs.org/)
 - npm 9+
-- Credenciales de AniList (ver abajo)
+- (Opcional) Un proyecto de [Supabase](https://supabase.com) para las cuentas (ver abajo)
 
 ### Instalación
 
@@ -97,20 +106,27 @@ cd KageView
 npm install
 ```
 
-### Configurar AniList
+### Configurar las cuentas (Supabase)
 
-KageView usa **OAuth Implicit Grant**, así que solo necesita el `clientId` **público** de la app — no se usa ni se incrusta ningún `clientSecret`. Cada usuario inicia sesión con su propia cuenta.
+Las cuentas, listas, amigos y el "viendo ahora" viven en **Supabase**. AniList solo se usa como catálogo público (tendencias, búsqueda, fichas): ya **no** hace falta cuenta ni credenciales de AniList.
 
-1. Ve a [AniList Developer Settings](https://anilist.co/settings/developer)
-2. Crea una nueva aplicación con Redirect URL: `kageview://auth`
-3. Copia el `clientId`
-4. Crea un archivo `.env` en la raíz (puedes partir de `.env.example`):
+1. Crea un proyecto en [supabase.com](https://supabase.com).
+2. Sigue la guía **[`supabase/README.md`](supabase/README.md)** (aplicar el SQL, configurar el correo y la URL de redirección `kageview://auth-callback`).
+3. Crea un `.env` en la raíz (parte de `.env.example`):
 
 ```bash
-ANILIST_CLIENT_ID=tu_client_id
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_ANON_KEY=tu_anon_key_publica
 ```
 
-> ⚠️ `.env` está en `.gitignore` y persiste entre builds. El valor se inyecta automáticamente en cada compilación, así que no hay que volver a tocar el código.
+> 🔐 La `anon key` es **pública por diseño** (va dentro de la app); los datos los protegen las políticas RLS de `supabase/migrations`, cubiertas por `npm test`. **Nunca** pongas la clave `service_role` en la app ni en el `.env`.
+> Sin estas variables la app funciona igualmente (catálogo y reproducción), pero sin cuentas.
+
+Para probar la interfaz sin proyecto de Supabase existe un backend en memoria **solo para desarrollo** con usuarios de ejemplo:
+
+```bash
+KAGEVIEW_BACKEND=mock npm start
+```
 
 ### Discord Rich Presence (opcional)
 
@@ -147,6 +163,18 @@ npm run dist:win
 
 El instalador se genera en `release/build/KageView-Setup-x.x.x.exe`.
 
+### Compilar instalador macOS
+
+```bash
+npm run dist:mac
+```
+
+Genera `release/build/KageView-x.x.x-mac.dmg`: un único instalador **universal** (Apple Silicon + Intel) con ventana de instalación propia (fondo, tarjetas y flecha "arrastra a Aplicaciones"). Necesita el `.env` con las claves públicas de Supabase, que se incrustan en la build.
+
+- **Iconos y fondo del instalador:** se generan con `npm run assets:build` (`scripts/make-icons.js` recorta el logo y crea `build/icon.icns`; `scripts/make-dmg-background.js` renderiza `scripts/dmg-background.html` a `build/dmg-background.tiff`). Solo hay que repetirlo si cambian `assets/icon.png` o el diseño del fondo.
+- **Firma:** sin certificado, la app se firma *ad-hoc* (necesario para arrancar en Apple Silicon) y los usuarios deben autorizarla la primera vez (ver arriba). Con una cuenta de [Apple Developer Program](https://developer.apple.com/programs/) (99 $/año) se elimina ese paso: define `CSC_LINK` + `CSC_KEY_PASSWORD` (certificado *Developer ID Application*) y las credenciales de notarización `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, y el mismo `npm run dist:mac` firma con *hardened runtime*, notariza y genera también el `.zip` que permite la actualización automática. Ver `electron-builder.config.js`.
+- **Publicar:** sube a la release de GitHub el `.dmg` y `latest-mac.yml`.
+
 ---
 
 ## 🧱 Tech Stack
@@ -160,7 +188,8 @@ Zustand 4            →  Estado global
 HLS.js               →  Streaming HLS nativo
 electron-store 8     →  Persistencia local cifrada
 electron-updater 6   →  Auto-actualizaciones desde GitHub Releases
-AniList GraphQL v2   →  Metadatos, autenticación OAuth y sync
+AniList GraphQL v2   →  Catálogo público de anime (sin cuenta)
+Supabase            →  Cuentas, listas, amigos y "viendo ahora" (RLS + Realtime)
 AniSkip API v2       →  Timestamps de intro/outro
 fastest-levenshtein  →  Title matching fuzzy entre providers
 Discord IPC nativo   →  Rich Presence sin dependencias (src/main/discordRpc.ts)
@@ -218,6 +247,15 @@ src/
 ---
 
 ## 📋 Changelog
+
+### v1.3.0 — Rediseño para macOS, cuentas, amigos e instalador .dmg
+- **Rediseño completo "Luna de sangre"** — nueva identidad a partir del logo: tinta con matiz vino, luna carmesí y sakura. Ventana nativa de macOS (semáforos integrados, *vibrancy*), barra lateral estilo Finder, barra superior de cristal con búsqueda ⌘K, héroe cinematográfico con lluvia de pétalos y nueva intro
+- **Cuentas propias (Supabase)** — registro con correo y contraseña, foto de perfil, listas (Viendo, Completado, Por ver…) y recuperación de contraseña. AniList pasa a ser solo el catálogo público: ya no hace falta cuenta de AniList
+- **Amigos y "viendo ahora"** — solicitudes de amistad, búsqueda de usuarios, ver la lista de un amigo y qué está viendo en tiempo real. Privacidad por usuario (ocultar actividad y/o lista). **Chat entre amigos** con mensajes en tiempo real, no leídos, avisos y tarjetas de anime compartido. Seguridad verificada con 60+ tests sobre Postgres (`npm test`)
+- **Instalador para macOS** — `.dmg` universal (Apple Silicon + Intel) con ventana de instalación propia e icono nuevo con transparencia
+- **Reproductor** — corregido YourUpload (Referer del CDN) y ampliada la lista de bloqueo de publicidad y trackers
+- **Rendimiento** — sin animaciones infinitas en reposo (de ~40 % de CPU/GPU a 0 %), modales sin desenfoque de fondo, DevTools solo bajo demanda
+- **Iconos sin conexión** — la fuente de iconos va incluida en la app (antes se descargaba de Google Fonts)
 
 ### v1.2.0 — Discord Rich Presence, prefs persistentes y tests
 - **Discord Rich Presence real** — muestra el anime y episodio que estás viendo en tu perfil de Discord. Implementación IPC nativa sin dependencias (el paquete `discord-rpc` estaba declarado pero nunca cableado; se eliminó). Opcional vía `DISCORD_CLIENT_ID` y toggle en Ajustes → Integraciones

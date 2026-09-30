@@ -6,6 +6,7 @@ import AnimeRow from '../components/anime/AnimeRow';
 import ContinueWatchingRow from '../components/anime/ContinueWatchingRow';
 import Spinner from '../components/ui/Spinner';
 import { useAppStore } from '../../modules/store';
+import { getUserList } from '../../modules/library';
 import { getCache, setCache } from '../../modules/cache';
 import { isAniListDown } from '../../modules/anilist/client';
 import {
@@ -57,8 +58,8 @@ function getCurrentSeason(): { season: string; year: number } {
 }
 
 export default function DiscoverPage({ onSelectAnime, onResume }: DiscoverPageProps) {
-  const { getTrending, getSeasonal, getTopRated, getUserList, searchAnime } = useAniList();
-  const user = useAppStore((s) => s.user);
+  const { getTrending, getSeasonal, getTopRated, searchAnime } = useAniList();
+  const signedIn = useAppStore((s) => s.account.status === 'signedIn');
   const [recommended, setRecommended] = useState<{ anime: AniListAnime[]; genre: string } | null>(null);
   const [trending, setTrending] = useState<AniListAnime[]>([]);
   const [seasonal, setSeasonal] = useState<AniListAnime[]>([]);
@@ -140,7 +141,7 @@ export default function DiscoverPage({ onSelectAnime, onResume }: DiscoverPagePr
   useEffect(() => {
     let cancelled = false;
     async function loadRecommended() {
-      if (!user) {
+      if (!signedIn) {
         if (!cancelled) setRecommended(null);
         return;
       }
@@ -188,14 +189,15 @@ export default function DiscoverPage({ onSelectAnime, onResume }: DiscoverPagePr
     }
     loadRecommended();
     return () => { cancelled = true; };
-  }, [user, getUserList, searchAnime]);
+  }, [signedIn, searchAnime]);
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-4">
+      <div className="relative flex-1 flex flex-col items-center justify-center gap-5">
+        <div className="absolute w-[380px] h-[380px] rounded-full bg-[radial-gradient(circle,rgba(255,61,90,0.2),transparent_68%)]" />
         <Spinner size={40} />
-        <p className="text-on-surface-variant text-sm font-label">
-          Cargando anime desde AniList...
+        <p className="relative text-on-surface-variant text-[13px] font-medium tracking-wide">
+          Cargando catálogo…
         </p>
       </div>
     );
@@ -204,16 +206,18 @@ export default function DiscoverPage({ onSelectAnime, onResume }: DiscoverPagePr
   if (error) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8">
-        <span className="material-symbols-outlined text-secondary text-5xl">cloud_off</span>
-        <h2 className="font-headline text-xl font-bold text-on-surface">
+        <div className="w-20 h-20 rounded-full glass flex items-center justify-center shadow-moon">
+          <span className="material-symbols-outlined text-primary text-[40px]">cloud_off</span>
+        </div>
+        <h2 className="font-headline text-2xl font-bold text-white">
           {apiDown ? 'AniList no disponible' : 'Error de Conexión'}
         </h2>
-        <p className="text-on-surface-variant text-sm text-center max-w-md">
+        <p className="text-[#bcaab2] text-sm text-center max-w-md">
           {error}
         </p>
         <button
           onClick={() => { setError(null); setApiDown(false); setLoading(true); setReloadKey((k) => k + 1); }}
-          className="mt-4 px-6 py-2 rounded-full bg-primary/20 text-primary font-label text-sm hover:bg-primary/30 transition-colors"
+          className="btn-moon mt-3 h-[40px] px-7 rounded-full font-semibold text-[14px]"
         >
           Reintentar
         </button>
@@ -227,11 +231,13 @@ export default function DiscoverPage({ onSelectAnime, onResume }: DiscoverPagePr
   if (isEmpty) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8">
-        <span className="material-symbols-outlined text-primary text-5xl">explore</span>
-        <h2 className="font-headline text-xl font-bold text-on-surface">
-          No se encontró Anime
+        <div className="w-20 h-20 rounded-full glass flex items-center justify-center shadow-moon">
+          <span className="material-symbols-outlined text-primary text-[40px]">explore_off</span>
+        </div>
+        <h2 className="font-headline text-2xl font-bold text-white">
+          Catálogo Vacío
         </h2>
-        <p className="text-on-surface-variant text-sm text-center max-w-md">
+        <p className="text-[#bcaab2] text-sm text-center max-w-md">
           No se ha podido cargar el catálogo de anime. Revisa tu conexión a internet e inténtalo de nuevo.
         </p>
       </div>
@@ -239,22 +245,28 @@ export default function DiscoverPage({ onSelectAnime, onResume }: DiscoverPagePr
   }
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-8 pb-8 px-1">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden pb-20 px-1 pt-1 -mx-8 !px-9">
       {/* Aviso de modo degradado: AniList caído, catálogo guardado */}
       {staleSince !== null && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-secondary/10 border border-secondary/25">
-          <span className="material-symbols-outlined text-secondary text-xl">cloud_off</span>
-          <p className="flex-1 text-xs text-on-surface-variant leading-snug">
-            <span className="font-semibold text-on-surface">AniList no responde ahora mismo.</span>{' '}
-            Estás viendo el último catálogo guardado ({timeAgo(staleSince)}). La reproducción
-            de episodios y el manga funcionan con normalidad.
+        <div className="mb-8 flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-orange-500/10 ring-1 ring-orange-400/25">
+          <span className="material-symbols-outlined text-orange-400 text-2xl">cloud_off</span>
+          <p className="flex-1 text-xs text-[#bcaab2] leading-snug">
+            <span className="font-bold text-white">Modo sin conexión.</span>{' '}
+            Estás viendo el catálogo guardado ({timeAgo(staleSince)}). La reproducción funciona.
           </p>
           <button
             onClick={() => { setLoading(true); setReloadKey((k) => k + 1); }}
-            className="flex-none px-3 py-1.5 rounded-lg bg-secondary/15 hover:bg-secondary/25 text-secondary text-xs font-semibold transition-colors"
+            className="flex-none px-4 py-2 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 text-xs font-bold transition-colors"
           >
             Reintentar
           </button>
+        </div>
+      )}
+
+      {/* Hero Banner */}
+      {heroAnime && (
+        <div className="mb-11">
+          <HeroBanner anime={heroAnime} onClick={() => onSelectAnime(heroAnime)} />
         </div>
       )}
 
@@ -265,11 +277,6 @@ export default function DiscoverPage({ onSelectAnime, onResume }: DiscoverPagePr
         onRemove={handleRemoveContinue}
       />
 
-      {/* Hero Banner */}
-      {heroAnime && (
-        <HeroBanner anime={heroAnime} onClick={() => onSelectAnime(heroAnime)} />
-      )}
-
       {/* Trending Now */}
       <AnimeRow
         title="En Tendencia"
@@ -279,18 +286,15 @@ export default function DiscoverPage({ onSelectAnime, onResume }: DiscoverPagePr
 
       {/* Recommended for You */}
       {recommended && recommended.anime.length > 0 && (
-        <div className="bg-gradient-to-r from-primary/10 to-transparent p-4 rounded-2xl border border-primary/20 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 blur-[100px] pointer-events-none" />
+        <div className="panel relative overflow-hidden p-6 pb-1 !border-primary/25">
+          <div className="absolute -top-32 -right-32 w-[560px] h-[560px] bg-[radial-gradient(circle,rgba(255,61,90,0.16),transparent_68%)] pointer-events-none rounded-full" />
           <AnimeRow
             title="Recomendado para ti"
             animes={recommended.anime}
             onSelect={onSelectAnime}
             badge={
-              <span className="text-xs text-on-surface-variant font-label">
-                Basado en{' '}
-                <span className="text-primary font-bold uppercase tracking-widest">
-                  {GENRE_I18N[recommended.genre] || recommended.genre}
-                </span>
+              <span className="text-[12px] text-muted">
+                Basado en tu gusto por el <span className="text-secondary font-semibold uppercase tracking-[0.14em]">{GENRE_I18N[recommended.genre] || recommended.genre}</span>
               </span>
             }
           />

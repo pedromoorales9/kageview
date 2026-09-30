@@ -58,16 +58,24 @@ export default function DemonOverlay({
           0%, 100% { opacity: 0.45; }
           50%       { opacity: 1; }
         }
+        /* En reposo la mascota queda quieta (una animación infinita mantiene
+           la GPU produciendo fotogramas a 120 Hz aunque no cambie nada):
+           solo se anima al pasar el ratón. */
         .demon-float {
-          animation: demonFloat 2.8s ease-in-out infinite;
+          animation: demonFloat 2.8s ease-in-out infinite paused;
           will-change: transform;
+        }
+        .demon-root:hover .demon-float,
+        .demon-root:hover .demon-glow {
+          animation-play-state: running;
         }
         .demon-glow {
           position: absolute;
           inset: 0;
           border-radius: 1rem;
-          box-shadow: 0 0 22px 8px rgba(203,151,255,0.5);
-          animation: demonGlowPulse 2.8s ease-in-out infinite;
+          box-shadow: 0 0 22px 8px rgba(255, 143, 168,0.5);
+          opacity: 0.7;
+          animation: demonGlowPulse 2.8s ease-in-out infinite paused;
           pointer-events: none;
           will-change: opacity;
         }
@@ -87,7 +95,7 @@ export default function DemonOverlay({
 
       <div
         ref={containerRef}
-        className="fixed bottom-6 right-6 z-[200] flex flex-col items-center"
+        className="demon-root fixed bottom-6 right-6 z-[45] flex flex-col items-center"
         style={{ pointerEvents: 'auto' }}
       >
         {/* Menú desplegable — se abre/cierra con clic */}

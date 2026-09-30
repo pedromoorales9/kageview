@@ -3,12 +3,13 @@ import path from 'path';
 import webpack from 'webpack';
 
 // ═══════════════════════════════════════════════════════════
-// Carga las credenciales OAuth de AniList desde `.env` (raíz del
-// proyecto, NO versionado) y las inyecta en el bundle del renderer.
+// Carga la configuración pública desde `.env` (raíz del proyecto, NO
+// versionado) y la inyecta en el bundle del renderer.
 //
-// Así las credenciales persisten en la máquina y se incrustan
-// automáticamente en cada build/update, sin depender de un
-// clientData.ts manual que se pierda entre versiones.
+//   SUPABASE_URL / SUPABASE_ANON_KEY  → backend de cuentas (la anon key es
+//     PÚBLICA por diseño: la seguridad la da RLS. NUNCA pongas aquí la
+//     service_role key).
+//   KAGEVIEW_BACKEND=mock             → backend en memoria (solo desarrollo)
 //
 // Prioridad: variable de entorno real (CI) > .env > valor por defecto.
 // ═══════════════════════════════════════════════════════════
@@ -45,9 +46,9 @@ export function anilistDefinePlugin(): webpack.DefinePlugin {
     JSON.stringify(process.env[key] ?? env[key] ?? fallback);
 
   return new webpack.DefinePlugin({
-    'process.env.ANILIST_CLIENT_ID': pick('ANILIST_CLIENT_ID', '0'),
-    'process.env.ANILIST_CLIENT_SECRET': pick('ANILIST_CLIENT_SECRET', ''),
-    'process.env.ANILIST_REDIRECT_URI': pick('ANILIST_REDIRECT_URI', 'kageview://auth'),
+    'process.env.SUPABASE_URL': pick('SUPABASE_URL', ''),
+    'process.env.SUPABASE_ANON_KEY': pick('SUPABASE_ANON_KEY', ''),
+    'process.env.KAGEVIEW_BACKEND': pick('KAGEVIEW_BACKEND', ''),
     'process.env.DISCORD_CLIENT_ID': pick('DISCORD_CLIENT_ID', ''),
     // Contraseña del Panel de Desarrollador (Ajustes). Vacía = panel
     // desactivado por completo. Solo es una barrera de UI: la

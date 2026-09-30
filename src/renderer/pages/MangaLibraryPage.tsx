@@ -205,7 +205,7 @@ function MangaLibraryCard({ entry, progress, onClick, onRemove, onChangeStatus }
         {/* Progress pill — last chapter read */}
         {progress && (
           <div className="absolute bottom-3 left-3 right-3 pointer-events-none flex justify-end">
-            <span className="inline-flex text-[10px] font-bold text-white/90 bg-black/60 backdrop-blur-sm px-2 py-1 rounded shadow-lg items-center gap-1">
+            <span className="inline-flex text-[10px] font-bold text-white/90 bg-black/70 px-2 py-1 rounded shadow-lg items-center gap-1">
               <span className="material-symbols-outlined text-primary text-[10px] flex-none">bookmark</span>
               <span className="truncate">Cap. {progress.lastChapterNumber ?? '?'}</span>
             </span>

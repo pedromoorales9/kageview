@@ -110,19 +110,20 @@ export default function HistoryModal({ onClose, onSelectAnime }: HistoryModalPro
   return (
     <div
       id="history-modal-overlay"
-      className="fixed inset-0 z-[65] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[65] flex items-center justify-center p-6"
       onClick={(e) => {
         if ((e.target as HTMLElement).id === 'history-modal-overlay') onClose();
       }}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-background/65 backdrop-blur-2xl" />
+      <div className="absolute inset-0 bg-[#09050a]/80" />
 
       {/* Modal Container */}
       <div className="
         relative z-10
         w-full max-w-2xl h-[82vh]
-        bg-surface-container rounded-xl
+        bg-[#130a11] border border-white/10
+        rounded-[32px] shadow-[0_20px_60px_rgba(0,0,0,0.8)]
         flex flex-col overflow-hidden
         animate-fade-in-scale
       ">

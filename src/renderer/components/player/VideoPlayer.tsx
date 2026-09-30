@@ -591,7 +591,8 @@ export default function VideoPlayer({
           ref: webviewRef,
           src: source.url,
           className: 'w-full h-full bg-black border-0',
-          webpreferences: 'contextIsolation=no, javascript=yes'
+          webpreferences: 'contextIsolation=no, javascript=yes',
+          disablewebsecurity: "true"
         })
       ) : (
         <video
@@ -601,10 +602,10 @@ export default function VideoPlayer({
         />
       )}
 
-    </div>,
+    </div>
 
-    // Portal: todos los overlays se montan en document.body, fuera del webview
-    ReactDOM.createPortal(
+    {/* Portal: todos los overlays se montan en document.body, fuera del webview */}
+    {ReactDOM.createPortal(
       <div className="fixed inset-0 z-[200] pointer-events-none">
         {/* Buffering Spinner */}
         {isBuffering && source.type !== 'iframe' && (
@@ -628,7 +629,7 @@ export default function VideoPlayer({
         {/* Countdown siguiente episodio */}
         {countdown !== null && (
           <div className="absolute top-0 left-0 right-0 z-[85] flex justify-center pt-4">
-            <div className="pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 animate-fade-in">
+            <div className="pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-2xl glass-lite animate-fade-in">
               <span className="text-white/50 text-xs font-label">Siguiente en</span>
               <span className="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-primary font-bold text-xs">
                 {countdown}
@@ -655,13 +656,13 @@ export default function VideoPlayer({
           <div className="absolute top-0 left-0 p-4 flex items-center gap-2 pointer-events-auto">
             <button
               onClick={onExit}
-              className="w-10 h-10 rounded-lg bg-black/60 backdrop-blur-md flex items-center justify-center text-white/80 hover:text-white transition-all hover:bg-black/90 shadow-lg"
+              className="w-10 h-10 rounded-full glass-lite flex items-center justify-center text-white/85 hover:text-white transition-all hover:bg-white/15 active:scale-95"
             >
               <span className="material-symbols-outlined">arrow_back</span>
             </button>
             <button
               onClick={onNextEpisode}
-              className="w-10 h-10 rounded-lg bg-black/60 backdrop-blur-md flex items-center justify-center text-white/80 hover:text-white transition-all hover:bg-black/90 shadow-lg"
+              className="w-10 h-10 rounded-full glass-lite flex items-center justify-center text-white/85 hover:text-white transition-all hover:bg-white/15 active:scale-95"
             >
               <span className="material-symbols-outlined">skip_next</span>
             </button>
@@ -669,7 +670,7 @@ export default function VideoPlayer({
               <button
                 onClick={() => onSourceFailed()}
                 title={`Probar otro servidor (actual: ${source.quality})`}
-                className="h-10 px-3 rounded-lg bg-black/60 backdrop-blur-md flex items-center gap-1.5 text-white/80 hover:text-white transition-all hover:bg-black/90 shadow-lg"
+                className="h-10 px-4 rounded-full glass-lite flex items-center gap-1.5 text-white/85 hover:text-white transition-all hover:bg-white/15 active:scale-95"
               >
                 <span className="material-symbols-outlined">dns</span>
                 <span className="text-xs font-semibold hidden sm:inline">{source.quality}</span>
@@ -709,7 +710,7 @@ export default function VideoPlayer({
         )}
       </div>,
       document.body
-    )
+    )}
     </>
   );
 }

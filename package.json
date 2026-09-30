@@ -1,6 +1,6 @@
 {
   "name": "kageview",
-  "version": "1.2.8",
+  "version": "1.3.0",
   "description": "KageView — Anime Desktop Streaming App",
   "main": "dist/main/main.js",
   "author": "Sh4Dow",
@@ -14,72 +14,18 @@
     "build:main": "cross-env NODE_ENV=production webpack --config .erb/configs/webpack.config.main.prod.ts",
     "build:main:dev": "cross-env NODE_ENV=development webpack --config .erb/configs/webpack.config.main.prod.ts",
     "build:renderer": "cross-env NODE_ENV=production webpack --config .erb/configs/webpack.config.renderer.prod.ts",
-    "package": "npm run build && electron-builder build --publish never",
-    "dist:win": "npm run build && electron-builder build --win --publish never",
-    "dist:mac": "npm run build && electron-builder build --mac --publish never",
-    "dist:linux": "npm run build && electron-builder build --linux --publish never",
+    "package": "npm run build && electron-builder build --config electron-builder.config.js --publish never",
+    "dist:win": "npm run build && electron-builder build --win --config electron-builder.config.js --publish never",
+    "dist:mac": "npm run build && electron-builder build --mac --config electron-builder.config.js --publish never",
+    "dist:linux": "npm run build && electron-builder build --linux --config electron-builder.config.js --publish never",
     "lint": "eslint src/ --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
-  },
-  "build": {
-    "appId": "com.sh4dow.kageview",
-    "productName": "KageView",
-    "directories": {
-      "output": "release/build"
-    },
-    "files": [
-      "dist/**/*",
-      "package.json"
-    ],
-    "win": {
-      "target": [
-        "nsis"
-      ],
-      "icon": "assets/icon.png",
-      "artifactName": "${productName}-Setup-${version}.${ext}"
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
-      "icon": "assets/icon.png",
-      "category": "Video"
-    },
-    "mac": {
-      "target": [
-        "dmg",
-        "zip"
-      ],
-      "icon": "assets/icon.png",
-      "category": "public.app-category.entertainment"
-    },
-    "protocols": [
-      {
-        "name": "KageView",
-        "schemes": [
-          "kageview"
-        ]
-      }
-    ],
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": false,
-      "deleteAppDataOnUninstall": false,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "KageView"
-    },
-    "publish": {
-      "provider": "github",
-      "owner": "pedromoorales9",
-      "repo": "KageView"
-    }
+    "test:watch": "vitest",
+    "assets:build": "electron scripts/make-icons.js && electron scripts/make-dmg-background.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
     "axios": "^1.6.2",
     "electron-log": "^5.4.3",
     "electron-store": "^8.1.0",
@@ -92,6 +38,7 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
@@ -102,6 +49,7 @@
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
     "html-webpack-plugin": "^5.5.4",
+    "material-symbols": "^0.47.5",
     "mini-css-extract-plugin": "^2.7.6",
     "postcss": "^8.4.32",
     "postcss-loader": "^7.3.3",

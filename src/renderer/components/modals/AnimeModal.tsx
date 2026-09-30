@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AniListAnime, AniZipEpisode, PlayMode, AnimeRelationNode, RelationType } from '../../../types/types';
 import useAnimeInfo from '../../hooks/useAnimeInfo';
-import useAniList from '../../hooks/useAniList';
-import { useAppStore } from '../../../modules/store';
+import ListStatusButton from '../anime/ListStatusButton';
+import ShareAnimeButton from '../anime/ShareAnimeButton';
 import Badge from '../ui/Badge';
 import Chip from '../ui/Chip';
 import Spinner from '../ui/Spinner';
@@ -60,8 +60,6 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay, onSel
   const [sortDesc, setSortDesc] = useState(false);
   const [episodeQuery, setEpisodeQuery] = useState('');
   const { episodes, loading } = useAnimeInfo(anime.id);
-  const { updateListStatus } = useAniList();
-  const token = useAppStore((s) => s.token);
 
   // Lista ordenada (asc/desc). Útil en series muy largas para ir al más reciente.
   const sortedEpisodes = useMemo(
@@ -111,43 +109,44 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay, onSel
   return (
     <div
       id="anime-modal-overlay"
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-6"
       onClick={(e) => {
         if ((e.target as HTMLElement).id === 'anime-modal-overlay') onClose();
       }}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-background/65 backdrop-blur-2xl" />
+      <div className="absolute inset-0 bg-[#09050a]/80" />
 
       {/* Modal Container */}
       <div className="
         relative z-10
         w-full max-w-5xl h-[88vh]
-        bg-surface-container rounded-xl
+        bg-[#130a11] border border-white/10
+        rounded-[32px] shadow-[0_20px_60px_rgba(0,0,0,0.8)]
         flex overflow-hidden
         animate-fade-in-scale
       ">
         {/* Left Panel — Cover Image */}
-        <div className="relative w-[280px] flex-none">
+        <div className="relative w-[300px] flex-none">
           {navigatingTo ? (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-surface-container/50">
+            <div className="w-full h-full flex flex-col items-center justify-center bg-white/5">
               <Spinner size={32} />
-              <span className="text-sm text-on-surface-variant mt-4 font-label">Cargando...</span>
+              <span className="text-sm text-[#86747c] mt-4 font-label">Cargando...</span>
             </div>
           ) : (
             <img
               src={anime.coverImage.extraLarge || anime.coverImage.large}
               alt={anime.title.romaji}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover opacity-90 mix-blend-luminosity hover:mix-blend-normal transition-all duration-700"
             />
           )}
-          {/* Gradiente lateral */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-surface-container" />
+          {/* Gradiente lateral para difuminar la imagen con el cristal */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#0f070c]/40 to-[#0f070c]/80 pointer-events-none" />
 
           {/* Score badge */}
           {anime.averageScore && (
-            <div className="absolute bottom-4 left-4">
-              <Badge variant="neutral" size="md">
+            <div className="absolute bottom-6 left-6">
+              <Badge variant="neutral" size="md" className="bg-black/60 border-white/10">
                 <span className="material-symbols-outlined filled text-primary text-[14px]">star</span>
                 {(anime.averageScore / 10).toFixed(1)}
               </Badge>
@@ -226,11 +225,11 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay, onSel
                   onClick={() => onPlay(lastWatchedEp, 'sub')}
                   className="
                     flex items-center gap-2 px-6 py-2.5
-                    gradient-primary rounded-full
-                    text-on-primary font-headline font-semibold text-sm
+                    bg-primary hover:bg-[#ff5c78] rounded-full
+                    text-white font-headline font-semibold text-sm tracking-wide
                     transition-all duration-200
-                    hover:shadow-[0_0_22px_rgba(203,151,255,0.35)]
-                    hover:scale-[1.02]
+                    shadow-[0_0_15px_rgba(255, 61, 90,0.3)]
+                    hover:scale-[1.03] active:scale-[0.98]
                   "
                 >
                   <span className="material-symbols-outlined filled text-lg">play_arrow</span>
@@ -242,11 +241,11 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay, onSel
                   onClick={() => onPlay(1, 'sub')}
                   className="
                     flex items-center gap-2 px-6 py-2.5
-                    gradient-primary rounded-full
-                    text-on-primary font-headline font-semibold text-sm
+                    bg-primary hover:bg-[#ff5c78] rounded-full
+                    text-white font-headline font-semibold text-sm tracking-wide
                     transition-all duration-200
-                    hover:shadow-[0_0_22px_rgba(203,151,255,0.35)]
-                    hover:scale-[1.02]
+                    shadow-[0_0_15px_rgba(255, 61, 90,0.3)]
+                    hover:scale-[1.03] active:scale-[0.98]
                   "
                 >
                   <span className="material-symbols-outlined filled text-lg">play_arrow</span>
@@ -254,55 +253,11 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay, onSel
                 </button>
               )}
               
-              {/* Dropdown para estado en la lista AniList */}
-              {token && (
-                <select
-                  className="
-                    bg-surface-variant/40 text-on-surface rounded-full px-5 py-2.5 
-                    text-sm font-headline outline-none cursor-pointer border border-transparent
-                    focus:border-primary/50 hover:bg-surface-variant/70 transition-colors
-                    appearance-none
-                  "
-                  style={{
-                    backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23cb97ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'right 1rem center',
-                    backgroundSize: '1em',
-                    paddingRight: '2.5rem'
-                  }}
-                  value={anime.mediaListEntry?.status || ''}
-                  onChange={async (e) => {
-                    const newStatus = e.target.value;
-                    if (newStatus) {
-                      try {
-                        // Actualizar UI optimista
-                        const prevAnime = { ...anime };
-                        setAnime({
-                          ...anime,
-                          mediaListEntry: {
-                            ...anime.mediaListEntry,
-                            id: anime.mediaListEntry?.id || 0,
-                            status: newStatus as NonNullable<AniListAnime['mediaListEntry']>['status'],
-                            progress: anime.mediaListEntry?.progress || 0,
-                            score: anime.mediaListEntry?.score || 0
-                          }
-                        });
-                        
-                        await updateListStatus(anime.id, newStatus);
-                      } catch (err) {
-                        console.error('Error actualizando estado:', err);
-                      }
-                    }
-                  }}
-                >
-                  <option value="" disabled>Añadir a lista...</option>
-                  <option value="CURRENT" className="bg-surface">Viendo</option>
-                  <option value="PLANNING" className="bg-surface">Por Ver</option>
-                  <option value="COMPLETED" className="bg-surface">Completados</option>
-                  <option value="PAUSED" className="bg-surface">Pausados</option>
-                  <option value="DROPPED" className="bg-surface">Abandonados</option>
-                </select>
-              )}
+              {/* Estado en MI lista (Supabase) */}
+              <ListStatusButton anime={anime} />
+
+              {/* Recomendar por chat a un amigo */}
+              <ShareAnimeButton anime={anime} />
             </div>
           </div>
 

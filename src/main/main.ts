@@ -95,42 +95,112 @@ if (!gotTheLock) {
   });
 }
 
-function handleDeepLink(url: string): void {
+// Enlace de autenticación recibido antes de que el renderer pudiera escucharlo
+// (arranque en frío por un enlace del correo).
+let pendingAuthUrl: string | null = null;
+
+/** Solo se aceptan enlaces kageview://auth-callback… (y de tamaño razonable). */
+function isAuthCallbackUrl(url: string): boolean {
+  if (typeof url !== 'string' || url.length > 4096) return false;
   try {
-    const parsed = new URL(url);
-    // Implicit Grant: el access_token llega en el fragmento
-    // (kageview://auth#access_token=...&token_type=Bearer&expires_in=...)
-    const fragment = new URLSearchParams(
-      parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash
-    );
-    const accessToken = fragment.get('access_token');
-    if (accessToken && mainWindow) {
-      mainWindow.webContents.send('oauth-code', accessToken);
-      return;
-    }
-    // Compatibilidad: flujo antiguo basado en ?code=
-    const code = parsed.searchParams.get('code');
-    if (code && mainWindow) {
-      mainWindow.webContents.send('oauth-code', code);
-    }
-  } catch (err) {
-    console.error('[KageView] Error al parsear deep link:', err);
+    const u = new URL(url);
+    return u.protocol === 'kageview:' && u.hostname === 'auth-callback';
+  } catch {
+    return false;
   }
+}
+
+function handleDeepLink(url: string): void {
+  if (!isAuthCallbackUrl(url)) {
+    console.warn('[KageView] Deep link ignorado:', url.slice(0, 40));
+    return;
+  }
+  if (mainWindow && !mainWindow.webContents.isLoading()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+    mainWindow.webContents.send('auth-callback', url);
+  } else {
+    pendingAuthUrl = url;
+  }
+}
+
+ipcMain.handle('auth-consume-pending-url', () => {
+  const url = pendingAuthUrl;
+  pendingAuthUrl = null;
+  return url;
+});
+
+// macOS: el evento puede llegar ANTES de que la app esté lista (arranque en
+// frío), así que se registra a nivel de módulo.
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  handleDeepLink(url);
+});
+
+// Windows/Linux: si la app se lanza con el enlace como argumento
+{
+  const initial = process.argv.find((arg) => arg.startsWith('kageview://'));
+  if (initial) handleDeepLink(initial);
 }
 
 ipcMain.handle('get-version', () => version);
 
 // ─── OAuth ──────────────────────────────────────────────
 // ─── Crear ventana ────────────────────────────────────────
+// ─── Bloqueo de publicidad (nivel red) ────────────────────
+// Dominios de anuncios, popunders y trackers que cargan los embeds de vídeo
+// (StreamTape, MP4Upload, Voe, YourUpload…). Se compara contra el hostname
+// (dominio exacto o cualquier subdominio), no contra la URL completa.
+const AD_DOMAINS = [
+  // Redes publicitarias clásicas
+  'doubleclick.net', 'googlesyndication.com', 'googleadservices.com',
+  'adnxs.com', 'popads.net', 'popcash.net', 'juicyads.com',
+  'exoclick.com', 'trafficjunky.net', 'clickadu.com',
+  'propellerads.com', 'adsterra.com', 'hilltopads.net',
+  'monetag.com', 'pushground.com', 'a-ads.com',
+  'syndication.twitter.com', 'static.ads-twitter.com', 'ad.mail.ru',
+  'mc.yandex.ru', 'top.mail.ru',
+  // Vídeo-ads (VAST/IMA/Connatix) y trackers
+  'imasdk.googleapis.com', 'connatix.com', 'google-analytics.com',
+  'googletagmanager.com', 'static.cloudflareinsights.com',
+  'amung.us', 'esecured.net', 'jwpltx.com',
+  // Malvertising / popunders observados en los embeds
+  'adsco.re', 'visariomedia.com', 'ccopyright.org', 'holdbitter.com',
+  'dopattaoutcant.com', 'talpiddullity.com', 'sxlzbz.com',
+  'caneshooter.cyou', 'tryedesign.com', 'wallingpestis.cfd',
+  'portalfluently.com', 'thatdisform.cyou', 'orvillebosksbougee.cyou',
+  'subgumgutwise.com', 'lumbarssweepup.com', 'sarplerlacunes.qpon',
+  'bancadeltempoidea.org', 'pixibay.cc', 'show-sb.com',
+  'boienstnqesh.com', 'llvpn.com', 'luugy.com', 'ueuee.com', 'axgbr.com',
+  'rtmark.net', 'd13k7prax1yi04.cloudfront.net',
+];
+
+function isAdUrl(rawUrl: string): boolean {
+  let host: string;
+  try {
+    host = new URL(rawUrl).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return AD_DOMAINS.some((d) => host === d || host.endsWith('.' + d));
+}
+
 async function createWindow(): Promise<void> {
+  // Vibrancy nativo (solo macOS). KAGEVIEW_NO_VIBRANCY=1 lo desactiva.
+  const useVibrancy = process.platform === 'darwin' && process.env.KAGEVIEW_NO_VIBRANCY !== '1';
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 1024,
     minHeight: 700,
     frame: process.platform === 'darwin' ? true : false,
-    titleBarStyle: process.platform === 'darwin' ? 'hidden' : undefined,
-    backgroundColor: '#0e0e13',
+    // macOS: semáforos integrados en el contenido + vibrancy nativo tras la
+    // barra lateral (el resto de la UI pinta su propio fondo opaco).
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
+    trafficLightPosition: process.platform === 'darwin' ? { x: 20, y: 20 } : undefined,
+    vibrancy: useVibrancy ? 'under-window' : undefined,
+    visualEffectState: useVibrancy ? 'active' : undefined,
+    backgroundColor: useVibrancy ? '#00000000' : '#09050a',
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -145,7 +215,10 @@ async function createWindow(): Promise<void> {
   // Cargar la aplicación
   if (isDev) {
     await mainWindow.loadURL('http://localhost:1212');
-    mainWindow.webContents.openDevTools({ mode: 'detach' }); // Descomenta para abrir DevTools automáticamente
+    // DevTools ralentiza mucho el renderer: solo si se pide (KAGEVIEW_DEVTOOLS=1)
+    if (process.env.KAGEVIEW_DEVTOOLS === '1') {
+      mainWindow.webContents.openDevTools({ mode: 'detach' });
+    }
   } else {
     await mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
@@ -188,16 +261,7 @@ async function createWindow(): Promise<void> {
       const url = details.url.toLowerCase();
 
       // ─── Bloquear dominios de publicidad conocidos ────────
-      const adDomains = [
-        'doubleclick.net', 'googlesyndication.com', 'googleadservices.com',
-        'adnxs.com', 'popads.net', 'popcash.net', 'juicyads.com',
-        'exoclick.com', 'trafficjunky.net', 'clickadu.com',
-        'propellerads.com', 'adsterra.com', 'hilltopads.net',
-        'monetag.com', 'pushground.com', 'a-ads.com',
-        'syndication.twitter.com', 'ad.mail.ru',
-        'mc.yandex.ru', 'top.mail.ru',
-      ];
-      if (adDomains.some(d => url.includes(d))) {
+      if (isAdUrl(url)) {
         callback({ cancel: true });
         return;
       }
@@ -211,7 +275,14 @@ async function createWindow(): Promise<void> {
       }
 
       // No tocar localhost, devtools ni AniList (tienen hotlink protection)
-      const isInternalOrAniList = url.includes('localhost') ||
+      // Supabase (API REST, Storage y WebSocket de Realtime) usa sus propias
+      // cabeceras/origen: reescribirlas rompería auth, subida de avatares y tiempo real.
+      let host = '';
+      try { host = new URL(details.url).hostname.toLowerCase(); } catch { /* url rara */ }
+      const isSupabase = host.endsWith('.supabase.co') || host.endsWith('.supabase.in');
+
+      const isInternalOrAniList = isSupabase ||
+                                  url.includes('localhost') ||
                                   url.includes('127.0.0.1') ||
                                   url.includes('anilist.co') ||
                                   url.startsWith('devtools://');
@@ -249,6 +320,14 @@ async function createWindow(): Promise<void> {
           // y NO mandamos Origin (las peticiones de <img> no lo necesitan).
           details.requestHeaders['Referer'] = 'https://manga-oni.com/';
           delete details.requestHeaders['Origin'];
+        } else if (url.includes('mp4upload')) {
+          details.requestHeaders['Referer'] = 'https://www.mp4upload.com/';
+          details.requestHeaders['Origin'] = 'https://www.mp4upload.com';
+        } else if (url.includes('yourupload') || url.includes('vidcache.net')) {
+          // El CDN de vídeo (vidcache.net) responde 500 si el Referer no es
+          // yourupload.com ("Error loading media: File could not be played").
+          details.requestHeaders['Referer'] = 'https://www.yourupload.com/';
+          details.requestHeaders['Origin'] = 'https://www.yourupload.com';
         } else {
           // Default it to AnimeFLV for embed servers like Streamwish, Okru, Mega, Fembed etc.
           details.requestHeaders['Referer'] = 'https://animeflv.net/';
@@ -587,11 +666,6 @@ ipcMain.handle(
 app.whenReady().then(async () => {
   buildMenu();
   await createWindow();
-
-  // macOS: deep link
-  app.on('open-url', (_event, url) => {
-    handleDeepLink(url);
-  });
 
   // Arrancar el daemon si las notificaciones ya estaban activas
   const notifEnabled = store.get('notifications-enabled', false) as boolean;

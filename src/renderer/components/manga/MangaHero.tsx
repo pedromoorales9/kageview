@@ -17,7 +17,7 @@ export default function MangaHero({ manga, onClick }: MangaHeroProps) {
 
   return (
     <section
-      className="mt-2 mb-10 w-full relative h-[380px] lg:h-[450px] rounded-xl lg:rounded-3xl overflow-hidden cursor-pointer group shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)]"
+      className="mt-2 mb-10 w-full relative h-[380px] lg:h-[450px] rounded-[26px] overflow-hidden cursor-pointer group shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9),0_0_0_0.5px_rgba(255,255,255,0.1)]"
       onClick={onClick}
     >
       {hasCover ? (
@@ -62,41 +62,29 @@ export default function MangaHero({ manga, onClick }: MangaHeroProps) {
       {/* Bloque de contenido */}
       <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 flex flex-col gap-3 z-30">
         <div className="flex items-center gap-2 mb-2">
-          <span className="bg-primary/20 backdrop-blur-md text-primary px-3 py-1 rounded-full text-xs font-black tracking-widest uppercase shadow-lg border border-primary/20">
-            Top Tendencia
+          <span className="flex items-center gap-1.5 h-[22px] px-2.5 rounded-full text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white bg-primary/90 shadow-moon">
+            <span className="w-1.5 h-1.5 rounded-full bg-white" />
+            Top tendencia
           </span>
-          <span className="bg-surface-variant/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-on-surface tracking-widest uppercase">
+          <span className="bg-white/10 ring-[0.5px] ring-white/20 h-[22px] px-2.5 inline-flex items-center rounded-full text-[11.5px] font-semibold text-white">
             Cap. {manga.lastChapter ?? '?'}
           </span>
-          <span className="bg-surface-variant/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-tertiary tracking-widest uppercase">
-            {manga.status === 'ongoing' ? 'En Curso' : 'Finalizado'}
+          <span className="bg-white/10 ring-[0.5px] ring-white/20 h-[22px] px-2.5 inline-flex items-center rounded-full text-[11.5px] font-semibold text-secondary">
+            {manga.status === 'ongoing' ? 'En curso' : 'Finalizado'}
           </span>
         </div>
 
-        <h2 className="font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-on-surface leading-[1.05] max-w-4xl drop-shadow-2xl line-clamp-2">
+        <h2 className="font-headline text-4xl sm:text-5xl lg:text-[60px] font-bold tracking-[-0.035em] text-white leading-[1.03] max-w-4xl [text-shadow:0_4px_40px_rgba(0,0,0,0.6)] line-clamp-2">
           {manga.title}
         </h2>
 
-        <div className="flex items-center gap-3 mt-6">
-          <button className="
-            flex items-center gap-2 px-8 py-3
-            gradient-primary rounded-full
-            text-on-primary font-headline font-bold text-sm tracking-widest uppercase
-            transition-all duration-300
-            hover:shadow-[0_0_30px_rgba(203,151,255,0.4)]
-            hover:scale-105
-          ">
-            <span className="material-symbols-outlined text-xl">play_arrow</span>
-            Leer Ahora
+        <div className="flex items-center gap-3 mt-5">
+          <button className="btn-moon h-[44px] px-6 rounded-full flex items-center gap-2 font-semibold text-[14.5px]">
+            <span className="material-symbols-outlined filled text-[22px] -ml-1">auto_stories</span>
+            Leer ahora
           </button>
-          <button className="
-            flex items-center gap-2 px-6 py-3
-            bg-surface-container-high/60 backdrop-blur-xl rounded-full border border-white/10
-            text-on-surface font-headline font-bold text-sm tracking-widest uppercase
-            transition-all duration-300
-            hover:bg-surface-container-highest
-          ">
-            <span className="material-symbols-outlined text-xl">info</span>
+          <button className="btn-glass h-[44px] px-5 rounded-full flex items-center gap-2 font-medium text-[14.5px]">
+            <span className="material-symbols-outlined text-[20px] opacity-90">info</span>
             Detalles
           </button>
         </div>

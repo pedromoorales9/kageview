@@ -140,7 +140,7 @@ export default function MangaModal({ manga, onClose, onReadChapter }: MangaModal
       }}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-background/65 backdrop-blur-2xl" />
+      <div className="absolute inset-0 bg-background/85" />
 
       {/* Modal */}
       <div className="
@@ -271,7 +271,7 @@ export default function MangaModal({ manga, onClose, onReadChapter }: MangaModal
                   onClick={() => onReadChapter(continueChapterIndex, chapters)}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg
                     gradient-primary text-on-primary text-sm font-headline font-semibold
-                    hover:shadow-[0_0_16px_rgba(203,151,255,0.3)] hover:scale-[1.02]
+                    hover:shadow-[0_0_16px_rgba(255, 143, 168,0.3)] hover:scale-[1.02]
                     transition-all duration-200"
                 >
                   <span className="material-symbols-outlined text-base">play_arrow</span>

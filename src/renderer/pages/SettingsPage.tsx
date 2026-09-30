@@ -4,7 +4,9 @@ import { buildBuiltinProvider, buildCustomProvider } from '../../modules/provide
 import { getAllMangaProviders } from '../../modules/manga';
 import { clearCache } from '../../modules/cache';
 import { useToast } from '../components/ui/Toast';
-import useAniList from '../hooks/useAniList';
+import { errorMessage, openAuth, signOut } from '../../modules/account';
+import Avatar from '../components/account/Avatar';
+import Spinner from '../components/ui/Spinner';
 import DevPanel from '../components/DevPanel';
 import { ProviderId, AudioLang, SubLang, CustomProviderDef } from '../../types/types';
 
@@ -34,11 +36,11 @@ const STATUS_COLORS: Record<string, string> = {
 export default function SettingsPage() {
   const prefs = useAppStore((s) => s.prefs);
   const setPrefs = useAppStore((s) => s.setPrefs);
-  const user = useAppStore((s) => s.user);
+  const account = useAppStore((s) => s.account);
+  const setProfileModalOpen = useAppStore((s) => s.setProfileModalOpen);
   const providerStatus = useAppStore((s) => s.providerStatus);
   const setProviderStatus = useAppStore((s) => s.setProviderStatus);
   const remoteConfig = useAppStore((s) => s.remoteConfig);
-  const { logout } = useAniList();
   const toast = useToast();
 
   const [checkingProviders, setCheckingProviders] = useState(false);
@@ -133,49 +135,66 @@ export default function SettingsPage() {
         {/* Left Column: Account */}
         <div className="col-span-4 space-y-6">
           {/* Account Section */}
-          <section className="bg-surface-container rounded-xl p-5">
+          <section className="panel p-6">
             <h3 className="font-headline text-sm font-bold text-on-surface mb-4">
               Cuenta
             </h3>
-            {user ? (
+            {account.status === 'signedIn' && account.profile ? (
               <div className="flex flex-col items-center gap-3">
-                <img
-                  src={user.avatar.large}
-                  alt={user.name}
-                  className="w-16 h-16 rounded-full object-cover ring-2 ring-primary/30"
-                />
-                <p className="font-headline font-semibold text-on-surface">
-                  {user.name}
-                </p>
+                <Avatar profile={account.profile} size={72} className="ring-2 ring-primary/40" />
+                <div className="text-center min-w-0 max-w-full">
+                  <p className="font-headline font-semibold text-on-surface truncate">
+                    {account.profile.displayName || account.profile.username}
+                  </p>
+                  <p className="text-xs text-muted truncate">@{account.profile.username}</p>
+                  <p className="text-xs text-muted truncate">{account.user?.email}</p>
+                </div>
                 <div className="flex gap-2 w-full">
-                  <button className="
-                    flex-1 py-2 rounded-lg
-                    bg-primary/15 text-primary text-xs font-headline font-semibold
-                    hover:bg-primary/25 transition-colors
-                  ">
-                    Sincronizar
+                  <button
+                    onClick={() => setProfileModalOpen(true)}
+                    className="flex-1 py-2 rounded-lg bg-primary/15 text-primary text-xs font-headline font-semibold hover:bg-primary/25 transition-colors"
+                  >
+                    Editar perfil
                   </button>
                   <button
-                    onClick={logout}
-                    className="
-                      flex-1 py-2 rounded-lg
-                      bg-error/15 text-error text-xs font-headline font-semibold
-                      hover:bg-error/25 transition-colors
-                    "
+                    onClick={() => signOut().catch((e) => toast.error(errorMessage(e)))}
+                    className="flex-1 py-2 rounded-lg bg-white/[0.07] text-on-surface text-xs font-headline font-semibold hover:bg-white/[0.13] transition-colors"
                   >
-                    Desconectar
+                    Cerrar sesión
                   </button>
                 </div>
               </div>
-            ) : (
+            ) : account.status === 'unavailable' ? (
               <p className="text-sm text-on-surface-variant text-center py-4">
-                No conectada
+                Las cuentas no están configuradas en esta versión.
               </p>
+            ) : account.status === 'loading' ? (
+              <div className="flex justify-center py-6"><Spinner size={24} /></div>
+            ) : (
+              <div className="flex flex-col items-center gap-3 py-2">
+                <p className="text-sm text-on-surface-variant text-center">
+                  Inicia sesión para guardar tu lista y ver a tus amigos.
+                </p>
+                <div className="flex gap-2 w-full">
+                  <button
+                    onClick={() => openAuth('login')}
+                    className="flex-1 py-2 rounded-lg btn-moon text-xs font-headline font-semibold"
+                  >
+                    Iniciar sesión
+                  </button>
+                  <button
+                    onClick={() => openAuth('register')}
+                    className="flex-1 py-2 rounded-lg bg-white/[0.07] text-on-surface text-xs font-headline font-semibold hover:bg-white/[0.13] transition-colors"
+                  >
+                    Crear cuenta
+                  </button>
+                </div>
+              </div>
             )}
           </section>
 
           {/* Credits Section */}
-          <section className="bg-surface-container rounded-xl p-5 relative overflow-hidden">
+          <section className="panel p-6 relative overflow-hidden">
             <div className="absolute -inset-1 bg-gradient-to-tr from-primary/10 to-secondary/10 blur-xl pointer-events-none" />
             <h3 className="font-headline text-sm font-bold text-primary mb-4 relative z-10 flex items-center gap-2">
               <span className="material-symbols-outlined text-[18px]">terminal</span>
@@ -189,12 +208,15 @@ export default function SettingsPage() {
                   }
                 }
                 .animate-epic-shine {
-                  background: linear-gradient(to right, #acaab1 20%, #cb97ff 40%, #f673b7 60%, #acaab1 80%);
+                  background: linear-gradient(to right, #bcaab2 20%, #ff8fa8 40%, #ff8fa8 60%, #bcaab2 80%);
                   background-size: 200% auto;
                   -webkit-background-clip: text;
                   -webkit-text-fill-color: transparent;
-                  animation: epic-shine 4s linear infinite;
+                  /* Solo al pasar el ratón: animar background-position repinta el
+                     texto en cada fotograma y mantendría la GPU ocupada. */
+                  animation: epic-shine 4s linear infinite paused;
                 }
+                .animate-epic-shine:hover { animation-play-state: running; }
               `}</style>
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-surface-container-highest to-background flex items-center justify-center ring-1 ring-white/5 shadow-xl relative group">
                 <div className="absolute inset-0 bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-full" />
@@ -203,7 +225,7 @@ export default function SettingsPage() {
                 </span>
               </div>
               <div>
-                <p className="font-headline font-bold text-on-surface tracking-wide text-lg drop-shadow-[0_0_8px_rgba(203,151,255,0.5)]">
+                <p className="font-headline font-bold text-on-surface tracking-wide text-lg drop-shadow-[0_0_8px_rgba(255, 143, 168,0.5)]">
                   Sh4d0w
                 </p>
                 <p className="text-[11px] font-label uppercase text-on-surface-variant tracking-[0.2em] mt-1 relative">
@@ -215,7 +237,7 @@ export default function SettingsPage() {
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-16 bg-primary/10 blur-[30px] rounded-full pointer-events-none" />
                 <span className="absolute -top-1 -left-1 text-5xl text-primary/10 font-serif pointer-events-none">"</span>
 
-                <p className="text-base font-headline font-black leading-relaxed italic text-center relative z-10 animate-epic-shine drop-shadow-[0_0_12px_rgba(203,151,255,0.2)] px-2">
+                <p className="text-base font-headline font-black leading-relaxed italic text-center relative z-10 animate-epic-shine drop-shadow-[0_0_12px_rgba(255, 143, 168,0.2)] px-2">
                   Mientras otros veían anime,<br /> yo construí el lugar donde verlo.
                 </p>
                 <p className="text-secondary font-bold mt-3 block tracking-[0.25em] uppercase text-[9px] relative z-10 opacity-90 drop-shadow-[0_0_5px_rgba(246,115,183,0.4)]">
@@ -255,7 +277,7 @@ export default function SettingsPage() {
         {/* Right Column: Settings */}
         <div className="col-span-8 space-y-6">
           {/* Playback */}
-          <section className="bg-surface-container rounded-xl p-5">
+          <section className="panel p-6">
             <h3 className="font-headline text-sm font-bold text-on-surface mb-4">
               Reproducción
             </h3>
@@ -319,7 +341,7 @@ export default function SettingsPage() {
           </section>
 
           {/* Integrations */}
-          <section className="bg-surface-container rounded-xl p-5">
+          <section className="panel p-6">
             <h3 className="font-headline text-sm font-bold text-on-surface mb-4">
               Integraciones
             </h3>
@@ -341,7 +363,7 @@ export default function SettingsPage() {
           </section>
 
           {/* Providers */}
-          <section className="bg-surface-container rounded-xl p-5">
+          <section className="panel p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-headline text-sm font-bold text-on-surface">
                 Proveedores de Anime
@@ -456,7 +478,7 @@ export default function SettingsPage() {
           </section>
 
           {/* Sitios personalizados de anime */}
-          <section className="bg-surface-container rounded-xl p-5">
+          <section className="panel p-6">
             <h3 className="font-headline text-sm font-bold text-on-surface mb-1">
               Sitios personalizados de anime
             </h3>
@@ -538,7 +560,7 @@ export default function SettingsPage() {
           </section>
 
           {/* Manga Providers */}
-          <section className="bg-surface-container rounded-xl p-5">
+          <section className="panel p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-headline text-sm font-bold text-on-surface">
                 Proveedores de Manga
@@ -619,7 +641,7 @@ export default function SettingsPage() {
           </section>
 
           {/* Danger Zone */}
-          <section className="bg-surface-container rounded-xl p-5">
+          <section className="panel p-6">
             <h3 className="font-headline text-sm font-bold text-error mb-4">
               Zona de Peligro
             </h3>

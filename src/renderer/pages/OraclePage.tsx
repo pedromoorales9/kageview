@@ -60,10 +60,10 @@ export default function OraclePage({ onSelectAnime }: OraclePageProps) {
     <div className="relative min-h-[calc(100vh-80px)] w-full flex flex-col justify-center items-center px-8 text-center pb-12 overflow-hidden -mt-6">
       <style>{`
         .oracle-glow {
-          box-shadow: 0 0 40px 10px rgba(203, 151, 255, 0.2);
+          box-shadow: 0 0 40px 10px rgba(255, 143, 168, 0.2);
         }
         .btn-glow:hover {
-          box-shadow: 0 0 30px 5px rgba(203, 151, 255, 0.4);
+          box-shadow: 0 0 30px 5px rgba(255, 143, 168, 0.4);
         }
       `}</style>
       
@@ -85,7 +85,7 @@ export default function OraclePage({ onSelectAnime }: OraclePageProps) {
           </span>
           <h1 className="font-headline text-6xl md:text-7xl font-extrabold tracking-tight text-on-surface">
             KAGEVIEW <br/> 
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-primary filter drop-shadow-[0_0_15px_rgba(203,151,255,0.4)]">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-primary filter drop-shadow-[0_0_15px_rgba(255, 143, 168,0.4)]">
               ORÁCULO
             </span>
           </h1>
@@ -105,7 +105,7 @@ export default function OraclePage({ onSelectAnime }: OraclePageProps) {
                 className={`
                   px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 border
                   ${selectedGenre === genre 
-                    ? 'bg-primary/20 text-primary border-primary shadow-[0_0_15px_rgba(203,151,255,0.3)] scale-105' 
+                    ? 'bg-primary/20 text-primary border-primary shadow-[0_0_15px_rgba(255, 143, 168,0.3)] scale-105' 
                     : 'bg-surface-variant/40 text-on-surface-variant border-transparent hover:border-on-surface-variant/30 hover:bg-surface-variant'
                   }
                 `}
@@ -142,7 +142,7 @@ export default function OraclePage({ onSelectAnime }: OraclePageProps) {
         <div className="mt-16 flex flex-col items-center justify-center min-h-[300px]">
           {loading ? (
             <div className="flex items-center gap-3 text-on-surface-variant/60">
-              <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-secondary" />
               <span className="text-xs font-label uppercase tracking-widest">Escaneando los archivos...</span>
             </div>
           ) : resultAnimes.length > 0 ? (
@@ -175,8 +175,8 @@ export default function OraclePage({ onSelectAnime }: OraclePageProps) {
                           </div>
                         )}
                       </div>
-                      <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md">
+                      <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-full bg-white/25 flex items-center justify-center">
                           <span className="material-symbols-outlined text-white text-2xl ml-0.5">play_arrow</span>
                         </div>
                       </div>

@@ -7,7 +7,7 @@ export function initUpdater(mainWindow: BrowserWindow) {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
 
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' && process.platform !== 'darwin') {
     autoUpdater.checkForUpdates();
   }
 

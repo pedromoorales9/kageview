@@ -5,7 +5,7 @@ import AnimeCard from './AnimeCard';
 // Ancho objetivo por tarjeta (px). El nº de columnas se calcula según el ancho
 // disponible para que las tarjetas mantengan un tamaño consistente en cualquier
 // resolución (ventana mínima 1024px → monitores ultrawide).
-const TARGET_CARD_WIDTH = 185;
+const TARGET_CARD_WIDTH = 168;
 const GRID_GAP = 12; // gap-3
 const MIN_COLS = 2;
 const MAX_COLS = 10;
@@ -62,32 +62,39 @@ export default function AnimeRow({ title, animes, onSelect, badge }: AnimeRowPro
   if (animes.length === 0) return null;
 
   return (
-    <section ref={containerRef}>
-      <div className="flex items-center gap-3 mb-3 px-1">
-        <button
-          onClick={() => go('left')}
-          disabled={page === 0}
-          className="w-7 h-7 rounded-full bg-surface-container-high hover:bg-primary/20 border border-surface-variant/30 hover:border-primary/40 flex items-center justify-center text-on-surface-variant hover:text-primary transition-all flex-none disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <span className="material-symbols-outlined text-sm">chevron_left</span>
-        </button>
-        <button
-          onClick={() => go('right')}
-          disabled={page >= totalPages - 1}
-          className="w-7 h-7 rounded-full bg-surface-container-high hover:bg-primary/20 border border-surface-variant/30 hover:border-primary/40 flex items-center justify-center text-on-surface-variant hover:text-primary transition-all flex-none disabled:opacity-30 disabled:pointer-events-none"
-        >
-          <span className="material-symbols-outlined text-sm">chevron_right</span>
-        </button>
-        <h2 className="font-headline text-lg font-bold text-on-surface truncate">{title}</h2>
+    <section ref={containerRef} className="mb-11">
+      <div className="flex items-center gap-4 mb-5 px-1">
+        <h2 className="section-title font-headline text-[22px] font-bold text-white tracking-[-0.025em] truncate">
+          {title}
+        </h2>
         {badge}
-        <span className="text-xs text-on-surface-variant font-label ml-auto flex-none">
+        <div className="flex-1" />
+        <span className="text-[12px] text-muted font-medium tabular-nums mr-1">
           {page + 1} / {totalPages}
         </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => go('left')}
+            disabled={page === 0}
+            aria-label="Anterior"
+            className="w-7 h-7 rounded-full bg-white/[0.08] ring-[0.5px] ring-white/15 hover:bg-white/15 flex items-center justify-center text-on-surface-variant hover:text-white transition-colors flex-none disabled:opacity-30 disabled:pointer-events-none active:scale-90"
+          >
+            <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+          </button>
+          <button
+            onClick={() => go('right')}
+            disabled={page >= totalPages - 1}
+            aria-label="Siguiente"
+            className="w-7 h-7 rounded-full bg-white/[0.08] ring-[0.5px] ring-white/15 hover:bg-white/15 flex items-center justify-center text-on-surface-variant hover:text-white transition-colors flex-none disabled:opacity-30 disabled:pointer-events-none active:scale-90"
+          >
+            <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+          </button>
+        </div>
       </div>
 
       <div
         key={animKey}
-        className={`grid gap-3 ${dir === 'right' ? 'anime-row-slide-right' : 'anime-row-slide-left'}`}
+        className={`grid gap-4 ${dir === 'right' ? 'anime-row-slide-right' : 'anime-row-slide-left'}`}
         style={{ gridTemplateColumns: `repeat(${pageSize}, minmax(0, 1fr))` }}
       >
         {visible.map((anime) => (

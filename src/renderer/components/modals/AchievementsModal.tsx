@@ -37,14 +37,14 @@ export default function AchievementsModal({ onClose }: AchievementsModalProps) {
   return (
     <div
       id="achievements-overlay"
-      className="fixed inset-0 z-[65] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[65] flex items-center justify-center p-6"
       onClick={(e) => { if ((e.target as HTMLElement).id === 'achievements-overlay') onClose(); }}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-background/65 backdrop-blur-2xl" />
+      <div className="absolute inset-0 bg-[#09050a]/80" />
 
       {/* Container */}
-      <div className="relative z-10 w-full max-w-2xl h-[82vh] bg-surface-container rounded-xl flex flex-col overflow-hidden animate-fade-in-scale">
+      <div className="relative z-10 w-full max-w-2xl h-[82vh] bg-[#130a11] border border-white/10 rounded-[32px] shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden animate-fade-in-scale">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-surface-variant/10">
           <div className="flex items-center gap-3">

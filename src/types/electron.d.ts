@@ -22,8 +22,9 @@ declare global {
         error?: boolean;
         message?: string;
       }>;
-      onOAuthCode: (cb: (code: string) => void) => void;
-      removeOAuthListener: () => void;
+      onAuthCallback: (cb: (url: string) => void) => void;
+      removeAuthCallbackListener: () => void;
+      consumePendingAuthUrl: () => Promise<string | null>;
       windowControls: {
         minimize: () => void;
         maximize: () => void;

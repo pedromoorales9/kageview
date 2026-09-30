@@ -106,35 +106,36 @@ export default function SearchPage({ onSelectAnime }: SearchPageProps) {
   const sectionTitle = hasSearched ? 'Resultados de Búsqueda' : 'Populares en esta Temporada';
 
   return (
-    <div className="flex-1 overflow-y-auto pr-2 pb-8">
+    <div className="flex-1 overflow-y-auto -mx-8 px-9 pt-1 pb-16">
       {/* Search Input */}
       <div className="relative mb-5">
         <span className="
           absolute left-4 top-1/2 -translate-y-1/2
-          material-symbols-outlined text-xl text-on-surface-variant
+          material-symbols-outlined text-[22px] text-muted
         ">
           search
         </span>
         <input
           id="search-input"
           type="text"
-          placeholder="Search anime..."
+          placeholder="Buscar anime, manga o personaje..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="
-            w-full pl-12 pr-4 py-3.5
-            bg-surface-container-low rounded-xl
-            text-on-surface text-sm font-body
-            border-b-2 border-transparent focus:border-primary
+            w-full h-[52px] pl-12 pr-5
+            bg-white/[0.06] rounded-[14px]
+            text-white text-[16px] tracking-[-0.01em]
+            shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)]
+            focus:bg-white/[0.09] focus:shadow-[inset_0_0_0_1.5px_rgba(255,61,90,0.7),0_0_0_4px_rgba(255,61,90,0.15)]
             outline-none
-            placeholder:text-on-surface-variant/50
-            transition-colors duration-200
+            placeholder:text-muted
+            transition-all duration-200 ease-mac
           "
         />
       </div>
 
       {/* Genre Chips */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-9">
         {GENRES.map((genre) => (
           <Chip
             key={genre}
@@ -147,7 +148,7 @@ export default function SearchPage({ onSelectAnime }: SearchPageProps) {
       </div>
 
       {/* Section Title */}
-      <h2 className="font-headline text-lg font-bold text-on-surface mb-4">
+      <h2 className="section-title font-headline text-[22px] font-bold text-white mb-6 tracking-[-0.025em]">
         {sectionTitle}
       </h2>
 

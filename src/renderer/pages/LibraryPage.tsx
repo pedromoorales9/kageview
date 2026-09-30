@@ -12,7 +12,8 @@ import {
 } from '../../modules/manga/mangaLibrary';
 import useAniList from '../hooks/useAniList';
 import { useAppStore } from '../../modules/store';
-import { clientData } from '../../modules/clientData';
+import { getUserList } from '../../modules/library';
+import { openAuth } from '../../modules/account';
 import AnimeCard from '../components/anime/AnimeCard';
 import Badge from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
@@ -107,22 +108,22 @@ export default function LibraryPage({ onSelectAnime, onSelectManga }: LibraryPag
 // ─── Anime Section ────────────────────────────────────────────────────────────
 
 function AnimeSection({ onSelectAnime }: { onSelectAnime: (anime: AniListAnime) => void }) {
-  const token = useAppStore((s) => s.token);
-  const { getUserList, login } = useAniList();
-  const toast = useToast();
+  const status = useAppStore((s) => s.account.status);
+  const signedIn = status === 'signedIn';
+  // Al cambiar mi lista (añadir/quitar/cambiar estado) se recarga la vista
+  const myList = useAppStore((s) => s.myList);
   const [animeList, setAnimeList] = useState<AniListAnime[]>([]);
   const [activeTab, setActiveTab] = useState('ALL');
   const [loading, setLoading] = useState(false);
-  const [manualCode, setManualCode] = useState('');
 
   useEffect(() => {
-    if (!token) return;
+    if (!signedIn) return;
     let cancelled = false;
     async function load() {
       setLoading(true);
       try {
-        const status = activeTab === 'ALL' ? undefined : activeTab;
-        const list = await getUserList(status);
+        const filter = activeTab === 'ALL' ? undefined : activeTab;
+        const list = await getUserList(filter);
         if (!cancelled) setAnimeList(list);
       } catch (err) {
         console.error('[LibraryPage] Error loading list:', err);
@@ -132,53 +133,37 @@ function AnimeSection({ onSelectAnime }: { onSelectAnime: (anime: AniListAnime) 
     }
     load();
     return () => { cancelled = true; };
-  }, [token, activeTab, getUserList]);
+  }, [signedIn, activeTab, myList]);
 
-  if (!token) {
+  if (status === 'loading') {
+    return <div className="flex-1 flex items-center justify-center"><Spinner size={32} /></div>;
+  }
+
+  if (!signedIn) {
+    const unavailable = status === 'unavailable';
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-6 px-8">
-        <div className="w-20 h-20 rounded-2xl gradient-primary flex items-center justify-center">
-          <span className="material-symbols-outlined filled text-on-primary text-4xl">auto_stories</span>
+        <div className="w-20 h-20 rounded-[24px] bg-gradient-to-br from-[#ff5570] to-[#c81a3f] flex items-center justify-center shadow-moon-lg">
+          <span className="material-symbols-outlined filled text-white text-[38px]">{unavailable ? 'cloud_off' : 'auto_stories'}</span>
         </div>
-        <h2 className="font-headline text-2xl font-bold text-on-surface">Conecta tu AniList</h2>
-        <p className="text-sm text-on-surface-variant text-center max-w-md">
-          Vincula tu cuenta de AniList para registrar tu progreso, administrar tu lista de seguimiento y sincronizar en todos tus dispositivos.
+        <h2 className="font-headline text-[26px] font-bold text-white tracking-[-0.03em] text-center">
+          {unavailable ? 'Las cuentas no están configuradas' : 'Guarda tu lista de anime'}
+        </h2>
+        <p className="text-[14.5px] text-on-surface-variant text-center max-w-md leading-relaxed">
+          {unavailable
+            ? 'Esta versión de KageView no está conectada a un servidor de cuentas, así que las listas no se pueden guardar.'
+            : 'Crea tu cuenta gratis para llevar el control de lo que ves (viendo, completados, por ver…) y compartirlo con tus amigos.'}
         </p>
-        <button
-          id="connect-anilist"
-          onClick={() => {
-            if (!clientData.clientId || clientData.clientId === 0) {
-              toast.warning('Falta el Client ID público de la app en esta versión.', 'Login no configurado');
-              return;
-            }
-            // Implicit Grant: el token vuelve en el redirect, sin usar el secret.
-            const url = `https://anilist.co/api/v2/oauth/authorize?client_id=${clientData.clientId}&response_type=token`;
-            if (window.electron) window.electron.openExternal(url);
-          }}
-          className="flex items-center gap-2 px-8 py-3 gradient-primary rounded-full text-on-primary font-headline font-semibold text-sm transition-all duration-200 hover:shadow-[0_0_22px_rgba(203,151,255,0.35)] hover:scale-[1.02]"
-        >
-          <span className="material-symbols-outlined text-lg">link</span>
-          Conectar con AniList
-        </button>
-        <div className="flex items-center gap-2 mt-4">
-          <input
-            type="text"
-            placeholder="Pega tu access token de AniList aquí"
-            value={manualCode}
-            onChange={(e) => setManualCode(e.target.value)}
-            className="px-4 py-2 rounded-lg bg-surface-container-low text-on-surface text-sm border border-transparent focus:border-primary/30 outline-none w-64 placeholder:text-on-surface-variant/50"
-          />
-          <button
-            onClick={async () => {
-              if (manualCode.trim()) {
-                try { await login(manualCode.trim()); } catch { console.error('Login failed'); }
-              }
-            }}
-            className="px-4 py-2 rounded-lg bg-surface-variant/40 text-on-surface text-sm font-medium hover:bg-surface-variant/60 transition-colors"
-          >
-            Enviar
-          </button>
-        </div>
+        {!unavailable && (
+          <div className="flex gap-3">
+            <button id="library-register" onClick={() => openAuth('register')} className="btn-moon h-11 px-7 rounded-full font-semibold text-[14.5px]">
+              Crear cuenta
+            </button>
+            <button id="library-login" onClick={() => openAuth('login')} className="btn-glass h-11 px-6 rounded-full font-medium text-[14.5px]">
+              Iniciar sesión
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -332,7 +317,7 @@ function MangaSection({ onSelectManga }: { onSelectManga: (manga: MangaModel) =>
                       <span className="material-symbols-outlined text-on-surface-variant text-4xl">menu_book</span>
                     </div>
                   )}
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[inset_0_0_22px_rgba(203,151,255,0.25)] pointer-events-none" />
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[inset_0_0_22px_rgba(255, 143, 168,0.25)] pointer-events-none" />
                   {/* Status badge */}
                   <div className="absolute top-2 left-2">
                     <Badge variant={MANGA_STATUS_BADGE[status]} size="sm">{MANGA_STATUS_LABEL[status]}</Badge>
@@ -348,7 +333,7 @@ function MangaSection({ onSelectManga }: { onSelectManga: (manga: MangaModel) =>
                   {/* Progress pill */}
                   {prog && (
                     <div className="absolute bottom-2 left-2 right-2">
-                      <div className="bg-black/70 backdrop-blur-sm rounded-lg px-2 py-1 flex items-center gap-1">
+                      <div className="bg-black/75 rounded-lg px-2 py-1 flex items-center gap-1">
                         <span className="material-symbols-outlined text-primary text-[12px]">bookmark</span>
                         <span className="text-[10px] text-white font-label font-semibold truncate">
                           Cap. {prog.lastChapterNumber ?? '???'}

@@ -8,7 +8,9 @@ import {
   UserPreferences,
   DEFAULT_PREFERENCES,
   AniListAnime,
-  AniListViewer,
+  AccountState,
+  MyListEntry,
+  AuthModalState,
   StreamingSource,
   SkipTime,
 } from '../types/types';
@@ -16,8 +18,10 @@ import { setCache } from './cache';
 
 export const useAppStore = create<AppState>((set) => ({
   // ─── State ──────────────────────────────────────────────
-  token: null,
-  user: null,
+  account: { status: 'loading', user: null, profile: null },
+  myList: {},
+  authModal: null,
+  profileModalOpen: false,
   prefs: DEFAULT_PREFERENCES,
   currentAnime: null,
   currentEpisode: null,
@@ -33,9 +37,22 @@ export const useAppStore = create<AppState>((set) => ({
   remoteConfig: null,
 
   // ─── Acciones ───────────────────────────────────────────
-  setToken: (token: string | null) => set({ token }),
+  setAccount: (account: Partial<AccountState>) =>
+    set((state) => ({ account: { ...state.account, ...account } })),
 
-  setUser: (user: AniListViewer | null) => set({ user }),
+  setMyList: (myList: Record<number, MyListEntry>) => set({ myList }),
+
+  patchMyList: (animeId: number, entry: MyListEntry | null) =>
+    set((state) => {
+      const next = { ...state.myList };
+      if (entry) next[animeId] = entry;
+      else delete next[animeId];
+      return { myList: next };
+    }),
+
+  setAuthModal: (authModal: AuthModalState | null) => set({ authModal }),
+
+  setProfileModalOpen: (profileModalOpen: boolean) => set({ profileModalOpen }),
 
   setPrefs: (partial: Partial<UserPreferences>) =>
     set((state) => {

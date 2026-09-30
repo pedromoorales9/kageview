@@ -37,3 +37,7 @@ coverage/
 
 # Claude Code
 .claude/
+
+# Intermedios de scripts/make-dmg-background.js (solo se usa el .tiff)
+build/dmg-background.png
+build/dmg-background@2x.png

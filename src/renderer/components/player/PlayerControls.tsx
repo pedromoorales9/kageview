@@ -64,7 +64,7 @@ export default function PlayerControls({
         <button
           onClick={(e) => { e.stopPropagation(); onExit(); }}
           className={`
-            w-10 h-10 rounded-lg bg-black/50 backdrop-blur-md flex items-center justify-center
+            w-10 h-10 rounded-lg bg-black/60 flex items-center justify-center
             text-white/80 hover:text-white transition-colors shadow-lg
             ${visible ? 'pointer-events-auto' : ''}
           `}
@@ -74,78 +74,62 @@ export default function PlayerControls({
         </button>
       </div>
 
-      {/* Barra inferior de controles */}
+      {/* Floating Controls Pill */}
       <div
-        className={`absolute inset-x-0 bottom-0 ${visible ? 'pointer-events-auto' : ''}`}
+        className={`absolute inset-x-0 bottom-8 flex justify-center ${visible ? 'pointer-events-auto' : ''}`}
         onClick={(e) => e.stopPropagation()}
       >
-      {/* Gradiente inferior para legibilidad */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
-
-      <div className="relative px-6 pb-5 pt-12">
-        {/* Progress Bar */}
-        <div
-          className="group relative w-full h-1 bg-white/20 rounded-full cursor-pointer mb-4 hover:h-1.5 transition-all"
-          onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const pct = x / rect.width;
-            onSeek(pct * duration);
-          }}
-        >
-          <div
-            className="h-full gradient-progress rounded-full progress-glow relative"
-            style={{ width: `${progressPercent}%` }}
-          >
-            {/* Thumb */}
-            <div className="
-              absolute right-0 top-1/2 -translate-y-1/2
-              w-3 h-3 rounded-full bg-white
-              opacity-0 group-hover:opacity-100
-              shadow-[0_0_8px_rgba(203,151,255,0.5)]
-              transition-opacity duration-200
-            " />
+        <div className="w-[90%] max-w-4xl bg-black/65 border border-white/10 rounded-[24px] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col gap-3 transition-transform duration-300">
+          
+          {/* Top Row: Info & Times */}
+          <div className="flex items-center justify-between px-2">
+            <span className="text-xs text-white/60 font-body font-medium w-16 text-left">
+              {formatTime(currentTime)}
+            </span>
+            
+            <span className="text-sm text-white font-headline font-semibold tracking-wide truncate flex-1 text-center px-4 drop-shadow-md">
+              {episodeTitle}
+            </span>
+            
+            <span className="text-xs text-white/60 font-body font-medium w-16 text-right">
+              {formatTime(duration)}
+            </span>
           </div>
-        </div>
 
-        {/* Controls Row */}
-        <div className="flex items-center gap-4">
-          {/* Left controls */}
-          <div className="flex items-center gap-2">
-            {/* Prev ep */}
-            <button
-              onClick={onPrevEpisode}
-              className="w-9 h-9 flex items-center justify-center text-white/80 hover:text-white transition-colors"
+          {/* Progress Bar */}
+          <div
+            className="group relative w-full h-1.5 bg-white/10 rounded-full cursor-pointer hover:h-2 transition-all my-1"
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const x = e.clientX - rect.left;
+              const pct = x / rect.width;
+              onSeek(pct * duration);
+            }}
+          >
+            <div
+              className="absolute left-0 top-0 h-full bg-primary rounded-full shadow-[0_0_12px_rgba(255, 61, 90,0.8)]"
+              style={{ width: `${progressPercent}%` }}
             >
-              <span className="material-symbols-outlined text-xl">skip_previous</span>
-            </button>
+              {/* Thumb */}
+              <div className="
+                absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2
+                w-3 h-3 rounded-full bg-white
+                opacity-0 group-hover:opacity-100
+                shadow-[0_0_10px_rgba(255,255,255,0.8)]
+                transition-all duration-200
+                group-hover:scale-125
+              " />
+            </div>
+          </div>
 
-            {/* Play/Pause */}
-            <button
-              onClick={onPlayPause}
-              className="
-                w-11 h-11 rounded-full bg-white flex items-center justify-center
-                text-black hover:scale-105 transition-transform
-              "
-            >
-              <span className="material-symbols-outlined filled text-2xl">
-                {isPlaying ? 'pause' : 'play_arrow'}
-              </span>
-            </button>
-
-            {/* Next ep */}
-            <button
-              onClick={onNextEpisode}
-              className="w-9 h-9 flex items-center justify-center text-white/80 hover:text-white transition-colors"
-            >
-              <span className="material-symbols-outlined text-xl">skip_next</span>
-            </button>
-
-            {/* Volume */}
-            <div className="flex items-center gap-1 group/vol ml-2">
+          {/* Controls Row */}
+          <div className="flex items-center justify-between px-2 mt-1">
+            
+            {/* Left: Volume */}
+            <div className="flex items-center gap-2 group/vol w-32">
               <button
                 onClick={onMute}
-                className="w-8 h-8 flex items-center justify-center text-white/80 hover:text-white transition-colors"
+                className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white transition-colors hover:scale-110"
               >
                 <span className="material-symbols-outlined text-xl">
                   {isMuted || volume === 0
@@ -164,51 +148,66 @@ export default function PlayerControls({
                 onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
                 className="
                   w-0 group-hover/vol:w-20
-                  transition-all duration-200
+                  opacity-0 group-hover/vol:opacity-100
+                  transition-all duration-300 ease-out
                   h-1 appearance-none bg-white/20 rounded-full cursor-pointer
                   accent-primary
                 "
               />
             </div>
-          </div>
 
-          {/* Center — Title & Time */}
-          <div className="flex-1 flex items-center justify-center gap-3">
-            <span className="text-xs text-white/70 font-label">
-              {formatTime(currentTime)}
-            </span>
-            <span className="text-sm text-white/90 font-label font-medium truncate max-w-xs">
-              {episodeTitle}
-            </span>
-            <span className="text-xs text-white/70 font-label">
-              {formatTime(duration)}
-            </span>
-          </div>
+            {/* Center: Playback */}
+            <div className="flex items-center gap-6">
+              <button
+                onClick={onPrevEpisode}
+                className="w-10 h-10 flex items-center justify-center text-white/70 hover:text-white hover:scale-110 transition-all"
+              >
+                <span className="material-symbols-outlined text-3xl">skip_previous</span>
+              </button>
 
-          {/* Right controls */}
-          <div className="flex items-center gap-2">
-            {/* Subtitles */}
-            <button className="w-9 h-9 flex items-center justify-center text-white/80 hover:text-white transition-colors">
-              <span className="material-symbols-outlined text-xl">subtitles</span>
-            </button>
+              <button
+                onClick={onPlayPause}
+                className="
+                  w-14 h-14 rounded-full bg-white flex items-center justify-center
+                  text-black hover:scale-110 transition-all duration-300
+                  shadow-[0_0_20px_rgba(255,255,255,0.2)]
+                  hover:shadow-[0_0_30px_rgba(255,255,255,0.4)]
+                "
+              >
+                <span className="material-symbols-outlined filled text-4xl">
+                  {isPlaying ? 'pause' : 'play_arrow'}
+                </span>
+              </button>
 
-            {/* Settings */}
-            <button className="w-9 h-9 flex items-center justify-center text-white/80 hover:text-white transition-colors">
-              <span className="material-symbols-outlined text-xl">settings</span>
-            </button>
+              <button
+                onClick={onNextEpisode}
+                className="w-10 h-10 flex items-center justify-center text-white/70 hover:text-white hover:scale-110 transition-all"
+              >
+                <span className="material-symbols-outlined text-3xl">skip_next</span>
+              </button>
+            </div>
 
-            {/* Fullscreen */}
-            <button
-              onClick={onFullscreen}
-              className="w-9 h-9 flex items-center justify-center text-white/80 hover:text-white transition-colors"
-            >
-              <span className="material-symbols-outlined text-xl">
-                {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
-              </span>
-            </button>
+            {/* Right: Actions */}
+            <div className="flex items-center gap-1 w-32 justify-end">
+              <button className="w-10 h-10 flex items-center justify-center text-white/70 hover:text-white hover:scale-110 transition-all">
+                <span className="material-symbols-outlined text-[22px]">subtitles</span>
+              </button>
+
+              <button className="w-10 h-10 flex items-center justify-center text-white/70 hover:text-white hover:scale-110 transition-all">
+                <span className="material-symbols-outlined text-[22px]">settings</span>
+              </button>
+
+              <button
+                onClick={onFullscreen}
+                className="w-10 h-10 flex items-center justify-center text-white/70 hover:text-white hover:scale-110 transition-all"
+              >
+                <span className="material-symbols-outlined text-[24px]">
+                  {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
       </div>
     </div>
   );

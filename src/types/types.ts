@@ -164,12 +164,6 @@ export interface AniListToken {
   expiry: number;
 }
 
-export interface ClientData {
-  clientId: number;
-  clientSecret: string;
-  redirectUri: string;
-}
-
 // ─── AniSkip ──────────────────────────────────────────────
 export interface SkipTime {
   interval: { startTime: number; endTime: number };
@@ -178,17 +172,42 @@ export interface SkipTime {
   episodeLength: number;
 }
 
-// ─── User Viewer ──────────────────────────────────────────
-export interface AniListViewer {
-  id: number;
-  name: string;
-  avatar: { large: string };
+// ─── Cuenta de usuario (Supabase) ─────────────────────────
+import type { AuthUser, Profile, ListStatus } from '../modules/backend/types';
+
+export type AccountStatus =
+  | 'loading'      // comprobando si hay sesión guardada
+  | 'signedOut'
+  | 'signedIn'
+  | 'unavailable'; // el backend de cuentas no está configurado
+
+export interface AccountState {
+  status: AccountStatus;
+  user: AuthUser | null;
+  profile: Profile | null;
+}
+
+/** Estado de un anime en MI lista (índice rápido por id de AniList). */
+export interface MyListEntry {
+  status: ListStatus;
+  progress: number;
+  score: number;
+}
+
+export type AuthModalMode = 'login' | 'register' | 'reset' | 'recovery';
+export interface AuthModalState {
+  mode: AuthModalMode;
+  /** Motivo mostrado arriba ("Inicia sesión para guardar tu lista"). */
+  reason?: string;
 }
 
 // ─── Store State ──────────────────────────────────────────
 export interface AppState {
-  token: string | null;
-  user: AniListViewer | null;
+  account: AccountState;
+  /** Mi lista de anime indexada por id de AniList (vacía si no hay sesión). */
+  myList: Record<number, MyListEntry>;
+  authModal: AuthModalState | null;
+  profileModalOpen: boolean;
   prefs: UserPreferences;
   currentAnime: AniListAnime | null;
   currentEpisode: number | null;
@@ -201,8 +220,11 @@ export interface AppState {
   remoteConfig: import('../modules/remoteConfig').RemoteConfig | null;
 
   // Acciones
-  setToken: (token: string | null) => void;
-  setUser: (user: AniListViewer | null) => void;
+  setAccount: (account: Partial<AccountState>) => void;
+  setMyList: (list: Record<number, MyListEntry>) => void;
+  patchMyList: (animeId: number, entry: MyListEntry | null) => void;
+  setAuthModal: (modal: AuthModalState | null) => void;
+  setProfileModalOpen: (open: boolean) => void;
   setPrefs: (prefs: Partial<UserPreferences>) => void;
   setCurrentAnime: (anime: AniListAnime | null) => void;
   setCurrentEpisode: (episode: number | null) => void;

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<style>
+  :root{ --ink:#09050a; --moon:#ff3d5a; --sakura:#ff8fa8; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:660px;height:400px;overflow:hidden}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif;
+    color:#f8f1f3; position:relative;
+    background:
+      radial-gradient(520px 340px at 88% -12%, rgba(255,61,90,.30), transparent 62%),
+      radial-gradient(460px 320px at -4% 112%, rgba(140,20,58,.50), transparent 64%),
+      linear-gradient(180deg,#0e080e 0%,#09050a 100%);
+  }
+  /* Luna grande, muy tenue, detrás de todo */
+  .moon{position:absolute;left:330px;top:232px;width:430px;height:430px;margin:-215px 0 0 -215px;border-radius:50%;
+    background:radial-gradient(circle at 34% 28%, rgba(255,112,136,.20), rgba(255,61,90,.10) 45%, rgba(200,30,66,.05) 72%, transparent 74%);}
+  .enso{position:absolute;left:330px;top:232px;width:470px;height:470px;margin:-235px 0 0 -235px;opacity:.20}
+
+  header{position:absolute;top:26px;left:0;right:0;text-align:center}
+  .brand{font-size:31px;font-weight:700;letter-spacing:-.03em}
+  .brand b{color:var(--moon);font-weight:700}
+  .kanji{display:inline-block;margin-right:10px;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;font-weight:400;
+    color:#0a0508;background:linear-gradient(160deg,#ff6a83,#d81e42);border-radius:9px;width:34px;height:34px;line-height:34px;
+    font-size:22px;vertical-align:3px;box-shadow:0 6px 18px -4px rgba(255,61,90,.7)}
+  .sub{margin-top:9px;font-size:13.5px;color:#cdb9c1;letter-spacing:-.005em}
+  .sub em{font-style:normal;color:#fff;font-weight:600}
+
+  /* Tarjetas bajo los iconos: tono medio para que las etiquetas de Finder
+     (negras en modo claro, blancas en oscuro) se lean en ambos casos */
+  .card{position:absolute;top:128px;width:156px;height:172px;border-radius:26px;
+    background:linear-gradient(160deg,#cf5670 0%,#a63a53 100%);
+    box-shadow:0 1px 0 rgba(255,255,255,.28) inset, 0 0 0 .5px rgba(255,255,255,.22) inset, 0 22px 40px -14px rgba(0,0,0,.75), 0 0 44px -10px rgba(255,61,90,.55)}
+  .card.l{left:92px} .card.r{left:412px}
+
+  /* Flecha */
+  .arrow{position:absolute;left:262px;top:172px;width:136px;height:70px}
+
+  .hint{position:absolute;left:0;right:0;bottom:22px;text-align:center;font-size:11.5px;color:#b59ba5}
+  .hint b{color:#e9d3db;font-weight:600}
+
+  /* Pétalos */
+  .petal{position:absolute;border-radius:150% 0 150% 0;background:linear-gradient(135deg,#ffc2d1,#ff5c78);opacity:.55}
+</style></head>
+<body>
+  <div class="moon"></div>
+  <svg class="enso" viewBox="0 0 300 300" fill="none"><circle cx="150" cy="150" r="128" stroke="#ff8fa8" stroke-width="5" stroke-linecap="round" pathLength="1000" stroke-dasharray="820 180" transform="rotate(-24 150 150)"/></svg>
+
+  <span class="petal" style="left:34px;top:70px;width:13px;height:10px;transform:rotate(32deg)"></span>
+  <span class="petal" style="left:590px;top:96px;width:16px;height:12px;transform:rotate(-40deg);opacity:.45"></span>
+  <span class="petal" style="left:610px;top:262px;width:11px;height:9px;transform:rotate(70deg)"></span>
+  <span class="petal" style="left:26px;top:318px;width:15px;height:12px;transform:rotate(-15deg);opacity:.4"></span>
+  <span class="petal" style="left:318px;top:330px;width:10px;height:8px;transform:rotate(120deg);opacity:.35"></span>
+  <span class="petal" style="left:548px;top:44px;width:9px;height:7px;transform:rotate(15deg);opacity:.4"></span>
+
+  <header>
+    <div class="brand"><span class="kanji">影</span>Kage<b>View</b></div>
+    <div class="sub">Arrastra <em>KageView</em> a la carpeta <em>Aplicaciones</em></div>
+  </header>
+
+  <div class="card l"></div>
+  <div class="card r"></div>
+
+  <svg class="arrow" viewBox="0 0 136 70" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#ffc2d1" stop-opacity=".25"/><stop offset="1" stop-color="#fff" stop-opacity=".95"/></linearGradient></defs>
+    <path d="M6 40 C 36 12, 82 12, 122 33" stroke="url(#g)" stroke-width="5" stroke-dasharray="1 11"/>
+    <path d="M106 18 L124 34 L102 44" stroke="#fff" stroke-width="5" opacity=".95"/>
+  </svg>
+
+  <div class="hint">¿macOS no la abre? Clic derecho sobre la app → <b>Abrir</b></div>
+</body></html>

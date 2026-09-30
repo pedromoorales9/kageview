@@ -1,5 +1,9 @@
 // ═══════════════════════════════════════════════════════════
-// useAniList — Hook centralizado para AniList API
+// useAniList — Catálogo público de AniList (SIN cuenta)
+//
+// AniList solo se usa como fuente de datos de anime (tendencias, búsqueda,
+// fichas, horario de emisión). Las cuentas, listas y amigos son de KageView
+// (Supabase): ver modules/account.ts, library.ts y social.ts.
 // ═══════════════════════════════════════════════════════════
 
 import { useCallback } from 'react';
@@ -9,14 +13,11 @@ import {
   QUERY_SEASONAL,
   QUERY_SEARCH,
   QUERY_ANIME_DETAIL,
-  QUERY_USER_LIST,
-  QUERY_VIEWER,
   QUERY_TOP_RATED,
   QUERY_AIRING_SCHEDULE,
+  QUERY_MEDIA_BY_IDS,
 } from '../../modules/anilist/queries';
-import { MUTATION_SAVE_PROGRESS, MUTATION_SAVE_SCORE } from '../../modules/anilist/mutations';
-import { useAppStore } from '../../modules/store';
-import { AniListAnime, AniListViewer } from '../../types/types';
+import { AniListAnime } from '../../types/types';
 
 interface PageResult {
   Page: {
@@ -48,43 +49,17 @@ interface ScheduleResult {
   };
 }
 
-interface ViewerResult {
-  Viewer: AniListViewer;
-}
-
-interface MediaListResult {
-  MediaListCollection: {
-    lists: Array<{
-      name: string;
-      status: string;
-      entries: Array<{
-        id: number;
-        status: string;
-        progress: number;
-        score: number;
-        media: AniListAnime;
-      }>;
-    }>;
-  };
-}
-
 export default function useAniList() {
-  const token = useAppStore((s) => s.token);
-  const setToken = useAppStore((s) => s.setToken);
-  const setUser = useAppStore((s) => s.setUser);
-  const user = useAppStore((s) => s.user);
-
   /** Obtener trending animes */
   const getTrending = useCallback(
     async (page = 1, perPage = 20): Promise<AniListAnime[]> => {
       const data = await gqlRequest<PageResult>(
         QUERY_TRENDING,
-        { page, perPage },
-        token || undefined
+        { page, perPage }
       );
       return data.Page.media;
     },
-    [token]
+    []
   );
 
   /** Obtener el horario global de emisión de todos los animes */
@@ -97,12 +72,11 @@ export default function useAniList() {
     ): Promise<ScheduleResult['Page']['airingSchedules']> => {
       const data = await gqlRequest<ScheduleResult>(
         QUERY_AIRING_SCHEDULE,
-        { airingAt_greater, airingAt_lesser, page, perPage },
-        token || undefined
+        { airingAt_greater, airingAt_lesser, page, perPage }
       );
       return data.Page.airingSchedules;
     },
-    [token]
+    []
   );
 
   /** Obtener anime por temporada */
@@ -115,12 +89,11 @@ export default function useAniList() {
     ): Promise<AniListAnime[]> => {
       const data = await gqlRequest<PageResult>(
         QUERY_SEASONAL,
-        { season, year, page, perPage },
-        token || undefined
+        { season, year, page, perPage }
       );
       return data.Page.media;
     },
-    [token]
+    []
   );
 
   /** Buscar anime */
@@ -146,12 +119,11 @@ export default function useAniList() {
 
       const data = await gqlRequest<PageResult>(
         QUERY_SEARCH,
-        variables,
-        token || undefined
+        variables
       );
       return data.Page.media;
     },
-    [token]
+    []
   );
 
   /** Obtener detalle de un anime */
@@ -159,176 +131,48 @@ export default function useAniList() {
     async (id: number): Promise<AniListAnime> => {
       const data = await gqlRequest<DetailResult>(
         QUERY_ANIME_DETAIL,
-        { id },
-        token || undefined
+        { id }
       );
       return data.Media;
     },
-    [token]
+    []
   );
 
-  /** Obtener lista del usuario */
-  const getUserList = useCallback(
-    async (status?: string): Promise<AniListAnime[]> => {
-      if (!token || !user) return [];
-      const data = await gqlRequest<MediaListResult>(
-        QUERY_USER_LIST,
-        { userId: user.id, status },
-        token
-      );
-      const allEntries = data.MediaListCollection.lists.flatMap((list) =>
-        list.entries.map((entry) => ({
-          ...entry.media,
-          mediaListEntry: {
-            id: entry.id,
-            status: entry.status as AniListAnime['mediaListEntry'] extends null
-              ? never
-              : NonNullable<AniListAnime['mediaListEntry']>['status'],
-            progress: entry.progress,
-            score: entry.score,
-          },
-        }))
-      );
-      return allEntries as AniListAnime[];
-    },
-    [token, user]
-  );
+  /** Datos ligeros (incluye próximo episodio) de varios animes por id. */
+  const getAnimeByIds = useCallback(async (ids: number[]): Promise<AniListAnime[]> => {
+    const unique = Array.from(new Set(ids));
+    const out: AniListAnime[] = [];
+    // AniList admite hasta 50 por página
+    for (let i = 0; i < unique.length; i += 50) {
+      const chunk = unique.slice(i, i + 50);
+      const data = await gqlRequest<PageResult>(QUERY_MEDIA_BY_IDS, {
+        ids: chunk,
+        perPage: chunk.length,
+      });
+      out.push(...data.Page.media);
+    }
+    return out;
+  }, []);
 
   /** Top rated anime */
   const getTopRated = useCallback(
     async (page = 1, perPage = 10): Promise<AniListAnime[]> => {
       const data = await gqlRequest<PageResult>(
         QUERY_TOP_RATED,
-        { page, perPage },
-        token || undefined
+        { page, perPage }
       );
       return data.Page.media;
     },
-    [token]
+    []
   );
-
-  /** Guardar progreso de episodio */
-  const saveProgress = useCallback(
-    async (mediaId: number, progress: number, status = 'CURRENT') => {
-      if (!token) return;
-      await gqlRequest(
-        MUTATION_SAVE_PROGRESS,
-        { mediaId, progress, status },
-        token
-      );
-    },
-    [token]
-  );
-
-  /** Cambiar estado en la lista (Viendo, Por Ver, Completado, etc.) */
-  const updateListStatus = useCallback(
-    async (mediaId: number, status: string) => {
-      if (!token) return;
-      await gqlRequest(
-        MUTATION_SAVE_PROGRESS,
-        { mediaId, status },
-        token
-      );
-    },
-    [token]
-  );
-
-  /** Guardar puntuación */
-  const saveScore = useCallback(
-    async (mediaId: number, score: number) => {
-      if (!token) return;
-      await gqlRequest(MUTATION_SAVE_SCORE, { mediaId, score }, token);
-    },
-    [token]
-  );
-
-  /**
-   * Login con AniList — flujo Implicit Grant.
-   * El access_token llega directamente en el redirect (no hay intercambio
-   * de código ni se usa el client_secret), por eso la app no necesita
-   * incrustar ningún secreto: solo el clientId público.
-   * Cada usuario inicia sesión con SU propia cuenta; el token se guarda
-   * únicamente en su máquina.
-   */
-  const login = useCallback(
-    async (accessToken: string) => {
-      try {
-        const tokenValue = accessToken.trim();
-        if (!tokenValue) throw new Error('Token vacío');
-
-        setToken(tokenValue);
-
-        // Los tokens de AniList (implicit grant) duran 1 año
-        const ONE_YEAR_SEC = 365 * 24 * 60 * 60;
-        if (window.electron) {
-          await window.electron.setStore('token', {
-            access_token: tokenValue,
-            token_type: 'Bearer',
-            expires_in: ONE_YEAR_SEC,
-            expiry: Date.now() + ONE_YEAR_SEC * 1000,
-          });
-        }
-
-        // Obtener datos del usuario autenticado
-        const viewer = await gqlRequest<ViewerResult>(
-          QUERY_VIEWER,
-          {},
-          tokenValue
-        );
-        setUser(viewer.Viewer);
-      } catch (err) {
-        console.error('[useAniList] Login error:', err);
-        throw err;
-      }
-    },
-    [setToken, setUser]
-  );
-
-  /** Logout */
-  const logout = useCallback(async () => {
-    setToken(null);
-    setUser(null);
-    if (window.electron) {
-      await window.electron.setStore('token', null);
-    }
-  }, [setToken, setUser]);
-
-  /** Inicializar sesión desde token persistido */
-  const initSession = useCallback(async () => {
-    try {
-      if (!window.electron) return;
-      const stored = (await window.electron.getStore('token')) as {
-        access_token: string;
-        expiry: number;
-      } | null;
-
-      if (stored && stored.access_token && stored.expiry > Date.now()) {
-        setToken(stored.access_token);
-        const viewer = await gqlRequest<ViewerResult>(
-          QUERY_VIEWER,
-          {},
-          stored.access_token
-        );
-        setUser(viewer.Viewer);
-      }
-    } catch (err) {
-      console.warn('[useAniList] Failed to restore session:', err);
-    }
-  }, [setToken, setUser]);
 
   return {
     getTrending,
     getSeasonal,
     searchAnime,
     getAnimeDetail,
-    getUserList,
     getTopRated,
-    saveProgress,
-    updateListStatus,
-    saveScore,
-    login,
-    logout,
-    initSession,
+    getAnimeByIds,
     getGlobalSchedule,
   };
 }

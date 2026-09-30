@@ -18,7 +18,7 @@ export default function EpisodeNotFound({ onBack, onNextEpisode, episodeNumber }
           alt="Cinematic rainy anime city street at night with neon signs"
           src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9zh5ANIexKEqScC4Io5B7QHJ6mIqbORxqRtPlejNffKxC6tM81iA54Nu6Wl4GhzgrZ2WaXZMxW6K0NmtoGJOhNjSn3DaeN5AJuk2adHKv58bDb0CAH2PB7DJHtn3y4TeiMAoZUhlDkq5T7putwnsNXg8ZVjP5tqz4tTUZ4sDgWTUlPO9BZfFInTHgYPZ8nUTaS6hmru9eElEPafHZ7ou09N5b2g0jaeh443owscCubDRwuT2GElxOG1Oe9rSPPG12ez2bFP33iw2X"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0e0e13]/40 to-[#0e0e13]/95" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#09050a]/40 to-[#09050a]/95" />
       </div>
 
       {/* Error Content */}
@@ -46,7 +46,7 @@ export default function EpisodeNotFound({ onBack, onNextEpisode, episodeNumber }
         {/* Message Block */}
         <div className="space-y-6 max-w-2xl mx-auto -mt-12">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-error-container/20 border border-error/20 text-error text-[10px] font-headline uppercase tracking-[0.2em] mb-4">
-            <span className="w-1.5 h-1.5 rounded-full bg-error animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-error" />
             Alerta del Sistema
           </div>
 
@@ -64,7 +64,7 @@ export default function EpisodeNotFound({ onBack, onNextEpisode, episodeNumber }
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-8">
             <button
               onClick={onBack}
-              className="group relative flex items-center justify-center px-10 py-4 bg-primary rounded-full text-on-primary font-headline font-bold uppercase tracking-widest text-sm transition-all duration-300 hover:scale-105 active:scale-95 shadow-[0_0_40px_0_rgba(203,151,255,0.15)]"
+              className="group relative flex items-center justify-center px-10 py-4 bg-primary rounded-full text-on-primary font-headline font-bold uppercase tracking-widest text-sm transition-all duration-300 hover:scale-105 active:scale-95 shadow-[0_0_40px_0_rgba(255, 143, 168,0.15)]"
             >
               <span className="relative z-10 flex items-center gap-2">
                 Volver
@@ -75,7 +75,7 @@ export default function EpisodeNotFound({ onBack, onNextEpisode, episodeNumber }
 
             <button
               onClick={onNextEpisode}
-              className="group relative flex items-center justify-center px-10 py-4 bg-surface-container-highest/60 backdrop-blur-md rounded-full text-on-surface font-headline font-bold uppercase tracking-widest text-sm transition-all duration-300 hover:scale-105 active:scale-95 border border-primary/20 hover:border-primary/50 hover:shadow-[0_0_24px_0_rgba(203,151,255,0.15)]"
+              className="group relative flex items-center justify-center px-10 py-4 bg-surface-container-highest/80 rounded-full text-on-surface font-headline font-bold uppercase tracking-widest text-sm transition-all duration-300 hover:scale-105 active:scale-95 border border-primary/20 hover:border-primary/50 hover:shadow-[0_0_24px_0_rgba(255, 143, 168,0.15)]"
             >
               <span className="relative z-10 flex items-center gap-2">
                 Siguiente Episodio

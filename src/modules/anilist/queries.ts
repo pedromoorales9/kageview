@@ -35,12 +35,6 @@ const ANIME_FRAGMENT = `
     episode
     timeUntilAiring
   }
-  mediaListEntry {
-    id
-    status
-    progress
-    score
-  }
   relations {
     edges {
       relationType(version: 2)
@@ -125,41 +119,7 @@ export const QUERY_ANIME_DETAIL = `
   }
 `;
 
-/** Lista del usuario (Watching, Completed, etc.) */
-export const QUERY_USER_LIST = `
-  query UserList($userId: Int, $status: MediaListStatus) {
-    MediaListCollection(userId: $userId, type: ANIME, status: $status) {
-      lists {
-        name
-        status
-        entries {
-          id
-          status
-          progress
-          score
-          media {
-            ${ANIME_FRAGMENT}
-          }
-        }
-      }
-    }
-  }
-`;
-
-/** Datos del usuario autenticado */
-export const QUERY_VIEWER = `
-  query Viewer {
-    Viewer {
-      id
-      name
-      avatar {
-        large
-      }
-    }
-  }
-`;
-
-/** Top rated anime */
+/** Anime mejor valorados */
 export const QUERY_TOP_RATED = `
   query TopRated($page: Int, $perPage: Int) {
     Page(page: $page, perPage: $perPage) {
@@ -197,6 +157,27 @@ export const QUERY_AIRING_SCHEDULE = `
         media {
           ${ANIME_FRAGMENT}
         }
+      }
+    }
+  }
+`;
+
+/** Datos ligeros de varios animes por id (calendario "mis series en emisión"). */
+export const QUERY_MEDIA_BY_IDS = `
+  query ($ids: [Int], $perPage: Int) {
+    Page(page: 1, perPage: $perPage) {
+      media(id_in: $ids, type: ANIME) {
+        id
+        idMal
+        title { romaji english native }
+        coverImage { extraLarge large color }
+        bannerImage
+        episodes
+        genres
+        averageScore
+        status
+        seasonYear
+        nextAiringEpisode { episode timeUntilAiring }
       }
     }
   }

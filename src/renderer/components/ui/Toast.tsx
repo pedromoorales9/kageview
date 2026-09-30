@@ -31,10 +31,10 @@ interface ToastContextValue {
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 const TYPE_META: Record<ToastType, { icon: string; accent: string; ring: string }> = {
-  info:    { icon: 'info',          accent: 'text-primary',   ring: 'border-primary/30' },
-  success: { icon: 'check_circle',  accent: 'text-emerald-400', ring: 'border-emerald-500/30' },
-  error:   { icon: 'error',         accent: 'text-error',     ring: 'border-error/40' },
-  warning: { icon: 'warning',       accent: 'text-amber-400', ring: 'border-amber-500/30' },
+  info:    { icon: 'info',          accent: 'text-secondary',   ring: 'ring-white/10' },
+  success: { icon: 'check_circle',  accent: 'text-emerald-400', ring: 'ring-emerald-400/30' },
+  error:   { icon: 'error',         accent: 'text-error',       ring: 'ring-error/40' },
+  warning: { icon: 'warning',       accent: 'text-amber-400',   ring: 'ring-amber-400/30' },
 };
 
 let idCounter = 0;
@@ -75,17 +75,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={helpers}>
       {children}
       {ReactDOM.createPortal(
-        <div className="fixed top-20 right-4 z-[300] flex flex-col gap-2.5 w-[340px] max-w-[calc(100vw-2rem)] pointer-events-none">
+        <div className="fixed top-16 right-4 z-[300] flex flex-col gap-2.5 w-[340px] max-w-[calc(100vw-2rem)] pointer-events-none">
           {toasts.map((t) => {
             const meta = TYPE_META[t.type];
             return (
               <div
                 key={t.id}
                 className={`
-                  pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl
-                  bg-surface-container-high/95 backdrop-blur-xl
-                  border ${meta.ring}
-                  shadow-[0_10px_30px_-8px_rgba(0,0,0,0.6)]
+                  glass-strong pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl
+                  ring-1 ${meta.ring}
                   animate-fade-in-scale
                 `}
               >
@@ -94,7 +92,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 </span>
                 <div className="flex-1 min-w-0">
                   {t.title && (
-                    <p className="font-headline font-bold text-sm text-on-surface leading-tight mb-0.5">
+                    <p className="font-headline font-semibold text-[13.5px] text-white leading-tight mb-0.5">
                       {t.title}
                     </p>
                   )}

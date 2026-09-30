@@ -13,7 +13,8 @@ export default function Spinner({ size = 32, className = '' }: SpinnerProps) {
         height={size}
         viewBox="0 0 24 24"
         fill="none"
-        className="animate-spin"
+        className="animate-spin drop-shadow-[0_0_8px_rgba(255,61,90,0.55)]"
+        style={{ animationDuration: '0.9s' }}
       >
         <circle
           cx="12"
@@ -32,8 +33,8 @@ export default function Spinner({ size = 32, className = '' }: SpinnerProps) {
         />
         <defs>
           <linearGradient id="spinner-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#cb97ff" />
-            <stop offset="100%" stopColor="#f673b7" />
+            <stop offset="0%" stopColor="#ffc2d1" />
+            <stop offset="100%" stopColor="#ff3d5a" />
           </linearGradient>
         </defs>
       </svg>

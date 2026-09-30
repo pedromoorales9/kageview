@@ -56,10 +56,10 @@ export function UpdaterModal() {
 
   return (
     // Overlay sobre toda la app
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/60 backdrop-blur-md p-6">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/85 p-6">
       {/* Glow de fondo */}
-      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-secondary/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-1/4 -left-20 w-96 h-96 rounded-full bg-[radial-gradient(circle,rgba(255,61,90,0.14),transparent_70%)] pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-20 w-80 h-80 rounded-full bg-[radial-gradient(circle,rgba(255,143,168,0.12),transparent_70%)] pointer-events-none" />
 
       {/* Card principal */}
       <div className="relative w-full max-w-2xl rounded-xl overflow-hidden border border-outline-variant/15 shadow-2xl"
@@ -165,7 +165,7 @@ export function UpdaterModal() {
                   className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-300"
                   style={{
                     width: `${state.percent}%`,
-                    boxShadow: '0 0 10px rgba(203,151,255,0.5)'
+                    boxShadow: '0 0 10px rgba(255, 143, 168,0.5)'
                   }}
                 />
               </div>
@@ -189,8 +189,8 @@ export function UpdaterModal() {
                 }}
                 className="group relative w-full py-5 rounded-full font-headline font-extrabold text-sm tracking-[0.1em] text-on-primary-fixed flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                 style={{
-                  background: 'linear-gradient(135deg, #cb97ff, #c185fd)',
-                  boxShadow: '0 0 20px 2px rgba(203, 151, 255, 0.2)'
+                  background: 'linear-gradient(135deg, #ff8fa8, #ff7a96)',
+                  boxShadow: '0 0 20px 2px rgba(255, 143, 168, 0.2)'
                 }}
               >
                 {(() => {
@@ -208,8 +208,8 @@ export function UpdaterModal() {
                 onClick={() => window.electron.updaterInstall()}
                 className="group relative w-full py-5 rounded-full font-headline font-extrabold text-sm tracking-[0.1em] text-on-primary-fixed flex items-center justify-center gap-3 transition-all duration-300 hover:scale-[1.02] active:scale-95"
                 style={{
-                  background: 'linear-gradient(135deg, #cb97ff, #c185fd)',
-                  boxShadow: '0 0 20px 2px rgba(203, 151, 255, 0.2)'
+                  background: 'linear-gradient(135deg, #ff8fa8, #ff7a96)',
+                  boxShadow: '0 0 20px 2px rgba(255, 143, 168, 0.2)'
                 }}
               >
                 REINICIAR E INSTALAR

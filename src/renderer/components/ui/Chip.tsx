@@ -16,15 +16,15 @@ export default function Chip({
   return (
     <button
       onClick={onClick}
+      aria-pressed={selected}
       className={`
         inline-flex items-center gap-1.5
-        px-3.5 py-1.5 rounded-full text-xs font-label font-medium
-        transition-all duration-200 ease-out-custom
-        border border-transparent
+        h-[30px] px-3.5 rounded-full text-[12.5px] font-medium tracking-[-0.005em]
+        transition-all duration-200 ease-mac active:scale-95
         ${
           selected
-            ? 'bg-primary/20 text-primary border-primary/30'
-            : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface'
+            ? 'bg-primary text-white shadow-moon'
+            : 'bg-white/[0.06] text-on-surface-variant hover:bg-white/[0.11] hover:text-white shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.1)]'
         }
         ${className}
       `}

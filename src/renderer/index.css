@@ -3,26 +3,29 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════
-   KageView — Cinematic Shadow Design System
-   Variables CSS globales + overrides
+   KageView — "Luna de sangre"
+   Sistema de diseño para macOS: tinta, carmesí y sakura.
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  --color-primary: #cb97ff;
-  --color-primary-dim: #be83fa;
-  --color-secondary: #f673b7;
-  --color-tertiary: #47c4ff;
-  --color-background: #0e0e13;
-  --color-surface: #0e0e13;
-  --color-surface-container: #19191f;
-  --color-on-surface: #f8f5fd;
-  --color-on-surface-variant: #acaab1;
-  --glow-primary: rgba(203, 151, 255, 0.25);
-  --glow-secondary: rgba(246, 115, 183, 0.2);
-  --transition-default: 250ms cubic-bezier(0.33, 1, 0.68, 1);
+  --color-primary: #ff3d5a;
+  --color-primary-dim: #c81a3f;
+  --color-sakura: #ff8fa8;
+  --color-background: #09050a;
+  --color-surface: #0f070c;
+  --color-surface-container: #1a0d14;
+  --color-on-surface: #f8f1f3;
+  --color-on-surface-variant: #bcaab2;
+  --color-muted: #86747c;
+  --glow-primary: rgba(255, 61, 90, 0.28);
+  --glow-secondary: rgba(227, 35, 74, 0.2);
+  --hairline: rgba(255, 255, 255, 0.08);
+  --ease-mac: cubic-bezier(0.32, 0.72, 0, 1);
+  --transition-default: 220ms var(--ease-mac);
+  color-scheme: dark;
 }
 
-/* ─── Base Reset ──────────────────────────────────────────── */
+/* ─── Base ────────────────────────────────────────────────── */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -33,172 +36,255 @@ html, body, #root {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background-color: var(--color-background);
   color: var(--color-on-surface);
-  font-family: 'Inter', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue',
+    Inter, 'Segoe UI', system-ui, sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* ─── Custom Scrollbar ────────────────────────────────────── */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+/* En macOS el fondo de la ventana es transparente para dejar pasar el
+   vibrancy nativo por la barra lateral; en el resto, tinta sólida. */
+html { background-color: var(--color-background); }
+html.platform-darwin, html.platform-darwin body { background-color: transparent; }
+body { background-color: transparent; }
+
+h1, h2, h3, .font-headline {
+  letter-spacing: -0.022em;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+::selection {
+  background: rgba(255, 61, 90, 0.45);
+  color: #fff;
 }
 
+/* Foco accesible: anillo carmesí (solo con teclado) */
+/* Los campos de texto ya dibujan su propio aro de foco (sombra carmesí) */
+:focus-visible:not(input):not(textarea):not([contenteditable='true']) {
+  outline: 2px solid rgba(255, 61, 90, 0.85);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+input:focus-visible, textarea:focus-visible { outline: none; }
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Cursor de texto solo donde toca; el resto se comporta como app nativa */
+button, [role='button'] { cursor: default; }
+img { -webkit-user-drag: none; }
+
+/* ─── Scrollbars estilo macOS (finas, translúcidas) ───────── */
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #25252c;
-  border-radius: 2px;
+  background-color: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a3a45;
+  background-color: rgba(255, 61, 90, 0.55);
+  background-clip: content-box;
 }
+::-webkit-scrollbar-corner { background: transparent; }
 
-/* ─── Material Symbols Config ─────────────────────────────── */
+/* ─── Material Symbols ────────────────────────────────────── */
 .material-symbols-outlined {
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 24;
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
   user-select: none;
 }
-
 .material-symbols-outlined.filled {
-  font-variation-settings:
-    'FILL' 1,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 24;
+  font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24;
 }
 
-/* ─── Transitions ─────────────────────────────────────────── */
-.transition-default {
-  transition: all var(--transition-default);
+/* ─── Fondo ambiental: luna de sangre + niebla vino ───────── */
+.app-ambient {
+  background:
+    radial-gradient(900px 620px at 88% -8%, rgba(255, 61, 90, 0.16), transparent 60%),
+    radial-gradient(700px 520px at 6% 108%, rgba(120, 18, 52, 0.28), transparent 62%),
+    radial-gradient(500px 400px at 50% 40%, rgba(255, 143, 168, 0.035), transparent 70%),
+    linear-gradient(180deg, #0b060c 0%, #09050a 100%);
 }
 
-/* ─── Glow Effects ────────────────────────────────────────── */
-.glow-primary {
-  box-shadow: 0 0 22px rgba(222, 187, 255, 0.25);
+/* ─── Cristal (glassmorphism macOS) ───────────────────────── */
+.glass {
+  background: rgba(26, 13, 20, 0.55);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  backdrop-filter: blur(16px) saturate(1.3);
+  border: 0.5px solid var(--hairline);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.07) inset, 0 12px 40px -12px rgba(0, 0, 0, 0.75);
+}
+.glass-strong {
+  background: rgba(15, 7, 12, 0.72);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  backdrop-filter: blur(20px) saturate(1.3);
+  border: 0.5px solid var(--hairline);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.07) inset, 0 24px 60px -16px rgba(0, 0, 0, 0.85);
+}
+.hairline { border: 0.5px solid var(--hairline); }
+
+/* Cristal SIN desenfoque: para superficies sobre vídeo en reproducción o
+   repetidas muchas veces (un backdrop-filter sobre contenido que cambia
+   obliga a recalcular el blur en cada fotograma). */
+.glass-lite {
+  background: rgba(17, 8, 13, 0.78);
+  border: 0.5px solid var(--hairline);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.07) inset, 0 10px 30px -10px rgba(0, 0, 0, 0.7);
 }
 
-.glow-secondary {
-  box-shadow: 0 0 22px rgba(255, 175, 215, 0.2);
+/* Halo de hover de las tarjetas: se anima solo la opacidad (compositor),
+   nunca box-shadow (que fuerza repintado en cada fotograma). */
+.card-glow {
+  box-shadow: 0 22px 44px -14px rgba(0, 0, 0, 0.85), 0 0 36px -8px rgba(255, 61, 90, 0.5);
 }
 
-.neon-glow {
-  box-shadow: 0 0 40px -10px rgba(222, 187, 255, 0.08), 0 0 10px -2px rgba(14, 14, 19, 0.3);
+/* Superficie estándar de tarjeta/panel */
+.panel {
+  background: linear-gradient(180deg, rgba(34, 18, 27, 0.75), rgba(21, 10, 16, 0.85));
+  border: 0.5px solid var(--hairline);
+  border-radius: 18px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 8px 24px -10px rgba(0, 0, 0, 0.6);
 }
 
-.neon-glow-primary {
-  box-shadow: 0 0 40px -10px rgba(222, 187, 255, 0.15), 0 10px 10px -5px rgba(14, 14, 19, 0.5);
+/* ─── Botones de marca ────────────────────────────────────── */
+.btn-moon {
+  background: linear-gradient(180deg, #ff5570 0%, #e3234a 100%);
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 8px 24px -6px rgba(255, 61, 90, 0.65);
+  transition: transform var(--transition-default), box-shadow var(--transition-default), filter var(--transition-default);
+}
+.btn-moon:hover { filter: brightness(1.08); box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 12px 32px -6px rgba(255, 61, 90, 0.8); }
+.btn-moon:active { transform: scale(0.97); filter: brightness(0.95); }
+
+.btn-glass {
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
+  border: 0.5px solid rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  backdrop-filter: blur(20px) saturate(1.6);
+  transition: background var(--transition-default), transform var(--transition-default);
+}
+.btn-glass:hover { background: rgba(255, 255, 255, 0.18); }
+.btn-glass:active { transform: scale(0.97); }
+
+/* ─── Título de sección con trazo de pincel ───────────────── */
+.section-title { position: relative; display: inline-block; }
+.section-title::after {
+  content: '';
+  position: absolute;
+  left: -2px; right: -6px; bottom: -6px; height: 5px;
+  background: linear-gradient(90deg, rgba(255, 61, 90, 0.95), rgba(255, 61, 90, 0.35) 55%, transparent);
+  border-radius: 999px;
+  clip-path: polygon(0 40%, 6% 20%, 30% 35%, 62% 15%, 100% 55%, 70% 85%, 34% 70%, 8% 90%);
+  opacity: 0.9;
 }
 
-.card-shadow {
-  box-shadow: 0 10px 15px -3px rgba(14, 14, 19, 0.3);
-}
+/* ─── Transiciones / brillos (compatibilidad) ─────────────── */
+.transition-default { transition: all var(--transition-default); }
 
-/* ─── Utils ───────────────────────────────────────────────── */
+.glow-primary { box-shadow: 0 0 18px rgba(255, 61, 90, 0.18); }
+.glow-secondary { box-shadow: 0 0 18px rgba(227, 35, 74, 0.12); }
+.neon-glow { box-shadow: 0 0 30px -10px rgba(255, 61, 90, 0.1), 0 0 10px -2px rgba(9, 5, 10, 0.3); }
+.neon-glow-primary { box-shadow: 0 0 30px -10px rgba(255, 61, 90, 0.2), 0 10px 10px -5px rgba(9, 5, 10, 0.5); }
+.card-shadow { box-shadow: 0 10px 24px -6px rgba(9, 5, 10, 0.7); }
+
+/* ─── Utilidades ──────────────────────────────────────────── */
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* ─── Gradient Backgrounds ────────────────────────────────── */
-.gradient-primary {
-  background: linear-gradient(135deg, #debbff, #cb97ff);
-}
+.gradient-primary { background: linear-gradient(135deg, #ff4d69, #c81a3f); }
+.gradient-progress { background: linear-gradient(90deg, #ff8fa8, #ff3d5a); }
 
-.gradient-progress {
-  background: linear-gradient(90deg, #debbff, #ffafd7);
-}
-
-/* ─── Skeleton Loader ─────────────────────────────────────── */
+/* ─── Skeleton ────────────────────────────────────────────── */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    #19191f 25%,
-    #25252c 50%,
-    #19191f 75%
-  );
+  background: linear-gradient(90deg, #150a10 25%, #22121b 50%, #150a10 75%);
   background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-  border-radius: 8px;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 12px;
 }
 
-/* ─── Video Player Progress Bar ───────────────────────────── */
-.progress-glow {
-  box-shadow: 0 0 8px var(--glow-primary), 0 0 16px var(--glow-secondary);
-}
+/* ─── Progreso del reproductor ────────────────────────────── */
+.progress-glow { box-shadow: 0 0 10px var(--glow-primary), 0 0 20px var(--glow-secondary); }
 
-/* ─── Fade Animations ─────────────────────────────────────── */
+/* ─── Entradas ────────────────────────────────────────────── */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes fadeInScale {
-  from { opacity: 0; transform: scale(0.95); }
+  from { opacity: 0; transform: scale(0.97); }
   to { opacity: 1; transform: scale(1); }
 }
+.animate-fade-in { animation: fadeIn 260ms var(--ease-mac); }
+.animate-fade-in-scale { animation: fadeInScale 260ms var(--ease-mac); }
 
-.animate-fade-in {
-  animation: fadeIn 300ms ease-out;
-}
-
-.animate-fade-in-scale {
-  animation: fadeInScale 250ms ease-out;
-}
-
-/* ─── Episodes Carousel Scrollbar ────────────────────────────── */
-.carousel-scrollbar::-webkit-scrollbar {
-  height: 8px;
-}
-
-.carousel-scrollbar::-webkit-scrollbar-track {
-  background: #19191f;
-  border-radius: 3px;
-}
-
+/* ─── Carrusel de episodios ───────────────────────────────── */
+.carousel-scrollbar::-webkit-scrollbar { height: 8px; }
+.carousel-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .carousel-scrollbar::-webkit-scrollbar-thumb {
-  background: #48474d;
-  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
+.carousel-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #ff3d5a; background-clip: content-box; }
 
-.carousel-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #cb97ff;
-}
-
-/* ─── AnimeRow Slide Animations ───────────────────────────── */
+/* ─── Paginación de filas ─────────────────────────────────── */
 @keyframes slideInFromRight {
-  from { opacity: 0; transform: translateX(30px); }
+  from { opacity: 0; transform: translateX(24px); }
   to   { opacity: 1; transform: translateX(0); }
 }
-
 @keyframes slideInFromLeft {
-  from { opacity: 0; transform: translateX(-30px); }
+  from { opacity: 0; transform: translateX(-24px); }
   to   { opacity: 1; transform: translateX(0); }
 }
+.anime-row-slide-right { animation: slideInFromRight 320ms var(--ease-mac); }
+.anime-row-slide-left  { animation: slideInFromLeft 320ms var(--ease-mac); }
 
-.anime-row-slide-right {
-  animation: slideInFromRight 220ms cubic-bezier(0.33, 1, 0.68, 1);
+/* ─── Región de arrastre de la ventana ────────────────────── */
+.titlebar-drag { -webkit-app-region: drag; }
+.titlebar-no-drag { -webkit-app-region: no-drag; }
+
+/* ─── Movimiento reducido ─────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  /* Los pétalos son puramente decorativos: se ocultan en vez de congelarse */
+  .animate-petal-fall, .animate-petal-drift { display: none !important; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
-.anime-row-slide-left {
-  animation: slideInFromLeft 220ms cubic-bezier(0.33, 1, 0.68, 1);
+/* ─── Barra lateral: vibrancy en macOS, tinta sólida en el resto ─ */
+.sidebar-surface {
+  background:
+    linear-gradient(180deg, rgba(255, 61, 90, 0.05), transparent 30%),
+    #0d060b;
+}
+.platform-darwin .sidebar-surface {
+  background:
+    linear-gradient(180deg, rgba(255, 61, 90, 0.10), transparent 34%),
+    linear-gradient(0deg, rgba(120, 18, 52, 0.16), transparent 40%),
+    rgba(16, 5, 11, 0.74);
 }
 
-/* ─── Titlebar drag region (frameless window) ──────────────── */
-.titlebar-drag {
-  -webkit-app-region: drag;
-}
-
-.titlebar-no-drag {
-  -webkit-app-region: no-drag;
+/* Atajo de teclado (⌘K) */
+.kbd {
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 1px 6px;
+  border-radius: 5px;
+  color: #a8969e;
+  background: rgba(255, 255, 255, 0.07);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
 }

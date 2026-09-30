@@ -66,8 +66,19 @@ function MangaCard({ manga, onClick, className = '', style }: MangaCardProps) {
         ${className}
       `}
     >
+      {/* Ambilight glow behind the card */}
+      <div className="absolute inset-x-0 top-0 aspect-[3/4] z-0 opacity-0 group-hover:opacity-40 transition-opacity duration-500 pointer-events-none rounded-[14px] overflow-hidden blur-2xl transform scale-95 translate-y-4">
+        {manga.coverUrl && !imgError && (
+          <img
+            src={manga.coverUrl}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        )}
+      </div>
+
       {/* Cover container */}
-      <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden mb-2 card-shadow transition-all duration-500 transform group-hover:-translate-y-2 group-hover:shadow-[0_0_30px_rgba(222,187,255,0.15)]">
+      <div className="relative z-10 w-full aspect-[3/4] rounded-xl overflow-hidden mb-2 bg-[#150a10] border border-white/5 shadow-lg group-hover:shadow-2xl transition-all duration-300 transform group-hover:-translate-y-2 group-hover:scale-[1.02]">
         {/* Cover image (con placeholder si falta o falla la carga, p.ej. CDN caído) */}
         {manga.coverUrl && !imgError ? (
           <img
@@ -78,19 +89,30 @@ function MangaCard({ manga, onClick, className = '', style }: MangaCardProps) {
             onError={() => setImgError(true)}
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-surface-container-high px-2 text-center">
-            <span className="material-symbols-outlined text-on-surface-variant/60 text-4xl">menu_book</span>
-            <span className="text-[10px] text-on-surface-variant/50 font-label line-clamp-2 leading-tight">{manga.title}</span>
+          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#150a10] px-2 text-center">
+            <span className="material-symbols-outlined text-[#86747c] text-4xl">menu_book</span>
+            <span className="text-[10px] text-[#86747c] font-label line-clamp-2 leading-tight">{manga.title}</span>
           </div>
         )}
 
+        {/* Hover overlay (manga style) */}
+        <div className="
+          absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100
+          transition-opacity duration-300
+          flex items-center justify-center pointer-events-none
+        ">
+          <div className="w-14 h-14 rounded-full bg-white/20 text-white flex items-center justify-center scale-50 opacity-0 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 ease-out border border-white/20 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
+            <span className="material-symbols-outlined text-2xl">visibility</span>
+          </div>
+        </div>
+
         {/* Bottom gradient overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80 pointer-events-none" />
 
         {/* Type Badge pill — bottom left */}
         {typeInfo && (
           <div className="absolute bottom-3 left-3 right-3 pointer-events-none">
-            <span className="inline-block bg-primary/30 text-primary text-[9px] sm:text-[11px] lg:text-[13px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest shadow-lg border border-primary/20">
+            <span className="inline-block bg-black/55 text-white border border-white/20 text-[9px] sm:text-[11px] lg:text-[13px] font-bold px-2.5 py-1 rounded-[8px] uppercase tracking-widest shadow-sm">
               {typeInfo.label}
             </span>
           </div>
@@ -98,13 +120,13 @@ function MangaCard({ manga, onClick, className = '', style }: MangaCardProps) {
       </div>
 
       {/* Info Block */}
-      <h4 className="text-on-surface font-headline font-bold text-sm sm:text-base lg:text-lg mb-1 truncate px-1 group-hover:text-primary transition-colors">
+      <h4 className="relative z-10 text-white font-headline font-bold text-sm sm:text-base lg:text-lg mb-1 truncate px-1 group-hover:text-primary transition-colors drop-shadow-md">
         {manga.title}
       </h4>
-      <p className="text-on-surface-variant text-[10px] sm:text-[11px] lg:text-sm flex items-center gap-2 px-1 truncate font-label uppercase tracking-wider">
+      <p className="relative z-10 text-[#86747c] text-[10px] sm:text-[11px] lg:text-sm flex items-center gap-2 px-1 truncate font-headline uppercase tracking-wider font-semibold">
         <span>C.{manga.lastChapter ?? '?'}</span>
         <span className={`w-1.5 h-1.5 rounded-full flex-none ${statusColor}`} />
-        <span className="text-on-surface-variant/80 font-semibold truncate">{statusText}</span>
+        <span className="text-[#bcaab2] truncate">{statusText}</span>
       </p>
     </div>
   );

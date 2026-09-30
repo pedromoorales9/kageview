@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { AniListAnime, AiringEntry } from '../../types/types';
 import useAniList from '../hooks/useAniList';
 import { useAppStore } from '../../modules/store';
+import { getUserList } from '../../modules/library';
+import { openAuth } from '../../modules/account';
 import Spinner from '../components/ui/Spinner';
 
 interface CalendarPageProps {
@@ -63,10 +65,11 @@ function formatCountdown(unixSec: number): string {
 // ─── Component ──────────────────────────────────────────────
 
 export default function CalendarPage({ onSelectAnime, onNotificationsChange }: CalendarPageProps) {
-  const token = useAppStore((s) => s.token);
-  const { getUserList, getGlobalSchedule } = useAniList();
+  const signedIn = useAppStore((s) => s.account.status === 'signedIn');
+  const { getAnimeByIds, getGlobalSchedule } = useAniList();
 
-  const [activeTab, setActiveTab] = useState<'mine' | 'all'>('mine');
+  // Sin cuenta el horario global sigue disponible; "Mis animes" pide iniciar sesión
+  const [activeTab, setActiveTab] = useState<'mine' | 'all'>(signedIn ? 'mine' : 'all');
   const [globalSchedule, setGlobalSchedule] = useState<AniListAnime[]>([]);
   
   const [weekOffset, setWeekOffset] = useState(0);
@@ -84,16 +87,21 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
 
   // ─── Cargar animes en emisión ──────────────────────────────
   useEffect(() => {
-    if (!token) return;
+    if (!signedIn) {
+      setAiringList([]);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
 
     async function load() {
       try {
-        const list = await getUserList('CURRENT');
+        // Mi lista guarda instantáneas: el próximo episodio se pide fresco a AniList
+        const mine = await getUserList('CURRENT');
+        const fresh = mine.length > 0 ? await getAnimeByIds(mine.map((a) => a.id)) : [];
         if (cancelled) return;
         // Solo los que tienen nextAiringEpisode
-        const airing = list.filter((a) => a.nextAiringEpisode != null);
+        const airing = fresh.filter((a) => a.nextAiringEpisode != null);
         setAiringList(airing);
 
         // Enviar al daemon del proceso principal
@@ -117,7 +125,7 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
 
     load();
     return () => { cancelled = true; };
-  }, [token, getUserList]);
+  }, [signedIn, getAnimeByIds]);
 
   // ─── Cargar horario global ───────────────────────────────
   useEffect(() => {
@@ -216,21 +224,6 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
     });
   }
 
-  // ─── Estado sin AniList ───────────────────────────────────
-  if (!token) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-6 px-8">
-        <div className="w-20 h-20 rounded-2xl gradient-primary flex items-center justify-center">
-          <span className="material-symbols-outlined filled text-on-primary text-4xl">calendar_month</span>
-        </div>
-        <h2 className="font-headline text-2xl font-bold text-on-surface">Conecta tu AniList</h2>
-        <p className="text-sm text-on-surface-variant text-center max-w-md">
-          Conecta tu cuenta de AniList para ver el calendario de emisión de los animes que estás viendo.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden pb-4 select-none">
 
@@ -267,7 +260,7 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
             flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold
             transition-all duration-300 border
             ${notifEnabled
-              ? 'bg-primary/15 text-primary border-primary/30 hover:bg-primary/25 shadow-[0_0_16px_rgba(203,151,255,0.2)]'
+              ? 'bg-primary/15 text-primary border-primary/30 hover:bg-primary/25 shadow-[0_0_16px_rgba(255, 143, 168,0.2)]'
               : 'bg-surface-container-high text-on-surface-variant border-transparent hover:bg-surface-container-highest hover:text-on-surface'
             }
             disabled:opacity-50 disabled:cursor-not-allowed
@@ -279,7 +272,7 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
           {notifEnabled ? 'Notificaciones ON' : 'Notificaciones OFF'}
           {notifEnabled && (
             <span
-              className="w-2 h-2 rounded-full bg-primary animate-pulse"
+              className="w-2 h-2 rounded-full bg-primary"
               aria-label="daemon activo"
             />
           )}
@@ -388,12 +381,21 @@ export default function CalendarPage({ onSelectAnime, onNotificationsChange }: C
         ) : animesBySelectedDay.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4 text-on-surface-variant">
             <span className="text-5xl opacity-30">📭</span>
-            <p className="text-sm">No hay episodios programados para este día.</p>
-            {airingList.length === 0 && !loading && (
-              <p className="text-xs opacity-70 max-w-xs text-center">
-                Añade animes en emisión a tu lista de AniList con estado "Viendo"
-                para verlos aquí.
-              </p>
+            {activeTab === 'mine' && !signedIn ? (
+              <>
+                <p className="text-sm">Inicia sesión para ver el calendario de tus series.</p>
+                <button onClick={() => openAuth('login', 'Inicia sesión para ver el calendario de emisión de tu lista.')}
+                  className="btn-moon h-10 px-6 rounded-full font-semibold text-[14px]">Iniciar sesión</button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm">No hay episodios programados para este día.</p>
+                {activeTab === 'mine' && airingList.length === 0 && !loading && (
+                  <p className="text-xs opacity-70 max-w-xs text-center">
+                    Añade animes en emisión a tu lista con estado "Viendo" para verlos aquí.
+                  </p>
+                )}
+              </>
             )}
           </div>
         ) : (

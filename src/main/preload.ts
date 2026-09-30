@@ -27,13 +27,18 @@ contextBridge.exposeInMainWorld('electron', {
   }): Promise<{ status: number; data: unknown; headers: Record<string, unknown>; error?: boolean; message?: string }> =>
     ipcRenderer.invoke('proxy-request', config),
 
-  onOAuthCode: (cb: (code: string) => void): void => {
-    ipcRenderer.on('oauth-code', (_event, code: string) => cb(code));
+  /** Enlaces kageview://auth-callback (confirmación de correo / recuperación). */
+  onAuthCallback: (cb: (url: string) => void): void => {
+    ipcRenderer.on('auth-callback', (_event, url: string) => cb(url));
   },
 
-  removeOAuthListener: (): void => {
-    ipcRenderer.removeAllListeners('oauth-code');
+  removeAuthCallbackListener: (): void => {
+    ipcRenderer.removeAllListeners('auth-callback');
   },
+
+  /** Enlace recibido mientras la ventana aún cargaba (arranque en frío). */
+  consumePendingAuthUrl: (): Promise<string | null> =>
+    ipcRenderer.invoke('auth-consume-pending-url'),
 
   windowControls: {
     minimize: () => ipcRenderer.send('window-minimize'),

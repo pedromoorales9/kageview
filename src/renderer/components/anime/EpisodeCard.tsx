@@ -64,7 +64,7 @@ export default function EpisodeCard({
         </div>
 
         {/* Episode number badge */}
-        <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-background/75 backdrop-blur-md">
+        <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-background/85">
           <span className="text-[11px] font-label font-semibold text-on-surface">
             EP {episode.episodeNumber}
           </span>
