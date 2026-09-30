@@ -252,6 +252,12 @@ src/
 
 ## 📋 Changelog
 
+### v1.5.0 — Actualizaciones automáticas en macOS
+- **Auto-actualización en Mac** — KageView avisa de cada versión nueva y se actualiza sola, igual que en Windows: *Inicializar actualización* → *Reiniciar e instalar*. La descarga se verifica (SHA-512, identificador, versión y firma) antes de sustituir la app, y si algo falla se restaura la anterior
+- Sin necesidad de certificado de Apple: usa un actualizador propio (`src/main/macUpdater.ts`) porque `electron-updater` en macOS exige Developer ID
+- **Importante:** quien tenga una versión anterior en Mac debe instalar esta a mano una vez (desde el `.dmg`); a partir de aquí se actualizará sola
+- Cada release de Mac publica ahora `.dmg`, `.zip` y `latest-mac.yml`
+
 ### v1.4.1 — Panel de administración v2 y corrección de Servicios
 - **Corregido:** activar/desactivar servicios en el panel fallaba con «sesión caducada» aunque la sesión estuviera bien (era un permiso de la base de datos, mal explicado). Ahora funciona y, si falta un permiso, el mensaje lo dice claro
 - **Nuevo menú lateral** con Resumen, Anuncios, Servicios, Usuarios, Equipo y Registro
