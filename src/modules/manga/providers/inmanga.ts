@@ -11,12 +11,14 @@ function extractGuid(url: string | null): string {
 }
 
 /** Builds the exact URL-encoded body that InManga's server expects */
+const PAGE_SIZE = 24;
+
 function buildBody(query: string, skip = 0, sortby: 1 | 3 = 1): string {
   return [
     'filter%5Bgeneres%5D%5B%5D=-1',
     `filter%5BqueryString%5D=${encodeURIComponent(query)}`,
     `filter%5Bskip%5D=${skip}`,
-    'filter%5Btake%5D=10',
+    `filter%5Btake%5D=${PAGE_SIZE}`,
     `filter%5Bsortby%5D=${sortby}`,
     'filter%5BbroadcastStatus%5D=0',
     'filter%5BonlyFavorites%5D=false',
@@ -69,28 +71,31 @@ function parseMangaList(html: string): MangaModel[] {
   return results;
 }
 
+const skipFor = (page: number) => Math.max(0, page - 1) * PAGE_SIZE;
+
 export const InMangaProvider: MangaProvider = {
   id: 'inmanga',
   name: 'InManga',
+  pageSize: PAGE_SIZE,
 
-  async searchManga(query: string): Promise<MangaModel[]> {
-    const body = buildBody(query.trim(), 0, 1);
+  async searchManga(query: string, page = 1): Promise<MangaModel[]> {
+    const body = buildBody(query.trim(), skipFor(page), 1);
     const res = await proxyPost<string>(`${INMANGA_URL}/manga/getMangasConsultResult`, body, {
       headers: POST_HEADERS,
     });
     return parseMangaList(res.data);
   },
 
-  async getPopularManga(): Promise<MangaModel[]> {
-    const body = buildBody('', 0, 1); // sortby=1 → popular
+  async getPopularManga(page = 1): Promise<MangaModel[]> {
+    const body = buildBody('', skipFor(page), 1); // sortby=1 → popular
     const res = await proxyPost<string>(`${INMANGA_URL}/manga/getMangasConsultResult`, body, {
       headers: POST_HEADERS,
     });
     return parseMangaList(res.data);
   },
 
-  async getRecentlyUpdatedManga(): Promise<MangaModel[]> {
-    const body = buildBody('', 0, 3); // sortby=3 → latest
+  async getRecentlyUpdatedManga(page = 1): Promise<MangaModel[]> {
+    const body = buildBody('', skipFor(page), 3); // sortby=3 → latest
     const res = await proxyPost<string>(`${INMANGA_URL}/manga/getMangasConsultResult`, body, {
       headers: POST_HEADERS,
     });

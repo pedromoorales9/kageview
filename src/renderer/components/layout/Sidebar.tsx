@@ -3,6 +3,7 @@ import { useAppStore } from '../../../modules/store';
 import { openAccount } from '../../../modules/account';
 import { useSocialStore } from '../../../modules/social';
 import { useChatStore } from '../../../modules/chat';
+import { useMangaData } from '../../../modules/manga/mangaStore';
 import Avatar from '../account/Avatar';
 
 type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings' | 'calendar' | 'manga' | 'friends' | 'admin';
@@ -90,6 +91,10 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
   const pendingRequests = useSocialStore((s) => s.requests.filter((r) => r.direction === 'incoming').length);
   const unreadMessages = useChatStore((s) => s.totalUnread);
   const pending = pendingRequests + unreadMessages; // solicitudes + mensajes sin leer
+  // Mangas de la biblioteca con capítulos nuevos por leer
+  const mangaWithNew = useMangaData((st) =>
+    Object.values(st.records).filter((r) => r.status === 'reading' && (r.unread ?? 0) > 0).length
+  );
   const profile = account.profile;
   return (
     <aside
@@ -135,7 +140,10 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
             </div>
             <div className="flex flex-col gap-0.5">
               {section.items.map((rawItem) => {
-                const item = rawItem.id === 'friends' && pending > 0 ? { ...rawItem, badge: pending } : rawItem;
+                const item =
+                  rawItem.id === 'friends' && pending > 0 ? { ...rawItem, badge: pending }
+                  : rawItem.id === 'library' && mangaWithNew > 0 ? { ...rawItem, badge: mangaWithNew }
+                  : rawItem;
                 return (
                 <NavButton
                   key={item.id}

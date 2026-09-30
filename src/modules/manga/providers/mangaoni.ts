@@ -94,14 +94,18 @@ function mapStatus(raw: string): MangaModel['status'] {
   return 'ongoing';
 }
 
+/** El directorio muestra 18 títulos por página (`p=2`, `p=3`…). */
+const PAGE_SIZE = 18;
+
 export const MangaOniProvider: MangaProvider = {
   id: 'mangaoni',
   name: 'MangaOni',
+  pageSize: PAGE_SIZE,
 
-  /** Búsqueda por título (HTML, sin token) */
-  async searchManga(query: string): Promise<MangaModel[]> {
+  /** Búsqueda por título (HTML, sin token). Devuelve una sola página. */
+  async searchManga(query: string, page = 1): Promise<MangaModel[]> {
     const q = query.trim();
-    if (!q) return [];
+    if (!q || page > 1) return [];
     const res = await proxyGet<string>(`${BASE_URL}/buscar/`, {
       params: { q },
       headers: headers(),
@@ -110,18 +114,18 @@ export const MangaOniProvider: MangaProvider = {
   },
 
   /** Populares — ordenados por visitas */
-  async getPopularManga(): Promise<MangaModel[]> {
+  async getPopularManga(page = 1): Promise<MangaModel[]> {
     const res = await proxyGet<string>(`${BASE_URL}/directorio`, {
-      params: { filtro: 'visitas', orden: 'desc', adulto: 'false' },
+      params: { filtro: 'visitas', orden: 'desc', adulto: 'false', ...(page > 1 ? { p: String(page) } : {}) },
       headers: headers(),
     });
     return parseListingCards(typeof res.data === 'string' ? res.data : '');
   },
 
   /** Recientes — ordenados por id (lo último añadido) */
-  async getRecentlyUpdatedManga(): Promise<MangaModel[]> {
+  async getRecentlyUpdatedManga(page = 1): Promise<MangaModel[]> {
     const res = await proxyGet<string>(`${BASE_URL}/directorio`, {
-      params: { filtro: 'id', orden: 'desc', adulto: 'false' },
+      params: { filtro: 'id', orden: 'desc', adulto: 'false', ...(page > 1 ? { p: String(page) } : {}) },
       headers: headers(),
     });
     return parseListingCards(typeof res.data === 'string' ? res.data : '');

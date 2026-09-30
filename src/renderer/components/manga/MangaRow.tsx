@@ -6,9 +6,11 @@ interface MangaRowProps {
   title: string;
   mangas: MangaModel[];
   onSelect: (manga: MangaModel) => void;
+  /** Si se indica, aparece «Ver todo» para abrir el listado completo con más páginas. */
+  onSeeAll?: () => void;
 }
 
-export default function MangaRow({ title, mangas, onSelect }: MangaRowProps) {
+export default function MangaRow({ title, mangas, onSelect, onSeeAll }: MangaRowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -49,8 +51,17 @@ export default function MangaRow({ title, mangas, onSelect }: MangaRowProps) {
     <section className="relative">
       {/* Section header */}
       <div className="flex items-center gap-3 mb-3 px-1">
-        <h2 className="font-headline text-base font-bold text-on-surface">{title}</h2>
-        <span className="text-xs text-on-surface-variant/60 font-label">{mangas.length} títulos</span>
+        <h2 className="section-title font-headline text-[19px] font-bold tracking-[-0.02em] text-white">{title}</h2>
+        {onSeeAll && (
+          <button
+            type="button"
+            onClick={onSeeAll}
+            className="text-[12.5px] font-medium text-secondary hover:text-white transition-colors flex items-center gap-0.5"
+          >
+            Ver todo
+            <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+          </button>
+        )}
         <div className="flex items-center gap-1 ml-auto">
           <button
             onClick={() => scroll('left')}
@@ -88,7 +99,7 @@ export default function MangaRow({ title, mangas, onSelect }: MangaRowProps) {
           className="flex gap-6 overflow-x-auto pb-6 pt-4 -mt-2 hide-scrollbar scroll-smooth px-2"
         >
           {mangas.map((manga) => (
-            <div key={manga.id} className="flex-none w-[180px] sm:w-[220px] lg:w-[260px] xl:w-[300px] 2xl:w-[340px]">
+            <div key={`${manga.sourceId}::${manga.id}`} className="flex-none w-[150px] sm:w-[165px] lg:w-[180px] xl:w-[195px]">
               <MangaCard
                 manga={manga}
                 onClick={() => onSelect(manga)}

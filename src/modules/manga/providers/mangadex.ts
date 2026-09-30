@@ -1,5 +1,12 @@
 import { proxyGet } from '../../httpProxy';
-import { MangaModel, MangaChapterModel, MangaPagesModel, MangaProvider } from '../types';
+import {
+  MangaChapterModel,
+  MangaGenre,
+  MangaModel,
+  MangaPagesModel,
+  MangaProvider,
+  MangaSort,
+} from '../types';
 
 const MDEX_API = 'https://api.mangadex.org';
 const MDEX_COVERS = 'https://uploads.mangadex.org/covers';
@@ -9,6 +16,22 @@ const MDEX_COVERS = 'https://uploads.mangadex.org/covers';
 // ser un navegador. main.ts inyecta Chrome por defecto, así que lo sobrescribimos.
 const MDEX_USER_AGENT = 'KageView/1.0 (https://github.com/pedromoorales9/KageView)';
 const MDEX_HEADERS = { 'User-Agent': MDEX_USER_AGENT };
+
+const PAGE_SIZE = 24;
+/** MangaDex admite como máximo 500 capítulos por petición. */
+const FEED_PAGE = 500;
+/** Freno de seguridad: 20 × 500 = 10 000 capítulos (ninguna serie se acerca). */
+const FEED_MAX_REQUESTS = 20;
+
+const DEFAULT_LANGUAGES = ['es', 'es-la'];
+
+/** Idiomas de los LISTADOS (búsqueda, populares…); ampliable con el inglés. */
+let listLanguages = [...DEFAULT_LANGUAGES];
+
+/** Lo llama la interfaz al cambiar la preferencia «incluir capítulos en inglés». */
+export function setMangaDexIncludeEnglish(include: boolean): void {
+  listLanguages = include ? [...DEFAULT_LANGUAGES, 'en'] : [...DEFAULT_LANGUAGES];
+}
 
 function parseManga(raw: any): MangaModel {
   const attrs = raw.attributes || {};
@@ -52,76 +75,163 @@ function parseManga(raw: any): MangaModel {
   };
 }
 
-function baseParams(): URLSearchParams {
+function baseParams(page = 1): URLSearchParams {
   const p = new URLSearchParams();
-  p.append('availableTranslatedLanguage[]', 'es');
-  p.append('availableTranslatedLanguage[]', 'es-la');
+  listLanguages.forEach((l) => p.append('availableTranslatedLanguage[]', l));
   p.append('includes[]', 'cover_art');
-  p.set('limit', '20');
+  p.set('limit', String(PAGE_SIZE));
+  p.set('offset', String(Math.max(0, page - 1) * PAGE_SIZE));
   p.append('contentRating[]', 'safe');
   p.append('contentRating[]', 'suggestive');
   return p;
 }
 
+async function list(p: URLSearchParams): Promise<MangaModel[]> {
+  const res = await proxyGet<any>(`${MDEX_API}/manga?${p.toString()}`, { headers: MDEX_HEADERS, retries: 1 });
+  return (res.data?.data ?? []).map(parseManga);
+}
+
+// ─── Géneros ───────────────────────────────────────────────
+/** Géneros a ofrecer, en este orden: [nombre en MangaDex (inglés), etiqueta en español]. */
+const CURATED_GENRES: Array<[string, string]> = [
+  ['Action', 'Acción'], ['Adventure', 'Aventura'], ['Comedy', 'Comedia'], ['Drama', 'Drama'],
+  ['Fantasy', 'Fantasía'], ['Romance', 'Romance'], ['Horror', 'Terror'], ['Mystery', 'Misterio'],
+  ['Sci-Fi', 'Ciencia ficción'], ['Slice of Life', 'Recuentos de la vida'], ['Sports', 'Deportes'],
+  ['Supernatural', 'Sobrenatural'], ['Psychological', 'Psicológico'], ['Historical', 'Histórico'],
+  ['Isekai', 'Isekai'], ['School Life', 'Escolar'], ['Martial Arts', 'Artes marciales'],
+  ['Mecha', 'Mecha'], ['Tragedy', 'Tragedia'], ['Thriller', 'Suspense'], ['Crime', 'Crimen'],
+  ['Magic', 'Magia'], ['Reincarnation', 'Reencarnación'], ['Survival', 'Supervivencia'],
+  ['Post-Apocalyptic', 'Postapocalíptico'], ['Music', 'Música'], ['Cooking', 'Cocina'],
+  ['Villainess', 'Villana'], ['Monsters', 'Monstruos'], ['Superhero', 'Superhéroes'],
+];
+
+/** Convierte la respuesta de /manga/tag en la lista curada (pura, con tests). */
+export function buildGenres(rawTags: any[]): MangaGenre[] {
+  const idByName = new Map<string, string>();
+  for (const t of rawTags ?? []) {
+    const en = t?.attributes?.name?.en;
+    if (typeof en === 'string' && typeof t.id === 'string') idByName.set(en, t.id);
+  }
+  const out: MangaGenre[] = [];
+  for (const [en, es] of CURATED_GENRES) {
+    const id = idByName.get(en);
+    if (id) out.push({ id, name: es });
+  }
+  return out;
+}
+
+let genresCache: Promise<MangaGenre[]> | null = null;
+
+// ─── Capítulos ─────────────────────────────────────────────
+/**
+ * Un capítulo por número, prefiriendo el idioma más arriba en `languages`
+ * (varios grupos suben el mismo capítulo). Descarta los de 0 páginas (enlaces
+ * externos que no se pueden leer aquí). Pura, con tests.
+ */
+export function mergeChapters(raw: any[], languages: string[]): MangaChapterModel[] {
+  const rank = (lang: string) => {
+    const i = languages.indexOf(lang);
+    return i === -1 ? languages.length : i;
+  };
+
+  const chosen = new Map<string, MangaChapterModel>();
+  for (const c of raw) {
+    const a = c?.attributes;
+    if (!a || !c.id) continue;
+    const ch: MangaChapterModel = {
+      id: c.id,
+      sourceId: 'mangadex',
+      chapter: a.chapter ?? null,
+      volume: a.volume ?? null,
+      title: a.title ?? null,
+      pages: a.pages ?? 0,
+      publishAt: a.publishAt ?? '',
+      translatedLanguage: a.translatedLanguage ?? '',
+    };
+    if (ch.pages === 0) continue;
+    const key = ch.chapter ?? ch.id;
+    const cur = chosen.get(key);
+    if (!cur || rank(ch.translatedLanguage) < rank(cur.translatedLanguage)) chosen.set(key, ch);
+  }
+  return Array.from(chosen.values());
+}
+
+const SORT_PARAM: Record<MangaSort, [string, 'asc' | 'desc']> = {
+  popular: ['followedCount', 'desc'],
+  recent: ['latestUploadedChapter', 'desc'],
+  rating: ['rating', 'desc'],
+  az: ['title', 'asc'],
+};
+
 export const MangaDexProvider: MangaProvider = {
   id: 'mangadex',
   name: 'MangaDex',
+  pageSize: PAGE_SIZE,
+  languages: [
+    { code: 'es', label: 'Español' },
+    { code: 'en', label: 'Inglés' },
+  ],
 
-  async searchManga(query: string): Promise<MangaModel[]> {
-    const p = baseParams();
+  async searchManga(query: string, page = 1): Promise<MangaModel[]> {
+    const p = baseParams(page);
     if (query.trim()) p.set('title', query.trim());
-    const res = await proxyGet<any>(`${MDEX_API}/manga?${p.toString()}`, { headers: MDEX_HEADERS });
-    return (res.data?.data ?? []).map(parseManga);
+    return list(p);
   },
 
-  async getPopularManga(): Promise<MangaModel[]> {
-    const p = baseParams();
+  async getPopularManga(page = 1): Promise<MangaModel[]> {
+    const p = baseParams(page);
     p.set('order[followedCount]', 'desc');
-    const res = await proxyGet<any>(`${MDEX_API}/manga?${p.toString()}`, { headers: MDEX_HEADERS });
-    return (res.data?.data ?? []).map(parseManga);
+    return list(p);
   },
 
-  async getRecentlyUpdatedManga(): Promise<MangaModel[]> {
-    const p = baseParams();
-    p.set('order[updatedAt]', 'desc');
-    const res = await proxyGet<any>(`${MDEX_API}/manga?${p.toString()}`, { headers: MDEX_HEADERS });
-    return (res.data?.data ?? []).map(parseManga);
+  async getRecentlyUpdatedManga(page = 1): Promise<MangaModel[]> {
+    const p = baseParams(page);
+    p.set('order[latestUploadedChapter]', 'desc');
+    return list(p);
   },
 
-  async getMangaChapters(mangaId: string): Promise<MangaChapterModel[]> {
-    const p = new URLSearchParams();
-    p.append('translatedLanguage[]', 'es');
-    p.append('translatedLanguage[]', 'es-la');
-    p.set('order[chapter]', 'asc');
-    p.set('limit', '500');
+  async getGenres(): Promise<MangaGenre[]> {
+    genresCache ??= proxyGet<any>(`${MDEX_API}/manga/tag`, { headers: MDEX_HEADERS, retries: 1 })
+      .then((res) => buildGenres(res.data?.data ?? []))
+      .catch((err) => {
+        genresCache = null; // reintentar la próxima vez
+        throw err;
+      });
+    return genresCache;
+  },
 
-    const res = await proxyGet<any>(`${MDEX_API}/manga/${mangaId}/feed?${p.toString()}`, { headers: MDEX_HEADERS });
-    const raw: any[] = res.data?.data ?? [];
+  async browse({ genre, sort, page }): Promise<MangaModel[]> {
+    const p = baseParams(page);
+    if (genre) p.append('includedTags[]', genre);
+    const [field, dir] = SORT_PARAM[sort] ?? SORT_PARAM.popular;
+    p.set(`order[${field}]`, dir);
+    return list(p);
+  },
 
-    const chapters: MangaChapterModel[] = raw.map((c) => ({
-      id: c.id,
-      sourceId: 'mangadex',
-      chapter: c.attributes.chapter ?? null,
-      volume: c.attributes.volume ?? null,
-      title: c.attributes.title ?? null,
-      pages: c.attributes.pages ?? 0,
-      publishAt: c.attributes.publishAt ?? '',
-      translatedLanguage: c.attributes.translatedLanguage,
-    }));
+  async getMangaChapters(mangaId: string, opts = {}): Promise<MangaChapterModel[]> {
+    const languages = opts.languages?.length ? opts.languages : DEFAULT_LANGUAGES;
+    // 'es' implica también 'es-la' (español latino)
+    const wanted = languages.flatMap((l) => (l === 'es' ? ['es', 'es-la'] : [l]));
 
-    const seen = new Map<string, MangaChapterModel>();
-    chapters.forEach((ch) => {
-      if (ch.pages === 0) return;
-      const key = ch.chapter ?? ch.id;
-      const existing = seen.get(key);
-      if (!existing) {
-        seen.set(key, ch);
-      } else if (ch.translatedLanguage === 'es' && existing.translatedLanguage !== 'es') {
-        seen.set(key, ch);
-      }
-    });
+    const raw: any[] = [];
+    for (let i = 0; i < FEED_MAX_REQUESTS; i++) {
+      const p = new URLSearchParams();
+      wanted.forEach((l) => p.append('translatedLanguage[]', l));
+      p.append('includeExternalUrl', '0');
+      p.set('order[chapter]', 'asc');
+      p.set('limit', String(FEED_PAGE));
+      p.set('offset', String(i * FEED_PAGE));
 
-    return Array.from(seen.values());
+      const res = await proxyGet<any>(`${MDEX_API}/manga/${mangaId}/feed?${p.toString()}`, {
+        headers: MDEX_HEADERS,
+        retries: 1,
+      });
+      const batch: any[] = res.data?.data ?? [];
+      raw.push(...batch);
+      const total = Number(res.data?.total ?? 0);
+      if (batch.length === 0 || raw.length >= total) break;
+    }
+    return mergeChapters(raw, wanted);
   },
 
   async getChapterPages(chapterId: string): Promise<MangaPagesModel> {
@@ -133,5 +243,5 @@ export const MangaDexProvider: MangaProvider = {
       data: ch?.data ?? [],
       dataSaver: ch?.dataSaver ?? [],
     };
-  }
+  },
 };

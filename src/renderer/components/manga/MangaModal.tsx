@@ -1,384 +1,433 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { MangaModel, MangaChapterModel, getMangaProvider } from '../../../modules/manga';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { MangaModel, MangaChapterModel, chapterLabel, getMangaProvider, loadMangaChapters } from '../../../modules/manga';
+import { firstUnreadIndex, latestChapterNumber } from '../../../modules/manga/chapters';
+import { computeUnread } from '../../../modules/manga/mangaUpdates';
 import {
-  MangaLibraryEntry,
   MangaLibraryStatus,
-  MangaReadProgress,
   addToLibrary,
-  getLibraryEntry,
-  getProgress,
+  applyUpdateCheck,
+  clearReading,
+  markReadUpTo,
+  mangaKey,
   removeFromLibrary,
-  updateLibraryStatus,
-} from '../../../modules/manga/mangaLibrary';
-import Badge from '../ui/Badge';
+  setChapterRead,
+  setLibraryStatus,
+  useMangaData,
+} from '../../../modules/manga/mangaStore';
+import { useAppStore } from '../../../modules/store';
 import Spinner from '../ui/Spinner';
+import { inferType } from './MangaCard';
 
 const STATUS_I18N: Record<string, string> = {
-  ongoing:   'En curso',
-  completed: 'Completado',
-  hiatus:    'En pausa',
+  ongoing: 'En curso',
+  completed: 'Finalizado',
+  hiatus: 'En pausa',
   cancelled: 'Cancelado',
 };
 
-const STATUS_VARIANT: Record<string, 'primary' | 'success' | 'warning' | 'error'> = {
-  ongoing:   'primary',
-  completed: 'success',
-  hiatus:    'warning',
-  cancelled: 'error',
-};
-
-const LIBRARY_STATUS_LABELS: Record<MangaLibraryStatus, string> = {
-  reading: 'Leyendo',
-  planning: 'Planificado',
-  completed: 'Completado',
-  dropped: 'Abandonado',
+const LIBRARY_LABELS: Record<MangaLibraryStatus, { label: string; icon: string }> = {
+  reading: { label: 'Leyendo', icon: 'auto_stories' },
+  planning: { label: 'Pendiente', icon: 'schedule' },
+  completed: { label: 'Completado', icon: 'done_all' },
+  dropped: { label: 'Abandonado', icon: 'block' },
 };
 
 interface MangaModalProps {
   manga: MangaModel;
   onClose: () => void;
+  /** `chapterIndex` es la posición en `chapters` (siempre ascendente). */
   onReadChapter: (chapterIndex: number, chapters: MangaChapterModel[]) => void;
+  /** Cierra la ficha y busca el título en todas las fuentes (por si esta no tiene capítulos). */
+  onSearchElsewhere?: (title: string) => void;
 }
 
-// Capítulos renderizados por lote. Evita congelar el modal con series muy
-// largas (p.ej. One Piece en InManga ≈ 1187 capítulos) creando todo de golpe.
-const CHAPTER_BATCH = 100;
+/** Capítulos pintados por lote (series de 1000+ capítulos). */
+const BATCH = 100;
+const NEW_MS = 7 * 24 * 60 * 60 * 1000;
 
-export default function MangaModal({ manga, onClose, onReadChapter }: MangaModalProps) {
-  const [chapters, setChapters] = useState<MangaChapterModel[]>([]);
+export default function MangaModal({ manga, onClose, onReadChapter, onSearchElsewhere }: MangaModalProps) {
+  const includeEnglish = useAppStore((s) => s.prefs.mangaIncludeEnglish);
+  const setPrefs = useAppStore((s) => s.setPrefs);
+  const provider = getMangaProvider(manga.sourceId);
+  const record = useMangaData((s) => s.records[mangaKey(manga)]);
+
+  const [chapters, setChapters] = useState<MangaChapterModel[]>([]); // ascendente
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [visibleChapters, setVisibleChapters] = useState(CHAPTER_BATCH);
-  const listRef = useRef<HTMLDivElement>(null);
+  const [reload, setReload] = useState(0);
 
-  // Library state
-  const [libraryEntry, setLibraryEntry] = useState<MangaLibraryEntry | null>(null);
-  const [readProgress, setReadProgress] = useState<MangaReadProgress | null>(null);
-  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [newestFirst, setNewestFirst] = useState(true);
+  const [filter, setFilter] = useState('');
+  const [visible, setVisible] = useState(BATCH);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [descOpen, setDescOpen] = useState(false);
   const [coverError, setCoverError] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const lastReadRef = useRef<HTMLButtonElement>(null);
 
-  // Fetch chapters on mount
+  // ─── Capítulos ───────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    setVisibleChapters(CHAPTER_BATCH);
-
-    const provider = getMangaProvider(manga.sourceId);
-    provider.getMangaChapters(manga.id)
-      .then((chs) => {
-        if (!cancelled) {
-          setChapters(chs);
-          setLoading(false);
-        }
-      })
+    setVisible(BATCH);
+    loadMangaChapters(manga, { includeEnglish })
+      .then((chs) => { if (!cancelled) { setChapters(chs); setLoading(false); } })
       .catch((err) => {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Error cargando capítulos');
           setLoading(false);
         }
       });
-
     return () => { cancelled = true; };
-  }, [manga.id]);
+  }, [manga.id, manga.sourceId, includeEnglish, reload]);
 
-  // Fetch library state
+  // Al conocer los capítulos, ajustar el contador de nuevos de la biblioteca
   useEffect(() => {
-    let cancelled = false;
-    Promise.all([
-      getLibraryEntry(manga.id, manga.sourceId),
-      getProgress(manga.id, manga.sourceId),
-    ]).then(([entry, prog]) => {
-      if (!cancelled) {
-        setLibraryEntry(entry);
-        setReadProgress(prog);
-      }
+    if (chapters.length === 0 || record?.status !== 'reading') return;
+    applyUpdateCheck(manga, {
+      latest: latestChapterNumber(chapters),
+      unread: computeUnread(chapters, record.read, record.last?.chapterId),
     });
-    return () => { cancelled = true; };
-  }, [manga.id, manga.sourceId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chapters, record?.status]);
 
-  // Close on Escape
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (menuOpen) setMenuOpen(false);
+      else onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, menuOpen]);
 
-  const handleLibraryToggle = async () => {
-    setLibraryLoading(true);
-    if (libraryEntry) {
-      await removeFromLibrary(manga.id, manga.sourceId);
-      setLibraryEntry(null);
-    } else {
-      await addToLibrary(manga, 'reading');
-      const entry = await getLibraryEntry(manga.id, manga.sourceId);
-      setLibraryEntry(entry);
+  // ─── Derivados ───────────────────────────────────────────
+  const readSet = useMemo(() => new Set(record?.read ?? []), [record?.read]);
+  const readCount = useMemo(() => chapters.filter((c) => readSet.has(c.id)).length, [chapters, readSet]);
+  const lastIdx = record?.last ? chapters.findIndex((c) => c.id === record.last!.chapterId) : -1;
+
+  // Capítulo al que lleva el botón principal
+  const target = useMemo(() => {
+    if (chapters.length === 0) return null;
+    if (lastIdx >= 0 && record?.last) {
+      const l = record.last;
+      const finished = l.pageCount > 0 && l.page >= l.pageCount - 1;
+      if (finished && lastIdx + 1 < chapters.length) return { index: lastIdx + 1, kind: 'next' as const };
+      if (finished) return { index: lastIdx, kind: 'reread' as const };
+      return { index: lastIdx, kind: 'continue' as const, page: l.page, pageCount: l.pageCount };
     }
-    setLibraryLoading(false);
+    const first = firstUnreadIndex(chapters, readSet);
+    return { index: first, kind: readCount > 0 ? ('next' as const) : ('start' as const) };
+  }, [chapters, lastIdx, record?.last, readSet, readCount]);
+
+  const displayed = useMemo(() => {
+    const list = chapters.map((ch, index) => ({ ch, index }));
+    if (newestFirst) list.reverse();
+    const q = filter.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(({ ch }) => (ch.chapter ?? '').toLowerCase().startsWith(q) || chapterLabel(ch).toLowerCase().includes(q));
+  }, [chapters, newestFirst, filter]);
+
+  const shownCount = Math.max(
+    visible,
+    lastIdx >= 0 ? displayed.findIndex((d) => d.index === lastIdx) + 12 : 0
+  );
+  const shown = displayed.slice(0, shownCount);
+  const remaining = displayed.length - shown.length;
+
+  const targetLabel = (() => {
+    if (!target) return '';
+    const ch = chapters[target.index];
+    const name = ch.chapter ? `Cap. ${ch.chapter}` : chapterLabel(ch);
+    if (target.kind === 'continue') return target.pageCount ? `Continuar · ${name} · pág. ${target.page + 1}/${target.pageCount}` : `Continuar · ${name}`;
+    if (target.kind === 'next') return `Siguiente · ${name}`;
+    if (target.kind === 'reread') return `Releer · ${name}`;
+    return `Empezar · ${name}`;
+  })();
+
+  const cleanDescription = manga.description.replace(/<[^>]*>/g, '').trim() || 'Sin descripción disponible.';
+  const inLibrary = !!record?.status;
+
+  const jumpToLastRead = () => {
+    if (lastIdx < 0) return;
+    const pos = displayed.findIndex((d) => d.index === lastIdx);
+    if (pos >= 0 && pos >= shownCount - 12) setVisible(pos + 20);
+    requestAnimationFrame(() => lastReadRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
   };
-
-  const handleStatusChange = async (newStatus: MangaLibraryStatus) => {
-    await updateLibraryStatus(manga.id, manga.sourceId, newStatus);
-    setLibraryEntry((prev) => prev ? { ...prev, status: newStatus } : prev);
-  };
-
-  const cleanDescription = manga.description.replace(/<[^>]*>/g, '') || 'Sin descripción disponible.';
-
-  // Find continue chapter index in loaded chapters
-  const continueChapterIndex = readProgress
-    ? chapters.findIndex((ch) => ch.id === readProgress.lastChapterId)
-    : -1;
 
   return (
     <div
       id="manga-modal-overlay"
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-      onClick={(e) => {
-        if ((e.target as HTMLElement).id === 'manga-modal-overlay') onClose();
-      }}
+      onClick={(e) => { if ((e.target as HTMLElement).id === 'manga-modal-overlay') onClose(); }}
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-background/85" />
+      <div className="absolute inset-0 bg-[#09050a]/85" />
 
-      {/* Modal */}
-      <div className="
-        relative z-10
-        w-full max-w-5xl h-[88vh]
-        bg-surface-container rounded-xl
-        flex overflow-hidden
-        animate-fade-in-scale
-      ">
-        {/* Left — Cover */}
-        <div className="relative w-[260px] flex-none">
+      <div role="dialog" aria-modal="true" aria-label={manga.title} className="relative z-10 w-full max-w-5xl h-[88vh] rounded-[24px] bg-[#130a11] hairline shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] flex overflow-hidden animate-fade-in-scale">
+        {/* ── Portada ── */}
+        <div className="relative w-[250px] flex-none hidden md:block">
           {manga.coverUrl && !coverError ? (
-            <img
-              src={manga.coverUrl}
-              alt={manga.title}
-              className="w-full h-full object-cover"
-              onError={() => setCoverError(true)}
-            />
+            <img src={manga.coverUrl} alt={manga.title} className="w-full h-full object-cover" onError={() => setCoverError(true)} />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-surface-container-high">
-              <span className="material-symbols-outlined text-on-surface-variant text-6xl">menu_book</span>
+            <div className="w-full h-full flex items-center justify-center bg-surface-container">
+              <span className="material-symbols-outlined text-muted text-6xl">menu_book</span>
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-surface-container" />
-          <div className="absolute bottom-4 left-4">
-            <Badge variant={STATUS_VARIANT[manga.status] ?? 'primary'} size="md">
-              {STATUS_I18N[manga.status] ?? manga.status}
-            </Badge>
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#130a11]" />
+          <div className="absolute bottom-4 left-4 flex flex-col gap-1.5">
+            <span className="h-[22px] px-2 inline-flex items-center rounded-md text-[10.5px] font-bold uppercase tracking-[0.12em] text-white bg-black/65 ring-[0.5px] ring-white/15 w-fit">{inferType(manga)}</span>
+            <span className="h-[22px] px-2 inline-flex items-center rounded-md text-[10.5px] font-bold uppercase tracking-[0.1em] text-secondary bg-black/65 ring-[0.5px] ring-white/15 w-fit">{STATUS_I18N[manga.status] ?? manga.status}</span>
           </div>
         </div>
 
-        {/* Right — Info + Chapters */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Header */}
+        {/* ── Información + capítulos ── */}
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
           <div className="p-6 pb-0">
-            {/* Close */}
-            <button
-              onClick={onClose}
-              className="absolute top-4 right-4 w-8 h-8 rounded-lg
-                bg-surface-variant/40 flex items-center justify-center
-                text-on-surface-variant hover:text-on-surface transition-colors duration-200"
-            >
-              <span className="material-symbols-outlined text-lg">close</span>
+            <button onClick={onClose} aria-label="Cerrar" className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-muted hover:text-white hover:bg-white/10 transition-colors">
+              <span className="material-symbols-outlined text-[19px]">close</span>
             </button>
 
-            {/* Title */}
-            <h2 className="font-headline text-2xl font-bold text-on-surface pr-10 leading-tight">
-              {manga.title}
-            </h2>
+            <h2 className="font-headline text-[26px] font-bold text-white tracking-[-0.025em] leading-tight pr-10">{manga.title}</h2>
 
-            {/* Meta */}
-            <div className="flex items-center gap-3 mt-2 flex-wrap">
-              {manga.year && (
-                <span className="text-xs text-on-surface-variant">{manga.year}</span>
-              )}
-              {chapters.length > 0 && (
-                <span className="text-xs text-on-surface-variant">
-                  {chapters.length} capítulos
-                </span>
-              )}
-              {/* Source tag */}
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-label font-semibold uppercase tracking-wide">
-                {manga.sourceId}
-              </span>
+            <div className="flex items-center gap-2.5 mt-2 flex-wrap text-[12.5px] text-muted">
+              {manga.year && <span>{manga.year}</span>}
+              {chapters.length > 0 && <span>{chapters.length} capítulos</span>}
+              <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10.5px] font-semibold uppercase tracking-wide">{provider.name}</span>
             </div>
 
-            {/* Tags */}
             {manga.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {manga.tags.slice(0, 8).map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-[11px] px-2 py-0.5 rounded-full bg-surface-variant/40 text-on-surface-variant font-label"
-                  >
-                    {tag}
-                  </span>
+                  <span key={tag} className="text-[11.5px] px-2.5 py-0.5 rounded-full bg-white/[0.07] text-on-surface-variant">{tag}</span>
                 ))}
               </div>
             )}
 
-            {/* Description */}
-            <div className="mt-4 max-h-16 overflow-y-auto pr-2">
-              <p className="text-sm text-on-surface-variant/80 leading-relaxed">
-                {cleanDescription}
-              </p>
+            <div className="mt-3">
+              <p className={`text-[13.5px] text-on-surface-variant leading-relaxed ${descOpen ? 'max-h-40 overflow-y-auto pr-2' : 'line-clamp-2'}`}>{cleanDescription}</p>
+              {cleanDescription.length > 160 && (
+                <button onClick={() => setDescOpen((o) => !o)} className="text-[12px] text-secondary hover:text-white mt-1">{descOpen ? 'Ver menos' : 'Ver más'}</button>
+              )}
             </div>
 
-            {/* ── Library Controls ── */}
-            <div className="mt-4 flex items-center gap-2 flex-wrap">
-              {/* Add/Remove button */}
+            {/* ── Acciones ── */}
+            <div className="mt-4 flex items-center gap-2.5 flex-wrap">
               <button
-                onClick={handleLibraryToggle}
-                disabled={libraryLoading}
-                className={`
-                  flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-headline font-semibold
-                  transition-all duration-200
-                  ${libraryEntry
-                    ? 'bg-primary/15 text-primary hover:bg-error/15 hover:text-error'
-                    : 'bg-surface-container-high text-on-surface hover:bg-primary/15 hover:text-primary'
-                  }
-                  disabled:opacity-50
-                `}
+                onClick={() => target && onReadChapter(target.index, chapters)}
+                disabled={!target}
+                className="btn-moon h-11 px-5 rounded-full text-[14px] font-semibold flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
               >
-                <span className="material-symbols-outlined text-base">
-                  {libraryEntry ? 'bookmark' : 'bookmark_add'}
-                </span>
-                {libraryEntry ? 'En Biblioteca' : 'Añadir a Biblioteca'}
+                <span className="material-symbols-outlined filled text-[20px]">{target?.kind === 'reread' ? 'replay' : 'auto_stories'}</span>
+                {loading ? 'Cargando…' : target ? targetLabel : 'Sin capítulos'}
               </button>
 
-              {/* Status selector — only if in library */}
-              {libraryEntry && (
-                <select
-                  value={libraryEntry.status}
-                  onChange={(e) => handleStatusChange(e.target.value as MangaLibraryStatus)}
-                  className="px-3 py-2 rounded-lg bg-surface-container-high text-on-surface text-sm font-label
-                    border border-surface-variant/20 outline-none cursor-pointer hover:border-primary/30
-                    transition-colors duration-150"
-                >
-                  {(Object.entries(LIBRARY_STATUS_LABELS) as [MangaLibraryStatus, string][]).map(([val, label]) => (
-                    <option key={val} value={val}>{label}</option>
-                  ))}
-                </select>
-              )}
-
-              {/* Continue reading button */}
-              {readProgress && continueChapterIndex >= 0 && (
+              <div className="relative">
                 <button
-                  onClick={() => onReadChapter(continueChapterIndex, chapters)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg
-                    gradient-primary text-on-primary text-sm font-headline font-semibold
-                    hover:shadow-[0_0_16px_rgba(255, 143, 168,0.3)] hover:scale-[1.02]
-                    transition-all duration-200"
+                  onClick={() => setMenuOpen((o) => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  className={`h-11 px-4 rounded-full text-[13.5px] font-medium flex items-center gap-2 transition-colors ${
+                    inLibrary ? 'bg-primary/15 text-primary hover:bg-primary/25' : 'bg-white/[0.08] text-white hover:bg-white/[0.15]'
+                  }`}
                 >
-                  <span className="material-symbols-outlined text-base">play_arrow</span>
-                  Continuar Cap. {readProgress.lastChapterNumber ?? ''}
+                  <span className="material-symbols-outlined text-[19px]">{inLibrary ? 'bookmark' : 'bookmark_add'}</span>
+                  {inLibrary ? LIBRARY_LABELS[record!.status!].label : 'Añadir a la biblioteca'}
+                  <span className="material-symbols-outlined text-[18px] -mr-1">expand_more</span>
                 </button>
-              )}
+
+                {menuOpen && (
+                  <div role="menu" className="absolute left-0 top-12 z-20 w-56 rounded-2xl bg-[#1d1119] ring-1 ring-white/10 shadow-2xl p-1.5">
+                    {(Object.keys(LIBRARY_LABELS) as MangaLibraryStatus[]).map((st) => (
+                      <button
+                        key={st}
+                        role="menuitem"
+                        onClick={() => { inLibrary ? setLibraryStatus(manga, st) : addToLibrary(manga, st); setMenuOpen(false); }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13.5px] text-left transition-colors hover:bg-white/[0.08] ${record?.status === st ? 'text-primary' : 'text-white'}`}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">{LIBRARY_LABELS[st].icon}</span>
+                        {LIBRARY_LABELS[st].label}
+                        {record?.status === st && <span className="material-symbols-outlined text-[16px] ml-auto">check</span>}
+                      </button>
+                    ))}
+                    {inLibrary && (
+                      <>
+                        <div className="h-px bg-white/10 my-1" />
+                        <button role="menuitem" onClick={() => { removeFromLibrary(manga); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13.5px] text-error text-left hover:bg-error/10 transition-colors">
+                          <span className="material-symbols-outlined text-[18px]">bookmark_remove</span>
+                          Quitar de la biblioteca
+                        </button>
+                      </>
+                    )}
+                    {(record?.read.length || record?.last) ? (
+                      <button role="menuitem" onClick={() => { clearReading(manga); setMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13.5px] text-on-surface-variant text-left hover:bg-white/[0.08] transition-colors">
+                        <span className="material-symbols-outlined text-[18px]">history_toggle_off</span>
+                        Olvidar lo leído
+                      </button>
+                    ) : null}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Progreso de lectura */}
+            {chapters.length > 0 && readCount > 0 && (
+              <div className="mt-3 flex items-center gap-3">
+                <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden" aria-hidden>
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round((readCount / chapters.length) * 100)}%` }} />
+                </div>
+                <span className="text-[12px] text-muted tabular-nums whitespace-nowrap">{readCount} de {chapters.length} leídos</span>
+              </div>
+            )}
           </div>
 
-          {/* Chapter List */}
-          <div className="flex-1 mt-4 px-6 pb-4 overflow-hidden flex flex-col">
-            <h3 className="text-sm font-headline font-semibold text-on-surface mb-3 flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-base">format_list_numbered</span>
-              Capítulos en Español
-            </h3>
+          {/* ── Lista de capítulos ── */}
+          <div className="flex-1 min-h-0 mt-4 px-6 pb-5 flex flex-col">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <h3 className="text-[13.5px] font-headline font-semibold text-white flex items-center gap-2 mr-auto">
+                <span className="material-symbols-outlined text-primary text-[18px]">format_list_numbered</span>
+                Capítulos
+                {provider.languages && (
+                  <span className="text-[11.5px] font-normal text-muted">· {includeEnglish ? 'Español e inglés' : 'En español'}</span>
+                )}
+              </h3>
+
+              {provider.languages && (
+                <button
+                  onClick={() => setPrefs({ mangaIncludeEnglish: !includeEnglish })}
+                  aria-pressed={includeEnglish}
+                  title="Incluir capítulos en inglés cuando no haya en español"
+                  className={`h-8 px-3 rounded-full text-[12px] font-medium transition-colors ${includeEnglish ? 'bg-primary/20 text-primary' : 'bg-white/[0.07] text-on-surface-variant hover:text-white'}`}
+                >
+                  + Inglés
+                </button>
+              )}
+              {lastIdx >= 0 && (
+                <button onClick={jumpToLastRead} className="h-8 px-3 rounded-full bg-white/[0.07] hover:bg-white/[0.13] text-[12px] font-medium text-on-surface-variant hover:text-white transition-colors flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[15px]">my_location</span>Último leído
+                </button>
+              )}
+              <button
+                onClick={() => setNewestFirst((v) => !v)}
+                title={newestFirst ? 'Mostrando los más nuevos primero' : 'Mostrando los más antiguos primero'}
+                aria-label="Cambiar orden"
+                className="h-8 px-3 rounded-full bg-white/[0.07] hover:bg-white/[0.13] text-[12px] font-medium text-on-surface-variant hover:text-white transition-colors flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-[15px]">{newestFirst ? 'arrow_downward' : 'arrow_upward'}</span>
+                {newestFirst ? 'Nuevos primero' : 'Antiguos primero'}
+              </button>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-muted text-[16px] pointer-events-none">search</span>
+                <input
+                  value={filter}
+                  onChange={(e) => { setFilter(e.target.value); setVisible(BATCH); }}
+                  placeholder="Ir al capítulo…"
+                  aria-label="Buscar capítulo"
+                  className="h-8 w-36 pl-8 pr-2 rounded-full bg-white/[0.07] text-[12.5px] text-white placeholder:text-muted outline-none focus:bg-white/[0.12] transition-colors"
+                />
+              </div>
+            </div>
 
             {loading ? (
-              <div className="flex-1 flex items-center justify-center">
-                <Spinner size={28} />
-              </div>
+              <div className="flex-1 flex items-center justify-center"><Spinner size={28} /></div>
             ) : error ? (
-              <div className="flex-1 flex flex-col items-center justify-center gap-2">
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
                 <span className="material-symbols-outlined text-error text-4xl">cloud_off</span>
-                <p className="text-sm text-on-surface-variant">{error}</p>
+                <p className="text-[13.5px] text-on-surface-variant max-w-sm">{error}</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setReload((n) => n + 1)} className="btn-glass h-9 px-5 rounded-full text-[13px] font-medium">Reintentar</button>
+                  {onSearchElsewhere && (
+                    <button onClick={() => onSearchElsewhere(manga.title)} className="btn-glass h-9 px-5 rounded-full text-[13px] font-medium">Buscar en otras fuentes</button>
+                  )}
+                </div>
               </div>
             ) : chapters.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center gap-2">
-                <span className="material-symbols-outlined text-on-surface-variant text-4xl">translate</span>
-                <p className="text-sm text-on-surface-variant text-center">
-                  No hay capítulos disponibles en español aún.
+              <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center">
+                <span className="material-symbols-outlined text-muted text-4xl">translate</span>
+                <p className="text-[13.5px] text-on-surface-variant max-w-xs">
+                  No hay capítulos disponibles {provider.languages && !includeEnglish ? 'en español' : ''} en {provider.name}.
                 </p>
-              </div>
-            ) : (
-              <div ref={listRef} className="flex-1 overflow-y-auto pr-2 scrollbar-thin">
-                <div className="flex flex-col gap-1">
-                  {(() => {
-                    const sliceEnd = Math.max(visibleChapters, continueChapterIndex >= 0 ? continueChapterIndex + 10 : 0);
-                    const shown = chapters.slice(0, sliceEnd);
-                    const remaining = chapters.length - shown.length;
-                    return (
-                      <>
-                  {shown.map((ch, idx) => {
-                    const chNum = ch.chapter ? `Cap. ${ch.chapter}` : `ID ${ch.id.slice(0, 8)}`;
-                    const date = ch.publishAt
-                      ? new Date(ch.publishAt).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' })
-                      : '';
-                    const isLastRead = readProgress?.lastChapterId === ch.id;
-                    return (
-                      <button
-                        key={ch.id}
-                        onClick={() => onReadChapter(idx, chapters)}
-                        className={`
-                          group flex items-center gap-3 w-full text-left
-                          px-3 py-2.5 rounded-lg
-                          border transition-all duration-150
-                          ${isLastRead
-                            ? 'bg-primary/10 border-primary/30 hover:bg-primary/15'
-                            : 'bg-surface-container-high hover:bg-surface-container-highest border-surface-variant/10 hover:border-primary/30'
-                          }
-                        `}
-                      >
-                        <span className={`material-symbols-outlined text-base transition-colors ${isLastRead ? 'text-primary' : 'text-on-surface-variant/50 group-hover:text-primary'}`}>
-                          {isLastRead ? 'bookmark' : 'menu_book'}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <span className={`text-sm font-label font-medium transition-colors ${isLastRead ? 'text-primary' : 'text-on-surface group-hover:text-primary'}`}>
-                            {chNum}
-                            {isLastRead && (
-                              <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-bold align-middle">
-                                ÚLTIMO LEÍDO
-                              </span>
-                            )}
-                          </span>
-                          {ch.title && (
-                            <span className="text-xs text-on-surface-variant ml-2 line-clamp-1">
-                              — {ch.title}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 flex-none">
-                          {date && (
-                            <span className="text-[11px] text-on-surface-variant/60">{date}</span>
-                          )}
-                          {ch.pages > 0 && (
-                            <span className="text-[11px] text-on-surface-variant/50">
-                              {ch.pages}p
-                            </span>
-                          )}
-                          <span className={`material-symbols-outlined text-sm transition-colors ${isLastRead ? 'text-primary' : 'text-on-surface-variant/40 group-hover:text-primary'}`}>
-                            chevron_right
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                  {remaining > 0 && (
-                    <button
-                      onClick={() => setVisibleChapters(sliceEnd + CHAPTER_BATCH * 2)}
-                      className="mt-1 w-full py-2.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest border border-surface-variant/10 hover:border-primary/30 text-xs font-label font-semibold text-on-surface-variant hover:text-primary transition-colors"
-                    >
-                      Cargar más capítulos ({remaining} restantes)
+                <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+                  {provider.languages && !includeEnglish && (
+                    <button onClick={() => setPrefs({ mangaIncludeEnglish: true })} className="btn-glass h-9 px-5 rounded-full text-[13px] font-medium">Buscar también en inglés</button>
+                  )}
+                  {onSearchElsewhere && (
+                    <button onClick={() => onSearchElsewhere(manga.title)} className="btn-moon h-9 px-5 rounded-full text-[13px] font-semibold flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[17px]">travel_explore</span>
+                      Buscar en otras fuentes
                     </button>
                   )}
-                      </>
-                    );
-                  })()}
                 </div>
+              </div>
+            ) : displayed.length === 0 ? (
+              <p className="flex-1 flex items-center justify-center text-[13.5px] text-muted">Ningún capítulo coincide con «{filter}».</p>
+            ) : (
+              <div ref={listRef} className="flex-1 overflow-y-auto pr-2 scrollbar-thin">
+                <ul className="flex flex-col gap-1">
+                  {shown.map(({ ch, index }) => {
+                    const isRead = readSet.has(ch.id);
+                    const isLast = index === lastIdx;
+                    const isNew = ch.publishAt && Date.now() - Date.parse(ch.publishAt) < NEW_MS;
+                    const date = ch.publishAt ? new Date(ch.publishAt).toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+                    return (
+                      <li key={ch.id} className="group flex items-center gap-1">
+                        {/* Marca de leído */}
+                        <button
+                          onClick={() => setChapterRead(manga, ch.id, !isRead)}
+                          title={isRead ? 'Marcar como no leído' : 'Marcar como leído'}
+                          aria-label={isRead ? 'Marcar como no leído' : 'Marcar como leído'}
+                          aria-pressed={isRead}
+                          className={`w-8 h-8 flex-none rounded-full flex items-center justify-center transition-colors ${isRead ? 'text-primary hover:bg-primary/10' : 'text-white/25 hover:text-white hover:bg-white/10'}`}
+                        >
+                          <span className={`material-symbols-outlined text-[20px] ${isRead ? 'filled' : ''}`}>{isRead ? 'check_circle' : 'radio_button_unchecked'}</span>
+                        </button>
+
+                        <button
+                          ref={isLast ? lastReadRef : undefined}
+                          onClick={() => onReadChapter(index, chapters)}
+                          className={`flex-1 min-w-0 flex items-center gap-3 text-left px-3 py-2.5 rounded-xl transition-colors ${
+                            isLast ? 'bg-primary/10 ring-1 ring-primary/30 hover:bg-primary/15' : 'hover:bg-white/[0.07]'
+                          }`}
+                        >
+                          <span className="flex-1 min-w-0">
+                            <span className={`text-[14px] font-medium ${isRead && !isLast ? 'text-on-surface-variant/70' : 'text-white'}`}>
+                              {ch.chapter ? `Cap. ${ch.chapter}` : 'Extra'}
+                            </span>
+                            {ch.title && <span className="text-[12.5px] text-muted ml-2 truncate">— {ch.title}</span>}
+                            {isNew && <span className="ml-2 text-[9.5px] px-1.5 py-0.5 rounded bg-primary text-white font-bold align-middle">NUEVO</span>}
+                            {isLast && (
+                              <span className="ml-2 text-[9.5px] px-1.5 py-0.5 rounded bg-primary/25 text-primary font-bold align-middle">
+                                {record?.last && record.last.pageCount > 0 ? `PÁG. ${record.last.page + 1}/${record.last.pageCount}` : 'AQUÍ TE QUEDASTE'}
+                              </span>
+                            )}
+                            {ch.translatedLanguage && ch.translatedLanguage !== 'es' && ch.translatedLanguage !== 'es-la' && (
+                              <span className="ml-2 text-[9.5px] px-1.5 py-0.5 rounded bg-white/10 text-on-surface-variant font-bold align-middle uppercase">{ch.translatedLanguage}</span>
+                            )}
+                          </span>
+                          <span className="flex items-center gap-3 flex-none text-[11.5px] text-muted">
+                            {date && <span>{date}</span>}
+                            {ch.pages > 0 && <span className="tabular-nums">{ch.pages}p</span>}
+                          </span>
+                        </button>
+
+                        {/* Marcar hasta aquí */}
+                        <button
+                          onClick={() => markReadUpTo(manga, chapters, index)}
+                          title="Marcar como leídos todos hasta este capítulo"
+                          aria-label={`Marcar como leídos hasta ${chapterLabel(ch, false)}`}
+                          className="w-8 h-8 flex-none rounded-full flex items-center justify-center text-white/0 group-hover:text-white/50 hover:!text-white hover:bg-white/10 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">done_all</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {remaining > 0 && (
+                  <button onClick={() => setVisible(shownCount + BATCH * 2)} className="mt-2 w-full py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.10] text-[12.5px] font-medium text-on-surface-variant hover:text-white transition-colors">
+                    Mostrar más capítulos ({remaining} restantes)
+                  </button>
+                )}
               </div>
             )}
           </div>

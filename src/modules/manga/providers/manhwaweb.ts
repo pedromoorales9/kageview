@@ -50,16 +50,21 @@ function parseTags(cats: any[] | undefined): string[] {
 
 // ─── Provider Export ─────────────────────────────────────────────
 
+/** La biblioteca pagina de 30 en 30 con `page` (1, 2, 3…). */
+const PAGE_SIZE = 30;
+
 export const ManhwaWebProvider: MangaProvider = {
   id: 'manhwaweb',
   name: 'ManhwaWeb',
+  pageSize: PAGE_SIZE,
 
   /** Search by title keyword */
-  async searchManga(query: string): Promise<MangaModel[]> {
+  async searchManga(query: string, page = 1): Promise<MangaModel[]> {
     const params: Record<string, string> = {
       buscar: query.trim(),
       order_item: 'views',
       order_dir: 'desc',
+      page: String(page),
     };
     const res = await proxyGet<any>(`${API_BASE}/manhwa/library`, { params, retries: 1 });
     const parsed = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
@@ -67,10 +72,11 @@ export const ManhwaWebProvider: MangaProvider = {
   },
 
   /** Popular manga — sorted by views */
-  async getPopularManga(): Promise<MangaModel[]> {
+  async getPopularManga(page = 1): Promise<MangaModel[]> {
     const params: Record<string, string> = {
       order_item: 'views',
       order_dir: 'desc',
+      page: String(page),
     };
     const res = await proxyGet<any>(`${API_BASE}/manhwa/library`, { params, retries: 1 });
     const parsed = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
@@ -78,10 +84,11 @@ export const ManhwaWebProvider: MangaProvider = {
   },
 
   /** Recently updated manga — sorted by last chapter date */
-  async getRecentlyUpdatedManga(): Promise<MangaModel[]> {
+  async getRecentlyUpdatedManga(page = 1): Promise<MangaModel[]> {
     const params: Record<string, string> = {
       order_item: 'last_chapter_date',
       order_dir: 'desc',
+      page: String(page),
     };
     const res = await proxyGet<any>(`${API_BASE}/manhwa/library`, { params, retries: 1 });
     const parsed = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;

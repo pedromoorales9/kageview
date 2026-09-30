@@ -1,46 +1,51 @@
 import React, { useState } from 'react';
 import { MangaModel } from '../../../modules/manga';
+import { MangaLibraryStatus, mangaKey, useMangaData } from '../../../modules/manga/mangaStore';
 
 const STATUS_I18N: Record<string, string> = {
-  ongoing:   'EN CURSO',
-  completed: 'FINALIZADO',
-  hiatus:    'EN PAUSA',
-  cancelled: 'CANCELADO',
+  ongoing:   'En curso',
+  completed: 'Finalizado',
+  hiatus:    'En pausa',
+  cancelled: 'Cancelado',
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  ongoing:   'bg-emerald-500',
-  completed: 'bg-sky-500',
-  hiatus:    'bg-amber-500',
-  cancelled: 'bg-red-500',
+const STATUS_DOT: Record<string, string> = {
+  ongoing:   'bg-emerald-400',
+  completed: 'bg-sky-400',
+  hiatus:    'bg-amber-400',
+  cancelled: 'bg-red-400',
 };
 
-/** Infer type label from sourceId or tags */
-function inferType(manga: MangaModel): { label: string; color: string } | null {
+const LIBRARY_LABEL: Record<MangaLibraryStatus, string> = {
+  reading: 'Leyendo',
+  planning: 'Pendiente',
+  completed: 'Completado',
+  dropped: 'Abandonado',
+};
+
+const SOURCE_LABEL: Record<string, string> = {
+  mangadex: 'MangaDex',
+  inmanga: 'InManga',
+  manhwaweb: 'ManhwaWeb',
+  mangaoni: 'MangaOni',
+};
+
+/** Tipo (manga/manhwa/manhua) deducido de la fuente, el id o las etiquetas. */
+export function inferType(manga: MangaModel): 'MANGA' | 'MANHWA' | 'MANHUA' {
+  const tags = manga.tags.map((t) => t.toLowerCase());
   const title = manga.title.toLowerCase();
-  const tags = manga.tags.map(t => t.toLowerCase());
-  // ManhwaWeb includes _tipo, which we don't have in the generic model —
-  // try heuristics from sourceId and tags
   if (manga.sourceId === 'manhwaweb') {
-    // ManhwaWeb items likely manhwa/manhua
-    if (tags.includes('manga')) return { label: 'MANGA', color: 'bg-blue-500' };
-    if (tags.includes('manhua')) return { label: 'MANHUA', color: 'bg-purple-500' };
-    return { label: 'MANHWA', color: 'bg-teal-500' };
+    return tags.includes('manga') ? 'MANGA' : tags.includes('manhua') ? 'MANHUA' : 'MANHWA';
   }
-  if (manga.sourceId === 'inmanga') return { label: 'MANGA', color: 'bg-blue-500' };
   if (manga.sourceId === 'mangaoni') {
-    // El id codifica el tipo: "{tipo}/{slug}" (manga/manhwa/manhua)
-    const type = manga.id.split('/')[0];
-    if (type === 'manhwa') return { label: 'MANHWA', color: 'bg-teal-500' };
-    if (type === 'manhua') return { label: 'MANHUA', color: 'bg-purple-500' };
-    return { label: 'MANGA', color: 'bg-blue-500' };
+    const type = manga.id.split('/')[0]; // "{tipo}/{slug}"
+    return type === 'manhwa' ? 'MANHWA' : type === 'manhua' ? 'MANHUA' : 'MANGA';
   }
   if (manga.sourceId === 'mangadex') {
-    if (tags.includes('manhwa') || title.includes('manhwa')) return { label: 'MANHWA', color: 'bg-teal-500' };
-    if (tags.includes('manhua') || title.includes('manhua')) return { label: 'MANHUA', color: 'bg-purple-500' };
-    return { label: 'MANGA', color: 'bg-blue-500' };
+    if (tags.includes('manhwa') || title.includes('manhwa')) return 'MANHWA';
+    if (tags.includes('manhua') || title.includes('manhua')) return 'MANHUA';
   }
-  return null;
+  return 'MANGA';
 }
 
 interface MangaCardProps {
@@ -48,87 +53,99 @@ interface MangaCardProps {
   onClick?: () => void;
   className?: string;
   style?: React.CSSProperties;
+  /** Muestra de qué fuente viene (útil al buscar en todas). */
+  showSource?: boolean;
 }
 
-function MangaCard({ manga, onClick, className = '', style }: MangaCardProps) {
+function MangaCard({ manga, onClick, className = '', style, showSource = false }: MangaCardProps) {
   const [imgError, setImgError] = useState(false);
-  const typeInfo = inferType(manga);
-  const statusText = STATUS_I18N[manga.status] ?? manga.status?.toUpperCase();
-  const statusColor = STATUS_COLOR[manga.status] ?? 'bg-gray-500';
+  // Estado propio (biblioteca, capítulos nuevos): la tarjeta lo sabe sola
+  const record = useMangaData((s) => s.records[mangaKey(manga)]);
+  const type = inferType(manga);
+  const unread = record?.status === 'reading' ? record.unread ?? 0 : 0;
 
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
       style={style}
-      className={`
-        group flex flex-col text-left cursor-pointer w-full
-        transition-all duration-500 ease-out focus:outline-none
-        ${className}
-      `}
+      className={`relative group flex flex-col gap-2.5 text-left w-full transition-transform duration-[350ms] ease-mac hover:-translate-y-1.5 active:scale-[0.985] ${className}`}
     >
-      {/* Ambilight glow behind the card */}
-      <div className="absolute inset-x-0 top-0 aspect-[3/4] z-0 opacity-0 group-hover:opacity-40 transition-opacity duration-500 pointer-events-none rounded-[14px] overflow-hidden blur-2xl transform scale-95 translate-y-4">
-        {manga.coverUrl && !imgError && (
-          <img
-            src={manga.coverUrl}
-            alt=""
-            className="w-full h-full object-cover"
-          />
-        )}
-      </div>
+      <div className="relative">
+        {/* Halo de hover: solo anima opacidad */}
+        <div className="card-glow absolute inset-0 rounded-[14px] ring-1 ring-primary/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+        <div className="relative aspect-[3/4] rounded-[14px] overflow-hidden bg-surface-container shadow-card ring-[0.5px] ring-white/10">
+          {manga.coverUrl && !imgError ? (
+            <img
+              src={manga.coverUrl}
+              alt={manga.title}
+              className="w-full h-full object-cover transition-transform duration-[700ms] ease-mac group-hover:scale-[1.07]"
+              loading="lazy"
+              decoding="async"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-2 px-3 text-center">
+              <span className="material-symbols-outlined text-muted text-4xl">menu_book</span>
+              <span className="text-[11px] text-muted line-clamp-3 leading-tight">{manga.title}</span>
+            </div>
+          )}
 
-      {/* Cover container */}
-      <div className="relative z-10 w-full aspect-[3/4] rounded-xl overflow-hidden mb-2 bg-[#150a10] border border-white/5 shadow-lg group-hover:shadow-2xl transition-all duration-300 transform group-hover:-translate-y-2 group-hover:scale-[1.02]">
-        {/* Cover image (con placeholder si falta o falla la carga, p.ej. CDN caído) */}
-        {manga.coverUrl && !imgError ? (
-          <img
-            src={manga.coverUrl}
-            alt={manga.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
-            onError={() => setImgError(true)}
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#150a10] px-2 text-center">
-            <span className="material-symbols-outlined text-[#86747c] text-4xl">menu_book</span>
-            <span className="text-[10px] text-[#86747c] font-label line-clamp-2 leading-tight">{manga.title}</span>
+          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#09050a]/90 via-[#09050a]/30 to-transparent pointer-events-none" />
+
+          {/* Hover: botón de leer */}
+          <div className="absolute inset-0 flex items-center justify-center bg-[#09050a]/25 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+            <div className="w-12 h-12 rounded-full glass flex items-center justify-center text-white scale-75 group-hover:scale-100 transition-transform duration-300 ease-mac">
+              <span className="material-symbols-outlined filled text-[24px]">auto_stories</span>
+            </div>
           </div>
-        )}
 
-        {/* Hover overlay (manga style) */}
-        <div className="
-          absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100
-          transition-opacity duration-300
-          flex items-center justify-center pointer-events-none
-        ">
-          <div className="w-14 h-14 rounded-full bg-white/20 text-white flex items-center justify-center scale-50 opacity-0 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 ease-out border border-white/20 shadow-[0_8px_30px_rgba(0,0,0,0.5)]">
-            <span className="material-symbols-outlined text-2xl">visibility</span>
-          </div>
-        </div>
-
-        {/* Bottom gradient overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80 pointer-events-none" />
-
-        {/* Type Badge pill — bottom left */}
-        {typeInfo && (
-          <div className="absolute bottom-3 left-3 right-3 pointer-events-none">
-            <span className="inline-block bg-black/55 text-white border border-white/20 text-[9px] sm:text-[11px] lg:text-[13px] font-bold px-2.5 py-1 rounded-[8px] uppercase tracking-widest shadow-sm">
-              {typeInfo.label}
+          {/* Tipo (abajo izquierda) */}
+          <div className="absolute bottom-2 left-2 z-10">
+            <span className="h-[20px] px-1.5 inline-flex items-center rounded-md text-[10px] font-bold uppercase tracking-[0.1em] text-white bg-black/65 ring-[0.5px] ring-white/15">
+              {type}
             </span>
           </div>
-        )}
+
+          {/* Insignias (arriba derecha) */}
+          <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
+            {unread > 0 && (
+              <span
+                title={`${unread} ${unread === 1 ? 'capítulo' : 'capítulos'} sin leer`}
+                className="h-[20px] min-w-[26px] px-1.5 inline-flex items-center justify-center rounded-md text-[11px] font-bold bg-primary text-white shadow-moon tabular-nums"
+              >
+                {unread > 99 ? '99+' : `+${unread}`}
+              </span>
+            )}
+            {record?.status && (
+              <span className="h-[18px] px-1.5 inline-flex items-center gap-0.5 rounded-md text-[9px] font-bold uppercase tracking-[0.08em] glass text-white">
+                <span className="material-symbols-outlined filled text-[11px]">bookmark</span>
+                {LIBRARY_LABEL[record.status]}
+              </span>
+            )}
+          </div>
+
+          {showSource && (
+            <div className="absolute top-2 left-2 z-10">
+              <span className="h-[18px] px-1.5 inline-flex items-center rounded-md text-[9px] font-bold uppercase tracking-[0.08em] bg-black/65 text-on-surface-variant ring-[0.5px] ring-white/15">
+                {SOURCE_LABEL[manga.sourceId] ?? manga.sourceId}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Info Block */}
-      <h4 className="relative z-10 text-white font-headline font-bold text-sm sm:text-base lg:text-lg mb-1 truncate px-1 group-hover:text-primary transition-colors drop-shadow-md">
-        {manga.title}
-      </h4>
-      <p className="relative z-10 text-[#86747c] text-[10px] sm:text-[11px] lg:text-sm flex items-center gap-2 px-1 truncate font-headline uppercase tracking-wider font-semibold">
-        <span>C.{manga.lastChapter ?? '?'}</span>
-        <span className={`w-1.5 h-1.5 rounded-full flex-none ${statusColor}`} />
-        <span className="text-[#bcaab2] truncate">{statusText}</span>
-      </p>
-    </div>
+      <div className="px-0.5 min-w-0">
+        <h4 className="text-[14px] font-semibold text-white leading-snug tracking-[-0.01em] line-clamp-2 group-hover:text-secondary transition-colors">
+          {manga.title}
+        </h4>
+        <p className="mt-1 text-[12px] text-muted flex items-center gap-1.5">
+          {manga.lastChapter && <span>Cap. {manga.lastChapter}</span>}
+          <span className={`w-1.5 h-1.5 rounded-full flex-none ${STATUS_DOT[manga.status] ?? 'bg-gray-400'}`} />
+          <span className="truncate">{STATUS_I18N[manga.status] ?? manga.status}</span>
+        </p>
+      </div>
+    </button>
   );
 }
 

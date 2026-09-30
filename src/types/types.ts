@@ -143,6 +143,8 @@ export interface UserPreferences {
   subtitleLanguage: SubLang;
   preferredProvider: ProviderId;
   preferredMangaProvider: string;
+  /** Incluir capítulos en inglés en MangaDex (por defecto solo español). */
+  mangaIncludeEnglish: boolean;
   fallbackEnabled: boolean;
   skipIntro: boolean;
   skipOutro: boolean;
@@ -242,7 +244,8 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   audioLanguage: 'es',
   subtitleLanguage: 'es',
   preferredProvider: 'animeflv',
-  preferredMangaProvider: 'manhwaweb',
+  preferredMangaProvider: 'mangadex',
+  mangaIncludeEnglish: false,
   fallbackEnabled: true,
   skipIntro: true,
   skipOutro: false,

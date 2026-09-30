@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { AniListAnime, PlayMode, UserPreferences } from '../types/types';
-import { MangaModel, MangaChapterModel } from '../modules/manga';
+import { MangaModel, MangaChapterModel, configureMangaProviders, loadMangaChapters } from '../modules/manga';
+import { MangaRecord, flushMangaData, initMangaStore } from '../modules/manga/mangaStore';
+import { startMangaUpdateChecks } from '../modules/manga/mangaUpdates';
+import { firstUnreadIndex } from '../modules/manga/chapters';
 import { useAppStore } from '../modules/store';
 import { getCache } from '../modules/cache';
 import { getSkipTimes } from '../modules/aniskip';
@@ -62,12 +65,15 @@ export default function App() {
   const [modalAnime, setModalAnime] = useState<AniListAnime | null>(null);
   const [playerConfig, setPlayerConfig] = useState<PlayerConfig | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const notificationsRef = useRef(false);
+  notificationsRef.current = notificationsEnabled;
   const [showHistory, setShowHistory] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
 
   // Manga state
   const [mangaModal, setMangaModal] = useState<MangaModel | null>(null);
   const [mangaReaderConfig, setMangaReaderConfig] = useState<MangaReaderConfig | null>(null);
+  const [mangaSearchRequest, setMangaSearchRequest] = useState<{ query: string; nonce: number } | null>(null);
 
   const authModalOpen = useAppStore((s) => s.authModal !== null);
   const profileModalOpen = useAppStore((s) => s.profileModalOpen);
@@ -124,6 +130,31 @@ export default function App() {
   useEffect(() => {
     evaluateAchievements().catch(() => { /* noop */ });
   }, []);
+
+  // ─── Manga: cargar biblioteca/historial y vigilar capítulos nuevos ───
+  useEffect(() => {
+    void initMangaStore();
+    const stop = startMangaUpdateChecks(
+      (list) => {
+        const first = list[0].manga.title;
+        const total = list.reduce((n, l) => n + l.added, 0);
+        const message =
+          list.length === 1
+            ? `${first}: ${total} ${total === 1 ? 'capítulo nuevo' : 'capítulos nuevos'}`
+            : `${total} capítulos nuevos en ${list.length} mangas de tu biblioteca`;
+        toast.info(message, 'Manga');
+        if (notificationsRef.current) window.electron?.sendNotification?.({ title: 'Capítulos nuevos', body: message });
+      },
+      () => !!useAppStore.getState().prefs.mangaIncludeEnglish
+    );
+    return () => { stop(); void flushMangaData(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Preferencias que afectan a las fuentes de manga
+  useEffect(() => {
+    configureMangaProviders({ includeEnglish: prefs.mangaIncludeEnglish });
+  }, [prefs.mangaIncludeEnglish]);
 
   // ─── Config remota: anuncios y servicios desactivados por el equipo ─────
   // (Supabase; se lee sin sesión. Los avisos los pinta <AnnouncementLayer/>.)
@@ -405,8 +436,35 @@ export default function App() {
 
   const handleExitMangaReader = useCallback(() => {
     setMangaReaderConfig(null);
+    void flushMangaData();
     celebrateAchievements();
   }, [celebrateAchievements]);
+
+  /** Desde una ficha sin capítulos: buscar el título en todas las fuentes. */
+  const handleSearchMangaElsewhere = useCallback((title: string) => {
+    setMangaModal(null);
+    setActivePage('manga');
+    setMangaSearchRequest({ query: title, nonce: Date.now() });
+  }, []);
+
+  /** «Continuar leyendo»: abre el lector directamente en el capítulo (y página) guardados. */
+  const handleContinueManga = useCallback(
+    async (record: MangaRecord) => {
+      try {
+        const chapters = await loadMangaChapters(record.manga, { includeEnglish: prefs.mangaIncludeEnglish });
+        if (chapters.length === 0) {
+          toast.warning('No hay capítulos disponibles ahora mismo en esa fuente.', record.manga.title);
+          return;
+        }
+        let index = record.last ? chapters.findIndex((c) => c.id === record.last!.chapterId) : -1;
+        if (index < 0) index = firstUnreadIndex(chapters, new Set(record.read));
+        setMangaReaderConfig({ manga: record.manga, chapters, chapterIndex: index });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'No se pudo abrir el manga.', record.manga.title);
+      }
+    },
+    [prefs.mangaIncludeEnglish, toast]
+  );
 
   // ─── Render ────────────────────────────────────────────
   const isPlayerActive = playerConfig !== null && source !== null;
@@ -456,7 +514,7 @@ export default function App() {
             <OraclePage onSelectAnime={handleSelectAnime} />
           )}
           {activePage === 'library' && (
-            <LibraryPage onSelectAnime={handleSelectAnime} onSelectManga={handleSelectManga} />
+            <LibraryPage onSelectAnime={handleSelectAnime} onSelectManga={handleSelectManga} onContinueManga={handleContinueManga} />
           )}
           {activePage === 'search' && (
             <SearchPage onSelectAnime={handleSelectAnime} />
@@ -469,7 +527,7 @@ export default function App() {
           )}
           {activePage === 'settings' && <SettingsPage onOpenAdmin={() => setActivePage('admin')} />}
           {activePage === 'manga' && (
-            <MangaPage onSelectManga={handleSelectManga} />
+            <MangaPage onSelectManga={handleSelectManga} onContinueManga={handleContinueManga} searchRequest={mangaSearchRequest} />
           )}
           {activePage === 'friends' && <FriendsPage onSelectAnime={handleSelectAnime} />}
           {activePage === 'admin' && <AdminPage />}
@@ -485,6 +543,7 @@ export default function App() {
           manga={mangaModal}
           onClose={() => setMangaModal(null)}
           onReadChapter={handleReadChapter}
+          onSearchElsewhere={handleSearchMangaElsewhere}
         />
       )}
 

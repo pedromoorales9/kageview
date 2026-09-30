@@ -1,15 +1,15 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AniListAnime } from '../../types/types';
 import { MangaModel } from '../../modules/manga';
 import {
-  MangaLibraryEntry,
   MangaLibraryStatus,
-  MangaReadProgress,
-  getLibrary,
-  getAllProgress,
-  removeFromLibrary,
-  updateLibraryStatus,
-} from '../../modules/manga/mangaLibrary';
+  MangaRecord,
+  libraryRecords,
+  setLibraryStatus,
+  useMangaData,
+} from '../../modules/manga/mangaStore';
+import { checkMangaUpdates } from '../../modules/manga/mangaUpdates';
+import MangaCard from '../components/manga/MangaCard';
 import useAniList from '../hooks/useAniList';
 import { useAppStore } from '../../modules/store';
 import { getUserList } from '../../modules/library';
@@ -22,6 +22,7 @@ import { useToast } from '../components/ui/Toast';
 interface LibraryPageProps {
   onSelectAnime: (anime: AniListAnime) => void;
   onSelectManga: (manga: MangaModel) => void;
+  onContinueManga: (record: MangaRecord) => Promise<void>;
 }
 
 // ─── Anime constants ──────────────────────────────────────────────────────────
@@ -45,23 +46,10 @@ const MANGA_STATUS_TABS: Array<{ id: 'ALL' | MangaLibraryStatus; label: string; 
   { id: 'dropped', label: 'Abandonados', icon: 'cancel' },
 ];
 
-const MANGA_STATUS_LABEL: Record<MangaLibraryStatus, string> = {
-  reading: 'Leyendo',
-  planning: 'Planificado',
-  completed: 'Completado',
-  dropped: 'Abandonado',
-};
-
-const MANGA_STATUS_BADGE: Record<MangaLibraryStatus, 'primary' | 'success' | 'warning' | 'error'> = {
-  reading: 'primary',
-  planning: 'warning',
-  completed: 'success',
-  dropped: 'error',
-};
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function LibraryPage({ onSelectAnime, onSelectManga }: LibraryPageProps) {
+export default function LibraryPage({ onSelectAnime, onSelectManga, onContinueManga }: LibraryPageProps) {
   const [section, setSection] = useState<'anime' | 'manga'>('anime');
 
   return (
@@ -99,7 +87,7 @@ export default function LibraryPage({ onSelectAnime, onSelectManga }: LibraryPag
       {section === 'anime' ? (
         <AnimeSection onSelectAnime={onSelectAnime} />
       ) : (
-        <MangaSection onSelectManga={onSelectManga} />
+        <MangaSection onSelectManga={onSelectManga} onContinueManga={onContinueManga} />
       )}
     </div>
   );
@@ -215,149 +203,174 @@ function AnimeSection({ onSelectAnime }: { onSelectAnime: (anime: AniListAnime) 
 
 // ─── Manga Section ────────────────────────────────────────────────────────────
 
-function MangaSection({ onSelectManga }: { onSelectManga: (manga: MangaModel) => void }) {
-  const [library, setLibrary] = useState<MangaLibraryEntry[]>([]);
-  const [progress, setProgress] = useState<Record<string, MangaReadProgress>>({});
+type MangaSort = 'recent' | 'az' | 'unread';
+const MANGA_SORT_LABEL: Record<MangaSort, string> = {
+  recent: 'Leídos recientemente',
+  az: 'A – Z',
+  unread: 'Con más capítulos nuevos',
+};
+
+function MangaSection({
+  onSelectManga,
+  onContinueManga,
+}: {
+  onSelectManga: (manga: MangaModel) => void;
+  onContinueManga: (record: MangaRecord) => Promise<void>;
+}) {
+  const toast = useToast();
+  const includeEnglish = useAppStore((s) => s.prefs.mangaIncludeEnglish);
+  const records = useMangaData((s) => s.records);
+  const loaded = useMangaData((s) => s.loaded);
+  const library = useMemo(() => libraryRecords(records), [records]);
+
   const [activeTab, setActiveTab] = useState<'ALL' | MangaLibraryStatus>('ALL');
-  const [loading, setLoading] = useState(true);
+  const [sort, setSort] = useState<MangaSort>('recent');
+  const [onlyNew, setOnlyNew] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    const [lib, prog] = await Promise.all([getLibrary(), getAllProgress()]);
-    setLibrary(lib);
-    setProgress(prog);
-    setLoading(false);
-  }, []);
+  const withNew = library.filter((r) => (r.unread ?? 0) > 0).length;
 
-  useEffect(() => { reload(); }, [reload]);
+  const visible = useMemo(() => {
+    const list = library.filter((r) => (activeTab === 'ALL' || r.status === activeTab) && (!onlyNew || (r.unread ?? 0) > 0));
+    const recency = (r: MangaRecord) => Math.max(r.updatedAt, r.last?.at ?? 0);
+    return [...list].sort((a, b) => {
+      if (sort === 'az') return a.manga.title.localeCompare(b.manga.title, 'es');
+      if (sort === 'unread') return (b.unread ?? 0) - (a.unread ?? 0) || recency(b) - recency(a);
+      return recency(b) - recency(a);
+    });
+  }, [library, activeTab, onlyNew, sort]);
 
-  const filtered = activeTab === 'ALL' ? library : library.filter((e) => e.status === activeTab);
-
-  const getEntryProgress = (entry: MangaLibraryEntry): MangaReadProgress | null =>
-    progress[`${entry.manga.sourceId}::${entry.manga.id}`] ?? null;
-
-  const handleRemove = async (e: React.MouseEvent, entry: MangaLibraryEntry) => {
-    e.stopPropagation();
-    await removeFromLibrary(entry.manga.id, entry.manga.sourceId);
-    await reload();
+  const checkNow = async () => {
+    setChecking(true);
+    try {
+      const found = await checkMangaUpdates({ force: true, includeEnglish });
+      const total = found.reduce((n, f) => n + f.added, 0);
+      if (found.length === 0) toast.success('Estás al día: no hay capítulos nuevos.', 'Manga');
+      else toast.info(`${total} ${total === 1 ? 'capítulo nuevo' : 'capítulos nuevos'} en ${found.length} ${found.length === 1 ? 'manga' : 'mangas'}.`, 'Manga');
+    } catch {
+      toast.error('No se pudieron comprobar los capítulos nuevos.', 'Manga');
+    } finally {
+      setChecking(false);
+    }
   };
 
-  const handleChangeStatus = async (e: React.ChangeEvent<HTMLSelectElement>, entry: MangaLibraryEntry) => {
-    e.stopPropagation();
-    await updateLibraryStatus(entry.manga.id, entry.manga.sourceId, e.target.value as MangaLibraryStatus);
-    await reload();
+  const openLast = async (rec: MangaRecord) => {
+    setBusyKey(`${rec.manga.sourceId}::${rec.manga.id}`);
+    try { await onContinueManga(rec); } finally { setBusyKey(null); }
   };
 
   return (
     <div className="flex-1 overflow-y-auto pr-2 pb-8">
-      {/* Status Tabs */}
-      <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-1">
-        {MANGA_STATUS_TABS.map((tab) => {
-          const count = tab.id === 'ALL' ? library.length : library.filter((e) => e.status === tab.id).length;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-headline font-semibold transition-all duration-200 whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/50'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[13px]">{tab.icon}</span>
-              {tab.label}
-              {count > 0 && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeTab === tab.id ? 'bg-primary/20' : 'bg-surface-container-high'}`}>
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 flex-1 min-w-0 hide-scrollbar">
+          {MANGA_STATUS_TABS.map((tab) => {
+            const count = tab.id === 'ALL' ? library.length : library.filter((e) => e.status === tab.id).length;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                aria-pressed={activeTab === tab.id}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-medium transition-colors whitespace-nowrap ${
+                  activeTab === tab.id ? 'bg-primary text-white shadow-moon' : 'bg-white/[0.06] text-on-surface-variant hover:text-white hover:bg-white/[0.11]'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[15px]">{tab.icon}</span>
+                {tab.label}
+                {count > 0 && <span className="text-[10.5px] opacity-80 tabular-nums">{count}</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={() => setOnlyNew((v) => !v)}
+          aria-pressed={onlyNew}
+          disabled={withNew === 0 && !onlyNew}
+          className={`h-9 px-4 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 transition-colors disabled:opacity-40 ${
+            onlyNew ? 'bg-primary/20 text-primary ring-1 ring-primary/40' : 'bg-white/[0.06] text-on-surface-variant hover:text-white hover:bg-white/[0.11]'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[16px]">fiber_new</span>
+          Con novedades{withNew > 0 ? ` (${withNew})` : ''}
+        </button>
+
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as MangaSort)}
+          aria-label="Ordenar"
+          className="h-9 pl-3 pr-2 rounded-full text-[12.5px] font-medium bg-white/[0.06] text-white outline-none cursor-pointer [color-scheme:dark]"
+        >
+          {(Object.keys(MANGA_SORT_LABEL) as MangaSort[]).map((k) => <option key={k} value={k}>{MANGA_SORT_LABEL[k]}</option>)}
+        </select>
+
+        <button
+          onClick={() => void checkNow()}
+          disabled={checking || library.length === 0}
+          title="Comprobar si hay capítulos nuevos de lo que estás leyendo"
+          className="h-9 px-4 rounded-full bg-white/[0.08] hover:bg-white/[0.15] text-[12.5px] font-medium text-white flex items-center gap-1.5 transition-colors disabled:opacity-40"
+        >
+          {checking ? <Spinner size={15} /> : <span className="material-symbols-outlined text-[16px]">refresh</span>}
+          Buscar capítulos nuevos
+        </button>
       </div>
 
-      {loading ? (
+      {!loaded ? (
         <div className="flex items-center justify-center py-20"><Spinner size={32} /></div>
-      ) : filtered.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <span className="material-symbols-outlined text-primary text-4xl">
-              {activeTab === 'ALL' ? 'menu_book' : 'search_off'}
-            </span>
+            <span className="material-symbols-outlined text-primary text-4xl">{library.length === 0 ? 'menu_book' : 'search_off'}</span>
           </div>
           <div className="text-center">
-            <p className="font-headline text-lg font-bold text-on-surface">
-              {activeTab === 'ALL' ? 'Tu biblioteca de manga está vacía' : 'Sin mangas en esta categoría'}
+            <p className="font-headline text-lg font-bold text-white">
+              {library.length === 0 ? 'Tu biblioteca de manga está vacía' : onlyNew ? 'No hay capítulos nuevos' : 'Sin mangas en esta categoría'}
             </p>
             <p className="text-sm text-on-surface-variant mt-1 max-w-xs">
-              {activeTab === 'ALL'
-                ? 'Abre cualquier manga y pulsa "Añadir a Biblioteca" para guardarlo aquí.'
-                : 'Aún no tienes mangas con este estado.'}
+              {library.length === 0
+                ? 'Abre cualquier manga y pulsa «Añadir a la biblioteca» para guardarlo aquí y enterarte de sus capítulos nuevos.'
+                : onlyNew ? 'Te avisaremos cuando salgan capítulos de lo que estás leyendo.' : 'Aún no tienes mangas con este estado.'}
             </p>
           </div>
         </div>
       ) : (
-        <div className="grid gap-5 grid-cols-[repeat(auto-fill,minmax(150px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] xl:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] 2xl:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]">
-          {filtered.map((entry) => {
-            const prog = getEntryProgress(entry);
-            const { manga, status } = entry;
+        <div className="grid gap-x-5 gap-y-7 grid-cols-[repeat(auto-fill,minmax(150px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(165px,1fr))] xl:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
+          {visible.map((rec) => {
+            const key = `${rec.manga.sourceId}::${rec.manga.id}`;
+            const last = rec.last;
             return (
-              <div key={`${manga.sourceId}-${manga.id}`} className="group relative flex flex-col gap-2">
-                {/* Cover */}
-                <div
-                  onClick={() => onSelectManga(manga)}
-                  role="button"
-                  tabIndex={0}
-                  className="relative aspect-[2/3] rounded-xl overflow-hidden bg-surface-container w-full cursor-pointer transition-transform duration-200 hover:scale-[1.03] focus:outline-none"
-                >
-                  {manga.coverUrl ? (
-                    <img src={manga.coverUrl} alt={manga.title} className="w-full h-full object-cover" loading="lazy" />
+              <div key={key} className="flex flex-col gap-2">
+                <MangaCard manga={rec.manga} onClick={() => onSelectManga(rec.manga)} />
+                <div className="flex items-center gap-2 px-0.5">
+                  {last ? (
+                    <button
+                      onClick={() => void openLast(rec)}
+                      disabled={busyKey === key}
+                      className="flex-1 min-w-0 h-8 px-3 rounded-full bg-white/[0.08] hover:bg-primary hover:text-white text-[11.5px] font-medium text-white flex items-center gap-1.5 transition-colors disabled:opacity-60"
+                      title="Continuar leyendo"
+                    >
+                      {busyKey === key ? <Spinner size={13} /> : <span className="material-symbols-outlined filled text-[15px]">play_arrow</span>}
+                      <span className="truncate">
+                        {last.chapterNumber ? `Cap. ${last.chapterNumber}` : 'Continuar'}
+                        {last.pageCount > 0 ? ` · ${last.page + 1}/${last.pageCount}` : ''}
+                      </span>
+                    </button>
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-surface-container-high">
-                      <span className="material-symbols-outlined text-on-surface-variant text-4xl">menu_book</span>
-                    </div>
+                    <span className="flex-1 text-[11.5px] text-muted px-1">Sin empezar</span>
                   )}
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-[inset_0_0_22px_rgba(255, 143, 168,0.25)] pointer-events-none" />
-                  {/* Status badge */}
-                  <div className="absolute top-2 left-2">
-                    <Badge variant={MANGA_STATUS_BADGE[status]} size="sm">{MANGA_STATUS_LABEL[status]}</Badge>
-                  </div>
-                  {/* Remove button */}
-                  <button
-                    onClick={(e) => handleRemove(e, entry)}
-                    className="absolute top-2 right-2 w-6 h-6 rounded-full bg-error/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-error"
-                    title="Quitar de biblioteca"
+                  <select
+                    value={rec.status}
+                    onChange={(e) => setLibraryStatus(rec.manga, e.target.value as MangaLibraryStatus)}
+                    aria-label={`Estado de ${rec.manga.title}`}
+                    className="h-8 w-8 rounded-full bg-white/[0.08] text-transparent outline-none cursor-pointer hover:bg-white/[0.15] transition-colors appearance-none [color-scheme:dark] bg-[length:16px] bg-center bg-no-repeat"
+                    style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")" }}
                   >
-                    <span className="material-symbols-outlined text-[13px]">close</span>
-                  </button>
-                  {/* Progress pill */}
-                  {prog && (
-                    <div className="absolute bottom-2 left-2 right-2">
-                      <div className="bg-black/75 rounded-lg px-2 py-1 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-primary text-[12px]">bookmark</span>
-                        <span className="text-[10px] text-white font-label font-semibold truncate">
-                          Cap. {prog.lastChapterNumber ?? '???'}
-                        </span>
-                      </div>
-                    </div>
-                  )}
+                    <option value="reading">Leyendo</option>
+                    <option value="planning">Pendiente</option>
+                    <option value="completed">Completado</option>
+                    <option value="dropped">Abandonado</option>
+                  </select>
                 </div>
-                {/* Title */}
-                <p className="text-[12px] font-headline font-semibold text-on-surface line-clamp-2 px-0.5 leading-tight">
-                  {manga.title}
-                </p>
-                {/* Status select */}
-                <select
-                  value={status}
-                  onChange={(e) => handleChangeStatus(e, entry)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-[10px] px-2 py-1 rounded-lg bg-surface-container-high text-on-surface-variant border border-surface-variant/20 outline-none cursor-pointer hover:border-primary/30 transition-colors duration-150 w-full"
-                >
-                  <option value="reading">Leyendo</option>
-                  <option value="planning">Planificado</option>
-                  <option value="completed">Completado</option>
-                  <option value="dropped">Abandonado</option>
-                </select>
               </div>
             );
           })}

@@ -593,6 +593,18 @@ export default function SettingsPage({ onOpenAdmin }: SettingsPageProps) {
 
           {/* Manga Providers */}
           <section className="panel p-6">
+            <div className="flex items-center justify-between gap-4 mb-5 pb-5 border-b-[0.5px] border-white/[0.08]">
+              <div className="min-w-0">
+                <h3 className="font-headline text-sm font-bold text-on-surface">Capítulos en inglés (MangaDex)</h3>
+                <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
+                  Muestra también títulos y capítulos en inglés cuando no hay traducción al español. Los capítulos en español siempre van primero.
+                </p>
+              </div>
+              <ToggleSwitch
+                checked={!!prefs.mangaIncludeEnglish}
+                onChange={(v) => setPrefs({ mangaIncludeEnglish: v })}
+              />
+            </div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-headline text-sm font-bold text-on-surface">
                 Proveedores de Manga

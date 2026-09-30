@@ -7,7 +7,7 @@
 
 import { getCache, setCache } from './cache';
 import { getHistory } from './watchHistory';
-import { getLibrary, getAllProgress } from './manga/mangaLibrary';
+import { initMangaStore, useMangaData } from './manga/mangaStore';
 
 const UNLOCKED_KEY = 'achievementsUnlocked';
 
@@ -22,6 +22,10 @@ interface Stats {
   maxSameAnime: number;
   mangaInLibrary: number;
   mangaWithProgress: number;
+  /** Capítulos de manga marcados como leídos (todas las series). */
+  mangaChaptersRead: number;
+  /** Mangas terminados (estado «Completado»). */
+  mangaCompleted: number;
 }
 
 function startOfDay(ts: number): number {
@@ -59,10 +63,18 @@ async function computeStats(): Promise<Stats> {
     if (cur > maxStreak) maxStreak = cur;
   }
 
-  let library: Awaited<ReturnType<typeof getLibrary>> = [];
-  let progress: Awaited<ReturnType<typeof getAllProgress>> = {};
+  let mangaInLibrary = 0;
+  let mangaWithProgress = 0;
+  let mangaChaptersRead = 0;
+  let mangaCompleted = 0;
   try {
-    [library, progress] = await Promise.all([getLibrary(), getAllProgress()]);
+    await initMangaStore();
+    for (const r of Object.values(useMangaData.getState().records)) {
+      if (r.status) mangaInLibrary++;
+      if (r.status === 'completed') mangaCompleted++;
+      if (r.read.length > 0 || r.last) mangaWithProgress++;
+      mangaChaptersRead += r.read.length;
+    }
   } catch {
     /* manga opcional */
   }
@@ -74,8 +86,10 @@ async function computeStats(): Promise<Stats> {
     lateNight,
     maxStreakDays: maxStreak,
     maxSameAnime: perAnime.size ? Math.max(...perAnime.values()) : 0,
-    mangaInLibrary: library.length,
-    mangaWithProgress: Object.keys(progress).length,
+    mangaInLibrary,
+    mangaWithProgress,
+    mangaChaptersRead,
+    mangaCompleted,
   };
 }
 
@@ -101,6 +115,9 @@ const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'fan_5',         title: 'Fan nº1',       description: '5 episodios del mismo anime',           icon: 'favorite',              goal: 5,   value: (s) => s.maxSameAnime },
   { id: 'reader_1',      title: 'Lector',        description: 'Lee tu primer capítulo de manga',       icon: 'menu_book',             goal: 1,   value: (s) => s.mangaWithProgress },
   { id: 'librarian_10',  title: 'Bibliotecario', description: '10 mangas en tu biblioteca',            icon: 'auto_stories',          goal: 10,  value: (s) => s.mangaInLibrary },
+  { id: 'reader_100',     title: 'Ratón de biblioteca', description: '100 capítulos de manga leídos',    icon: 'local_library',         goal: 100, value: (s) => s.mangaChaptersRead },
+  { id: 'reader_1000',    title: 'Sabio del manga',     description: '1000 capítulos de manga leídos',   icon: 'school',                goal: 1000, value: (s) => s.mangaChaptersRead },
+  { id: 'finisher_3',     title: 'Hasta el final',      description: 'Termina 3 mangas',                 icon: 'flag',                  goal: 3,   value: (s) => s.mangaCompleted },
   { id: 'omnivore',      title: 'Otaku total',   description: 'Ten progreso en anime y manga',         icon: 'workspace_premium',     goal: 2,   value: (s) => (s.totalEpisodes > 0 ? 1 : 0) + (s.mangaWithProgress > 0 ? 1 : 0) },
 ];
 
