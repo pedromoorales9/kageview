@@ -14,6 +14,7 @@ import { prepareAvatar } from '../../../modules/imageUtils';
 import { useToast } from '../ui/Toast';
 import Spinner from '../ui/Spinner';
 import Avatar from './Avatar';
+import RoleBadge from './RoleBadge';
 import { Field, Notice, Switch, ghostButtonClass, primaryButtonClass } from './formKit';
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
@@ -281,7 +282,9 @@ export default function ProfileModal() {
             <h2 className="font-headline text-[22px] font-bold text-white tracking-[-0.025em] truncate">
               {profile.displayName || profile.username}
             </h2>
-            <p className="text-[13.5px] text-secondary truncate">@{profile.username}</p>
+            <p className="text-[13.5px] text-secondary truncate flex items-center gap-2">
+              @{profile.username} <RoleBadge role={profile.role} />
+            </p>
             <p className="text-[12.5px] text-muted truncate">{user?.email}</p>
             <div className="flex items-center gap-2 mt-3">
               <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={pickPhoto} />

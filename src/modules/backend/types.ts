@@ -36,6 +36,7 @@ export type BackendErrorCode =
   | 'too_many_requests'
   | 'file_too_large'
   | 'not_friends'
+  | 'forbidden'
   | 'too_many_messages'
   | 'invalid_file'
   | 'network'
@@ -52,6 +53,11 @@ export class BackendError extends Error {
 }
 
 // ─── Perfiles ──────────────────────────────────────────────
+/** `owner` = dueño de la app (uno solo) · `admin` = equipo · `user` = resto. */
+export type AppRole = 'user' | 'admin' | 'owner';
+
+export const isStaff = (role: AppRole | undefined | null): boolean => role === 'admin' || role === 'owner';
+
 export interface Profile {
   id: string;
   username: string;
@@ -62,6 +68,7 @@ export interface Profile {
   showActivity: boolean;
   /** Los amigos pueden ver mi lista. */
   showLibrary: boolean;
+  role: AppRole;
   createdAt: string;
 }
 
@@ -193,6 +200,60 @@ export interface MessageCursor {
 
 export const CHAT_MAX_LENGTH = 2000;
 
+// ─── Administración ────────────────────────────────────────
+export type AnnouncementKind = 'info' | 'update' | 'event' | 'warning' | 'maintenance';
+export type AnnouncementDisplay = 'banner' | 'modal';
+
+export interface Announcement {
+  id: number;
+  kind: AnnouncementKind;
+  display: AnnouncementDisplay;
+  title: string;
+  body: string;
+  linkUrl: string | null;
+  linkLabel: string | null;
+  active: boolean;
+  startsAt: string;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface AnnouncementInput {
+  kind: AnnouncementKind;
+  display: AnnouncementDisplay;
+  title: string;
+  body: string;
+  linkUrl?: string | null;
+  linkLabel?: string | null;
+  active?: boolean;
+  /** ISO; por defecto ahora. */
+  startsAt?: string;
+  /** ISO; null = no caduca. */
+  expiresAt?: string | null;
+}
+
+export const ANNOUNCEMENT_LIMITS = { title: 80, body: 600, linkLabel: 30, linkUrl: 500 } as const;
+
+/** Servicio desactivado para todos los usuarios (existe fila = desactivado). */
+export interface ProviderSwitch {
+  providerId: string;
+  reason: string;
+  updatedAt: string;
+}
+
+export interface StaffMember {
+  profile: PublicProfile;
+  role: AppRole;
+}
+
+export interface AdminStats {
+  usersTotal: number;
+  usersLast7Days: number;
+  /** Usuarios con "viendo ahora" activo en los últimos 15 min. */
+  watchingNow: number;
+  announcementsLive: number;
+}
+
 // ─── Interfaz ──────────────────────────────────────────────
 export interface AccountBackend {
   readonly kind: 'supabase' | 'mock';
@@ -253,4 +314,20 @@ export interface AccountBackend {
   getChatSummary(): Promise<ChatSummaryItem[]>;
   /** Mensajes nuevos o modificados (leído/borrado) en tiempo real. */
   subscribeMessages(cb: (message: ChatMessage) => void): () => void;
+
+  // Configuración pública (funciona SIN sesión)
+  /** Anuncios vigentes ahora mismo (activos y dentro de su ventana de fechas). */
+  listActiveAnnouncements(): Promise<Announcement[]>;
+  listProviderSwitches(): Promise<ProviderSwitch[]>;
+
+  // Administración (la base de datos exige rol admin/owner; la UI solo lo refleja)
+  adminListAnnouncements(): Promise<Announcement[]>;
+  adminSaveAnnouncement(input: AnnouncementInput, id?: number): Promise<Announcement>;
+  adminDeleteAnnouncement(id: number): Promise<void>;
+  /** `reason` = texto → desactivar el servicio · null → volver a activarlo. */
+  adminSetProviderSwitch(providerId: string, reason: string | null): Promise<void>;
+  adminStats(): Promise<AdminStats>;
+  adminListStaff(): Promise<StaffMember[]>;
+  /** Solo el owner. Nombra o quita administradores. */
+  adminSetRole(userId: string, role: 'user' | 'admin'): Promise<void>;
 }

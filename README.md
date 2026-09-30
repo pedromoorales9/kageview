@@ -128,6 +128,8 @@ Para probar la interfaz sin proyecto de Supabase existe un backend en memoria **
 KAGEVIEW_BACKEND=mock npm start
 ```
 
+> En modo *mock* puedes entrar como `kage@demo.dev` (owner) o `sora@demo.dev` (admin), contraseña `demo1234`, para probar el **panel de administración** (Ajustes → Administración). En producción, ver «Administración» en [`supabase/README.md`](supabase/README.md).
+
 ### Discord Rich Presence (opcional)
 
 Crea una aplicación en el [Discord Developer Portal](https://discord.com/developers/applications)

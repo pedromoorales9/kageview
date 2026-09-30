@@ -733,3 +733,161 @@ describe('chat entre amigos', () => {
     expect(await admin(`select 1 from public.messages where sender_id = $1`, [id])).toHaveLength(0);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════
+describe('administración: roles, anuncios y servicios', () => {
+  const ann = (extra = '') =>
+    `insert into public.announcements (kind, display, title, body${extra ? ', ' + extra.split('|')[0] : ''}) values ('info','banner','T','Hola a todos'${extra ? ', ' + extra.split('|')[1] : ''}) returning id`;
+
+  beforeAll(async () => {
+    await admin(`update public.profiles set role = 'owner' where id = $1`, [ids.alice]);
+    await admin(`update public.profiles set role = 'admin' where id = $1`, [ids.bob]);
+    await admin(`delete from public.announcements`);
+    await admin(`delete from public.provider_switches`);
+  });
+
+  it('por defecto todos son "user" y solo puede haber un owner', async () => {
+    expect((await admin(`select role from public.profiles where id = $1`, [ids.carol]))[0].role).toBe('user');
+    expect(await admin(`select count(*)::int as n from public.profiles where role = 'owner'`)).toEqual([{ n: 1 }]);
+    await expect(admin(`update public.profiles set role = 'owner' where id = $1`, [ids.carol])).rejects.toThrow(/unique/i);
+  });
+
+  it('nadie puede cambiar su propio rol desde el cliente', async () => {
+    for (const who of ['carol', 'bob', 'alice']) {
+      expect(await asExpectError(who, `update public.profiles set role = 'owner' where id = '${ids[who]}'`)).toMatch(/permission denied/i);
+      expect(await asExpectError(who, `update public.profiles set role = 'admin' where id = '${ids[who]}'`)).toMatch(/permission denied/i);
+    }
+    expect((await admin(`select role from public.profiles where id = $1`, [ids.carol]))[0].role).toBe('user');
+  });
+
+  it('un perfil nuevo no puede nacer con rol elevado vía metadatos del alta', async () => {
+    const id = await signup('sneaky', 'sneaky', { role: 'owner' });
+    expect((await admin(`select role from public.profiles where id = $1`, [id]))[0].role).toBe('user');
+  });
+
+  it('el staff publica anuncios; un usuario normal no', async () => {
+    const r = await asCommit('bob', (q) => q(ann()));
+    expect(r).toHaveLength(1);
+    expect((await admin(`select created_by from public.announcements where id = $1`, [r[0].id]))[0].created_by).toBe(ids.bob);
+    expect(await asExpectError('carol', ann())).toMatch(/row-level security/i);
+    expect(await asExpectError('eve', ann())).toMatch(/row-level security/i);
+    expect(await asExpectError('anon', ann())).toMatch(/permission denied/i);
+  });
+
+  it('no se puede falsear el autor ni las fechas de sistema', async () => {
+    for (const col of ['created_by', 'created_at', 'updated_at', 'id']) {
+      expect(
+        await asExpectError('bob', `insert into public.announcements (body, ${col}) values ('x', ${col === 'id' ? '999' : col === 'created_by' ? `'${ids.alice}'` : `'2000-01-01'`})`)
+      ).toMatch(/permission denied|non-DEFAULT/i);
+    }
+  });
+
+  it('valida el contenido: vacío, larguísimo, tipo, enlace no https y caducidad', async () => {
+    const ins = (cols: string, vals: string) => asExpectError('alice', `insert into public.announcements (${cols}) values (${vals})`);
+    expect(await ins('body', `''`)).toMatch(/check/i);
+    expect(await ins('body', `'   '`)).toMatch(/check/i);
+    expect(await ins('body', `'${'x'.repeat(601)}'`)).toMatch(/check/i);
+    expect(await ins('body', `'${'x'.repeat(600)}'`)).toBe('');
+    expect(await ins('body, kind', `'x','spam'`)).toMatch(/check/i);
+    expect(await ins('body, display', `'x','popup'`)).toMatch(/check/i);
+    expect(await ins('body, title', `'x','${'t'.repeat(81)}'`)).toMatch(/check/i);
+    expect(await ins('body, link_url', `'x','http://inseguro.dev'`)).toMatch(/check/i);
+    expect(await ins('body, link_url', `'x','javascript:alert(1)'`)).toMatch(/check/i);
+    expect(await ins('body, link_url', `'x','https://ok.dev/a'`)).toBe('');
+    expect(await ins('body, starts_at, expires_at', `'x', now(), now() - interval '1 day'`)).toMatch(/check/i);
+  });
+
+  it('todos (incluso anónimos) ven solo los anuncios vigentes', async () => {
+    await admin(`delete from public.announcements`);
+    await admin(`insert into public.announcements (body, title) values ('vigente','ok')`);
+    await admin(`insert into public.announcements (body, title, active) values ('pausado','off', false)`);
+    await admin(`insert into public.announcements (body, title, starts_at) values ('futuro','soon', now() + interval '1 day')`);
+    await admin(`insert into public.announcements (body, title, starts_at, expires_at) values ('caducado','old', now() - interval '2 days', now() - interval '1 day')`);
+    for (const who of ['anon', 'carol', 'eve']) {
+      const r = await as(who, (q) => q(`select title from public.announcements order by id`));
+      expect(r.map((x) => x.title)).toEqual(['ok']);
+    }
+    // el staff ve también los pausados, programados y caducados
+    for (const who of ['alice', 'bob']) {
+      expect(await as(who, (q) => q(`select 1 from public.announcements`))).toHaveLength(4);
+    }
+  });
+
+  it('el staff edita y borra; un usuario normal no puede (RLS filtra sin error)', async () => {
+    await admin(`delete from public.announcements`);
+    const [{ id }] = await admin(`insert into public.announcements (body) values ('original') returning id`);
+    expect(await as('carol', (q) => q(`update public.announcements set body = 'hackeado' where id = ${id} returning id`))).toHaveLength(0);
+    expect(await as('carol', (q) => q(`delete from public.announcements where id = ${id} returning id`))).toHaveLength(0);
+    expect((await admin(`select body from public.announcements where id = $1`, [id]))[0].body).toBe('original');
+
+    expect(await as('bob', (q) => q(`update public.announcements set body = 'corregido', active = false where id = ${id} returning id`))).toHaveLength(1);
+    // un admin no puede reasignar el autor
+    expect(await asExpectError('bob', `update public.announcements set created_by = '${ids.carol}' where id = ${id}`)).toMatch(/permission denied/i);
+    expect(await as('bob', (q) => q(`delete from public.announcements where id = ${id} returning id`))).toHaveLength(1);
+  });
+
+  it('servicios desactivados: lectura pública, escritura solo del staff', async () => {
+    await admin(`delete from public.provider_switches`);
+    await asCommit('bob', (q) => q(`insert into public.provider_switches (provider_id, reason) values ('animeflv', 'Caído')`));
+    for (const who of ['anon', 'carol']) {
+      const r = await as(who, (q) => q(`select provider_id, reason from public.provider_switches`));
+      expect(r).toEqual([{ provider_id: 'animeflv', reason: 'Caído' }]);
+    }
+    expect(await asExpectError('carol', `insert into public.provider_switches (provider_id, reason) values ('jkanime','x')`)).toMatch(/row-level security/i);
+    expect(await asExpectError('anon', `insert into public.provider_switches (provider_id, reason) values ('jkanime','x')`)).toMatch(/permission denied/i);
+    expect(await as('carol', (q) => q(`delete from public.provider_switches returning provider_id`))).toHaveLength(0);
+    expect(await as('carol', (q) => q(`update public.provider_switches set reason = 'x' returning provider_id`))).toHaveLength(0);
+    expect(await asExpectError('bob', `insert into public.provider_switches (provider_id) values ('Mal Id!')`)).toMatch(/check/i);
+    expect(await as('bob', (q) => q(`update public.provider_switches set reason = 'Mantenimiento' returning provider_id`))).toHaveLength(1);
+    expect((await admin(`select updated_by from public.provider_switches`))[0].updated_by).toBe(ids.bob);
+    expect(await as('bob', (q) => q(`delete from public.provider_switches returning provider_id`))).toHaveLength(1);
+  });
+
+  it('solo el owner nombra o quita admins; al owner no se le puede tocar', async () => {
+    // el admin (no owner) no puede
+    expect(await asExpectError('bob', `select public.set_user_role('${ids.carol}', 'admin')`)).toMatch(/forbidden/i);
+    expect(await asExpectError('carol', `select public.set_user_role('${ids.carol}', 'admin')`)).toMatch(/forbidden/i);
+    expect(await asExpectError('anon', `select public.set_user_role('${ids.carol}', 'admin')`)).toMatch(/permission denied/i);
+
+    // el owner sí, pero solo entre user/admin
+    await asCommit('alice', (q) => q(`select public.set_user_role('${ids.carol}', 'admin')`));
+    expect((await admin(`select role from public.profiles where id = $1`, [ids.carol]))[0].role).toBe('admin');
+    expect(await asExpectError('alice', `select public.set_user_role('${ids.carol}', 'owner')`)).toMatch(/invalid role/i);
+    expect(await asExpectError('alice', `select public.set_user_role('${ids.carol}', 'root')`)).toMatch(/invalid role/i);
+    await asCommit('alice', (q) => q(`select public.set_user_role('${ids.carol}', 'user')`));
+    expect((await admin(`select role from public.profiles where id = $1`, [ids.carol]))[0].role).toBe('user');
+
+    // ni siquiera el propio owner puede degradarse (protege del "me quedé sin owner")
+    expect(await asExpectError('alice', `select public.set_user_role('${ids.alice}', 'user')`)).toMatch(/forbidden/i);
+    expect(await asExpectError('alice', `select public.set_user_role('00000000-0000-0000-0000-000000000000', 'admin')`)).toMatch(/not found/i);
+  });
+
+  it('un admin degradado pierde los permisos al instante', async () => {
+    await asCommit('alice', (q) => q(`select public.set_user_role('${ids.dave}', 'admin')`));
+    expect(await as('dave', (q) => q(ann()))).toHaveLength(1);
+    await asCommit('alice', (q) => q(`select public.set_user_role('${ids.dave}', 'user')`));
+    expect(await asExpectError('dave', ann())).toMatch(/row-level security/i);
+  });
+
+  it('list_staff y admin_stats: solo para el staff', async () => {
+    const staff = await as('bob', (q) => q(`select username, role from public.list_staff()`));
+    expect(staff).toEqual([
+      { username: 'alice_01', role: 'owner' },
+      { username: 'bob', role: 'admin' },
+    ]);
+    const stats = await as('alice', (q) => q(`select * from public.admin_stats()`));
+    expect(Number(stats[0].users_total)).toBeGreaterThanOrEqual(5);
+    for (const fn of ['list_staff()', 'admin_stats()']) {
+      expect(await asExpectError('carol', `select * from public.${fn}`)).toMatch(/forbidden/i);
+      expect(await asExpectError('anon', `select * from public.${fn}`)).toMatch(/permission denied/i);
+    }
+  });
+
+  it('el rol es visible para amigos (insignia) pero no se filtra a desconocidos', async () => {
+    await admin(`delete from public.friendships`);
+    await admin(`insert into public.friendships (requester_id, addressee_id, status) values ($1,$2,'accepted')`, [ids.carol, ids.alice]);
+    expect((await as('carol', (q) => q(`select role from public.profiles where id = '${ids.alice}'`)))[0].role).toBe('owner');
+    expect(await as('eve', (q) => q(`select role from public.profiles where id = '${ids.alice}'`))).toHaveLength(0);
+    await admin(`delete from public.friendships`);
+  });
+});

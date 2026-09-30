@@ -5,7 +5,7 @@ import { useSocialStore } from '../../../modules/social';
 import { useChatStore } from '../../../modules/chat';
 import Avatar from '../account/Avatar';
 
-type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings' | 'calendar' | 'manga' | 'friends';
+type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings' | 'calendar' | 'manga' | 'friends' | 'admin';
 
 interface SidebarProps {
   activePage: PageId;
@@ -154,7 +154,7 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
       <div className="px-3 pb-3 flex flex-col gap-2">
         <NavButton
           item={{ id: 'settings', icon: 'settings', label: 'Ajustes' }}
-          active={activePage === 'settings'}
+          active={activePage === 'settings' || activePage === 'admin'}
           onClick={() => onNavigate('settings')}
         />
 

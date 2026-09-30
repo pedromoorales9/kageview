@@ -3,7 +3,7 @@ import { useAppStore } from '../../../modules/store';
 import { openAccount } from '../../../modules/account';
 import Avatar from '../account/Avatar';
 
-type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings' | 'calendar' | 'manga' | 'friends';
+type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings' | 'calendar' | 'manga' | 'friends' | 'admin';
 
 interface TopBarProps {
   activePage: PageId;
@@ -20,6 +20,7 @@ const PAGE_TITLES: Record<PageId, string> = {
   calendar: 'Calendario',
   manga: 'Manga',
   friends: 'Amigos',
+  admin: 'Administración',
 };
 
 const isMac = window.electron?.platform === 'darwin';

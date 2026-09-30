@@ -50,10 +50,5 @@ export function anilistDefinePlugin(): webpack.DefinePlugin {
     'process.env.SUPABASE_ANON_KEY': pick('SUPABASE_ANON_KEY', ''),
     'process.env.KAGEVIEW_BACKEND': pick('KAGEVIEW_BACKEND', ''),
     'process.env.DISCORD_CLIENT_ID': pick('DISCORD_CLIENT_ID', ''),
-    // Contraseña del Panel de Desarrollador (Ajustes). Vacía = panel
-    // desactivado por completo. Solo es una barrera de UI: la
-    // autorización real para publicar cambios es el PAT de GitHub,
-    // que nunca se incrusta en la build.
-    'process.env.DEV_PANEL_PASSWORD': pick('DEV_PANEL_PASSWORD', ''),
   });
 }

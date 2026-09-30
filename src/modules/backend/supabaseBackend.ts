@@ -8,6 +8,12 @@
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
 import {
   AccountBackend,
+  AdminStats,
+  Announcement,
+  AnnouncementInput,
+  AppRole,
+  ProviderSwitch,
+  StaffMember,
   Activity,
   ActivityInput,
   ChatMessage,
@@ -46,6 +52,20 @@ interface ProfileRow {
   bio: string | null;
   show_activity: boolean;
   show_library: boolean;
+  role: AppRole;
+  created_at: string;
+}
+interface AnnouncementRow {
+  id: number;
+  kind: Announcement['kind'];
+  display: Announcement['display'];
+  title: string;
+  body: string;
+  link_url: string | null;
+  link_label: string | null;
+  active: boolean;
+  starts_at: string;
+  expires_at: string | null;
   created_at: string;
 }
 interface LibraryRow {
@@ -120,8 +140,25 @@ const toProfile = (r: ProfileRow): Profile => ({
   bio: r.bio,
   showActivity: r.show_activity,
   showLibrary: r.show_library,
+  role: r.role ?? 'user',
   createdAt: r.created_at,
 });
+
+const toAnnouncement = (r: AnnouncementRow): Announcement => ({
+  id: r.id,
+  kind: r.kind,
+  display: r.display,
+  title: r.title ?? '',
+  body: r.body,
+  linkUrl: r.link_url,
+  linkLabel: r.link_label,
+  active: r.active,
+  startsAt: r.starts_at,
+  expiresAt: r.expires_at,
+  createdAt: r.created_at,
+});
+
+const ANNOUNCEMENT_COLUMNS = 'id, kind, display, title, body, link_url, link_label, active, starts_at, expires_at, created_at';
 
 const toPublic = (
   r: Pick<ProfileRow, 'id' | 'username' | 'display_name' | 'avatar_url'> & { bio?: string | null }
@@ -220,6 +257,8 @@ export function mapError(err: unknown): BackendError {
   if (code === '23514') return make('invalid_username');
   if (code === '54000') return make(msg.includes('too many messages') ? 'too_many_messages' : 'too_many_requests');
   if (code === 'P0002') return make('not_found');
+  // RLS / funciones de administración: hay sesión, pero sin permiso
+  if (msg.includes('forbidden') || msg.includes('row-level security')) return make('forbidden');
   if (code === '42501') return make('not_authenticated');
 
   // Storage
@@ -707,5 +746,119 @@ export class SupabaseBackend implements AccountBackend {
       if (timer) clearTimeout(timer);
       void this.sb.removeChannel(channel);
     };
+  }
+
+  // ─── Configuración pública ───────────────────────────────
+  async listActiveAnnouncements(): Promise<Announcement[]> {
+    // Para el público RLS ya solo deja ver los vigentes, pero el staff ve TODOS
+    // (borradores, programados…): se filtra también aquí para que a ellos no se
+    // les muestren como si estuvieran publicados.
+    const now = new Date().toISOString();
+    const rows = check(
+      await this.sb
+        .from('announcements')
+        .select(ANNOUNCEMENT_COLUMNS)
+        .eq('active', true)
+        .lte('starts_at', now)
+        .or(`expires_at.is.null,expires_at.gt.${now}`)
+        .order('created_at', { ascending: false })
+        .limit(20)
+    ) as unknown as AnnouncementRow[];
+    return rows.map(toAnnouncement);
+  }
+
+  async listProviderSwitches(): Promise<ProviderSwitch[]> {
+    const rows = check(
+      await this.sb.from('provider_switches').select('provider_id, reason, updated_at')
+    ) as unknown as Array<{ provider_id: string; reason: string; updated_at: string }>;
+    return rows.map((r) => ({ providerId: r.provider_id, reason: r.reason, updatedAt: r.updated_at }));
+  }
+
+  // ─── Administración ──────────────────────────────────────
+  async adminListAnnouncements(): Promise<Announcement[]> {
+    const rows = check(
+      await this.sb
+        .from('announcements')
+        .select(ANNOUNCEMENT_COLUMNS)
+        .order('created_at', { ascending: false })
+        .limit(100)
+    ) as unknown as AnnouncementRow[];
+    return rows.map(toAnnouncement);
+  }
+
+  async adminSaveAnnouncement(input: AnnouncementInput, id?: number): Promise<Announcement> {
+    const values = {
+      kind: input.kind,
+      display: input.display,
+      title: input.title.trim(),
+      body: input.body.trim(),
+      link_url: input.linkUrl?.trim() || null,
+      link_label: input.linkUrl?.trim() ? input.linkLabel?.trim() || null : null,
+      active: input.active ?? true,
+      starts_at: input.startsAt ?? new Date().toISOString(),
+      expires_at: input.expiresAt ?? null,
+    };
+    if (id === undefined) {
+      const row = check(
+        await this.sb.from('announcements').insert(values).select(ANNOUNCEMENT_COLUMNS).single()
+      ) as unknown as AnnouncementRow;
+      return toAnnouncement(row);
+    }
+    // Sin permiso, RLS no da error: simplemente no actualiza ninguna fila
+    const row = check(
+      await this.sb.from('announcements').update(values).eq('id', id).select(ANNOUNCEMENT_COLUMNS).maybeSingle()
+    ) as unknown as AnnouncementRow | null;
+    if (!row) throw new BackendError('forbidden');
+    return toAnnouncement(row);
+  }
+
+  async adminDeleteAnnouncement(id: number): Promise<void> {
+    const rows = check(await this.sb.from('announcements').delete().eq('id', id).select('id')) as unknown as unknown[];
+    if (rows.length === 0) throw new BackendError('forbidden');
+  }
+
+  async adminSetProviderSwitch(providerId: string, reason: string | null): Promise<void> {
+    if (reason === null) {
+      // Reactivar: borrar la fila (idempotente; sin permiso RLS tampoco borra nada)
+      const { data: existing } = await this.sb.from('provider_switches').select('provider_id').eq('provider_id', providerId);
+      const rows = check(
+        await this.sb.from('provider_switches').delete().eq('provider_id', providerId).select('provider_id')
+      ) as unknown as unknown[];
+      if (rows.length === 0 && (existing?.length ?? 0) > 0) throw new BackendError('forbidden');
+      return;
+    }
+    check(
+      await this.sb
+        .from('provider_switches')
+        .upsert({ provider_id: providerId, reason: reason.trim().slice(0, 200) }, { onConflict: 'provider_id' })
+    );
+  }
+
+  async adminStats(): Promise<AdminStats> {
+    const rows = check(await this.sb.rpc('admin_stats')) as unknown as Array<{
+      users_total: number | string;
+      users_7d: number | string;
+      watching_now: number | string;
+      announcements_live: number | string;
+    }>;
+    const r = rows[0];
+    return {
+      usersTotal: Number(r?.users_total) || 0,
+      usersLast7Days: Number(r?.users_7d) || 0,
+      watchingNow: Number(r?.watching_now) || 0,
+      announcementsLive: Number(r?.announcements_live) || 0,
+    };
+  }
+
+  async adminListStaff(): Promise<StaffMember[]> {
+    const rows = check(await this.sb.rpc('list_staff')) as unknown as Array<
+      Pick<ProfileRow, 'id' | 'username' | 'display_name' | 'avatar_url' | 'role'>
+    >;
+    return rows.map((r) => ({ profile: toPublic(r), role: r.role }));
+  }
+
+  async adminSetRole(userId: string, role: 'user' | 'admin'): Promise<void> {
+    if (!UUID_RE.test(userId)) throw new BackendError('not_found');
+    check(await this.sb.rpc('set_user_role', { target: userId, new_role: role }));
   }
 }

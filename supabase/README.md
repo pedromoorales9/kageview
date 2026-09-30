@@ -34,6 +34,7 @@ Dashboard → **SQL Editor** → *New query*: pega y ejecuta, **en este orden**:
 1. `migrations/20260929000001_init.sql`
 2. `migrations/20260929000002_storage.sql`
 3. `migrations/20260930000003_chat.sql`
+4. `migrations/20261001000004_admin.sql`  (roles, anuncios y servicios)
 
 > Si ya aplicaste las anteriores, ejecuta **solo la que falte** (cada archivo es independiente de los posteriores). Nunca edites una migración ya aplicada: añade una nueva.
 
@@ -83,6 +84,26 @@ npm test
 - No hay `UPDATE`/`DELETE` directos. Marcar como leído (`mark_conversation_read`) y borrar un mensaje propio (`delete_message`, borrado *suave*) van por RPC, así Realtime propaga los cambios.
 - Límites: 2000 caracteres, anime compartido < 4 KB y máximo 20 mensajes cada 10 s por remitente.
 - **No es cifrado de extremo a extremo**: el contenido queda en texto plano en tu base de datos.
+
+## Administración (owner / admin)
+
+Roles en `profiles.role`: `user` (por defecto), `admin` y `owner` (solo uno). El panel está en **Ajustes → Administración** y solo aparece a `admin`/`owner`.
+
+**Nombrar al owner (una sola vez).** Regístrate en la app con tu correo y, en el **SQL Editor**, ejecuta (cambia el correo):
+
+```sql
+update public.profiles
+   set role = 'owner'
+ where id = (select id from auth.users where email = 'TU_CORREO');
+-- debe devolver 1 fila actualizada
+```
+
+Después, el owner nombra o quita administradores desde el propio panel (pestaña *Equipo*).
+
+- **Anuncios**: banner (franja descartable) o ventana emergente, con tipo, enlace https opcional, programación y caducidad. Los ve **todo el mundo**, incluso sin sesión. La app los consulta al arrancar, al volver a la ventana y cada 5 minutos.
+- **Servicios**: apagar AnimeFLV, MangaDex… para todos, con el motivo visible.
+- **Seguridad**: la autorización la impone la base de datos (RLS + `is_staff()`), no la interfaz. El rol no se puede cambiar desde el cliente (`role` no tiene privilegio de UPDATE); solo el owner puede llamar a `set_user_role()`. Las cifras (`admin_stats()`) son agregadas: no exponen listas ni mensajes.
+- El antiguo panel de desarrollador (contraseña + token de GitHub + `remote-config.json` en gh-pages) se ha retirado. Las versiones ≤ 1.2.x ya instaladas seguirán leyendo ese JSON hasta que se actualicen.
 
 ## Cosas a tener en cuenta
 

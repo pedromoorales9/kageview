@@ -7,7 +7,8 @@ import { useToast } from '../components/ui/Toast';
 import { errorMessage, openAuth, signOut } from '../../modules/account';
 import Avatar from '../components/account/Avatar';
 import Spinner from '../components/ui/Spinner';
-import DevPanel from '../components/DevPanel';
+import RoleBadge from '../components/account/RoleBadge';
+import { isStaff } from '../../modules/backend';
 import { ProviderId, AudioLang, SubLang, CustomProviderDef } from '../../types/types';
 
 const DEFAULT_BASE_URLS: Record<ProviderId, string> = {
@@ -33,7 +34,11 @@ const STATUS_COLORS: Record<string, string> = {
   offline: 'bg-red-400',
 };
 
-export default function SettingsPage() {
+interface SettingsPageProps {
+  onOpenAdmin?: () => void;
+}
+
+export default function SettingsPage({ onOpenAdmin }: SettingsPageProps) {
   const prefs = useAppStore((s) => s.prefs);
   const setPrefs = useAppStore((s) => s.setPrefs);
   const account = useAppStore((s) => s.account);
@@ -146,6 +151,7 @@ export default function SettingsPage() {
                   <p className="font-headline font-semibold text-on-surface truncate">
                     {account.profile.displayName || account.profile.username}
                   </p>
+                  <RoleBadge role={account.profile.role} className="my-1" />
                   <p className="text-xs text-muted truncate">@{account.profile.username}</p>
                   <p className="text-xs text-muted truncate">{account.user?.email}</p>
                 </div>
@@ -192,6 +198,32 @@ export default function SettingsPage() {
               </div>
             )}
           </section>
+
+          {/* Administración: solo se muestra al equipo (owner/admin) */}
+          {isStaff(account.profile?.role) && (
+            <section className="panel p-6 relative overflow-hidden ring-1 ring-primary/25">
+              <div className="pointer-events-none absolute -top-20 -right-16 w-[220px] h-[220px] rounded-full bg-[radial-gradient(circle,rgba(255,61,90,0.16),transparent_68%)]" />
+              <div className="relative flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-headline text-sm font-bold text-on-surface flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[18px] text-primary">admin_panel_settings</span>
+                    Administración
+                  </h3>
+                  <RoleBadge role={account.profile?.role} />
+                </div>
+                <p className="text-xs text-on-surface-variant leading-relaxed">
+                  Publica anuncios para todos los usuarios, apaga servicios caídos y gestiona el equipo.
+                </p>
+                <button
+                  onClick={onOpenAdmin}
+                  className="h-9 rounded-full btn-moon text-[13px] font-semibold flex items-center justify-center gap-1.5"
+                >
+                  Abrir panel de administración
+                  <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                </button>
+              </div>
+            </section>
+          )}
 
           {/* Credits Section */}
           <section className="panel p-6 relative overflow-hidden">
@@ -659,9 +691,6 @@ export default function SettingsPage() {
               Borrar Caché de la Aplicación
             </button>
           </section>
-
-          {/* Panel de Desarrollador (discreto; requiere contraseña) */}
-          <DevPanel />
         </div>
       </div>
     </div>

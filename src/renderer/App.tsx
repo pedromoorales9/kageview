@@ -5,7 +5,7 @@ import { useAppStore } from '../modules/store';
 import { getCache } from '../modules/cache';
 import { getSkipTimes } from '../modules/aniskip';
 import { recordWatch, updateWatchPosition, flushWatchPosition, ContinueWatchingItem } from '../modules/watchHistory';
-import { fetchRemoteConfig, isAnnouncementUnseen, markAnnouncementSeen } from '../modules/remoteConfig';
+import { REMOTE_CONFIG_REFRESH_MS, refreshRemoteConfig } from '../modules/remoteConfig';
 import { evaluateAchievements } from '../modules/achievements';
 import { initAccount } from '../modules/account';
 import { markStarted, saveProgress as saveListProgress } from '../modules/library';
@@ -20,6 +20,8 @@ import DiscoverPage from './pages/DiscoverPage';
 import LibraryPage from './pages/LibraryPage';
 import SearchPage from './pages/SearchPage';
 import SettingsPage from './pages/SettingsPage';
+import AdminPage from './pages/AdminPage';
+import { AnnouncementBanner, AnnouncementModal } from './components/announcements/AnnouncementLayer';
 import OraclePage from './pages/OraclePage';
 import CalendarPage from './pages/CalendarPage';
 import MangaPage from './pages/MangaPage';
@@ -38,7 +40,7 @@ import SplashScreen from './components/ui/SplashScreen';
 import DemonOverlay from './components/ui/DemonOverlay';
 import { UpdaterModal } from './components/UpdaterModal';
 
-type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings' | 'calendar' | 'manga' | 'friends';
+type PageId = 'discover' | 'oracle' | 'library' | 'search' | 'settings' | 'calendar' | 'manga' | 'friends' | 'admin';
 
 interface MangaReaderConfig {
   manga: MangaModel;
@@ -123,33 +125,24 @@ export default function App() {
     evaluateAchievements().catch(() => { /* noop */ });
   }, []);
 
-  // ─── Config remota: kill-switches y anuncios del dev ─────────
-  const setRemoteConfig = useAppStore((s) => s.setRemoteConfig);
+  // ─── Config remota: anuncios y servicios desactivados por el equipo ─────
+  // (Supabase; se lee sin sesión. Los avisos los pinta <AnnouncementLayer/>.)
   useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      const rc = await fetchRemoteConfig();
-      if (cancelled || !rc) return;
-      setRemoteConfig(rc);
-
-      // Mostrar el anuncio si hay uno nuevo (una vez por id)
-      const a = rc.announcement;
-      if (a?.message && isAnnouncementUnseen(a)) {
-        markAnnouncementSeen(a);
-        toast.toast({
-          type: a.type === 'error' ? 'error' : a.type === 'warning' ? 'warning' : 'info',
-          title: a.title || '📢 Aviso de KageView',
-          message: a.message,
-          duration: 15000,
-        });
-      }
+    let last = 0;
+    const load = () => {
+      last = Date.now();
+      void refreshRemoteConfig();
     };
+    // Al volver a la ventana, si hace más de un minuto de la última consulta
+    const onFocus = () => { if (Date.now() - last > 60_000) load(); };
 
     load();
-    const interval = window.setInterval(load, 30 * 60 * 1000);
-    return () => { cancelled = true; clearInterval(interval); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const interval = window.setInterval(load, REMOTE_CONFIG_REFRESH_MS);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
   }, []);
 
   // ─── Inicializar la cuenta (Supabase) al montar ──────────
@@ -455,6 +448,7 @@ export default function App() {
           className="relative flex-1 min-w-0 flex flex-col pt-[68px] px-8"
           style={{ marginLeft: '232px' }}
         >
+          <AnnouncementBanner />
           {activePage === 'discover' && (
             <DiscoverPage onSelectAnime={handleSelectAnime} onResume={handleResume} />
           )}
@@ -473,13 +467,17 @@ export default function App() {
               onNotificationsChange={(val) => setNotificationsEnabled(val)}
             />
           )}
-          {activePage === 'settings' && <SettingsPage />}
+          {activePage === 'settings' && <SettingsPage onOpenAdmin={() => setActivePage('admin')} />}
           {activePage === 'manga' && (
             <MangaPage onSelectManga={handleSelectManga} />
           )}
           {activePage === 'friends' && <FriendsPage onSelectAnime={handleSelectAnime} />}
+          {activePage === 'admin' && <AdminPage />}
         </main>
       )}
+
+      {/* Anuncios en ventana: solo con la interfaz visible y sin la intro */}
+      <AnnouncementModal enabled={showChrome && !showSplash} />
 
       {/* Manga Modal */}
       {mangaModal && (

@@ -9,6 +9,13 @@
 
 import {
   AccountBackend,
+  AdminStats,
+  Announcement,
+  AnnouncementInput,
+  AppRole,
+  ProviderSwitch,
+  StaffMember,
+  isStaff,
   Activity,
   ActivityInput,
   AuthEvent,
@@ -55,13 +62,17 @@ interface MockDb {
   nextFriendshipId: number;
   messages: ChatMessage[];
   nextMessageId: number;
+  announcements: Announcement[];
+  nextAnnouncementId: number;
+  switches: ProviderSwitch[];
 }
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
-function seedProfile(id: string, username: string, displayName: string, bio: string): Profile {
+function seedProfile(id: string, username: string, displayName: string, bio: string, role: AppRole = 'user'): Profile {
   return {
     id,
+    role,
     username,
     displayName,
     avatarUrl: null,
@@ -84,9 +95,10 @@ function snapshot(id: number, romaji: string, cover: string, episodes: number) {
 
 function seed(): MockDb {
   const users: MockUser[] = [
+    { id: 'seed-kage', email: 'kage@demo.dev', password: 'demo1234', profile: seedProfile('seed-kage', 'kage', 'Kage', 'Dueño de KageView 🌙', 'owner') },
     { id: 'seed-mika', email: 'mika@demo.dev', password: 'demo1234', profile: seedProfile('seed-mika', 'mika', 'Mika', 'Maratones de fin de semana 🍜') },
     { id: 'seed-ren', email: 'ren@demo.dev', password: 'demo1234', profile: seedProfile('seed-ren', 'ren_k', 'Ren', 'Shonen y café.') },
-    { id: 'seed-sora', email: 'sora@demo.dev', password: 'demo1234', profile: seedProfile('seed-sora', 'sora', 'Sora', '') },
+    { id: 'seed-sora', email: 'sora@demo.dev', password: 'demo1234', profile: seedProfile('seed-sora', 'sora', 'Sora', '', 'admin') },
   ];
   return {
     users,
@@ -100,6 +112,16 @@ function seed(): MockDb {
     nextFriendshipId: 1,
     messages: [],
     nextMessageId: 1,
+    announcements: [
+      {
+        id: 1, kind: 'update', display: 'banner', title: 'Novedades de la 1.3',
+        body: 'Ya puedes crear tu cuenta, añadir amigos y chatear con ellos desde la pestaña Amigos.',
+        linkUrl: null, linkLabel: null, active: true,
+        startsAt: ago(60 * 24), expiresAt: null, createdAt: ago(60 * 24),
+      },
+    ],
+    nextAnnouncementId: 2,
+    switches: [],
   };
 }
 
@@ -111,6 +133,13 @@ function load(): MockDb {
       // datos guardados por versiones anteriores del mock
       db.messages ??= [];
       db.nextMessageId ??= 1;
+      const fresh = seed();
+      db.announcements ??= fresh.announcements;
+      db.nextAnnouncementId ??= fresh.nextAnnouncementId;
+      db.switches ??= [];
+      // usuarios de ejemplo añadidos después (p. ej. el owner) y roles antiguos
+      for (const su of fresh.users) if (!db.users.some((u) => u.id === su.id)) db.users.push(su);
+      for (const u of db.users) u.profile.role ??= u.id === 'seed-kage' ? 'owner' : u.id === 'seed-sora' ? 'admin' : 'user';
       return db;
     }
   } catch {
@@ -190,7 +219,7 @@ export class MockBackend implements AccountBackend {
     const id = `mock-${Math.random().toString(36).slice(2, 10)}`;
     const profile: Profile = {
       id, username, displayName: null, avatarUrl: null, bio: null,
-      showActivity: true, showLibrary: true, createdAt: new Date().toISOString(),
+      showActivity: true, showLibrary: true, role: 'user', createdAt: new Date().toISOString(),
     };
     this.db.users.push({ id, email, password: input.password, profile });
     // Para poder probar el módulo social: mika ya es amiga y sora te ha escrito
@@ -530,5 +559,98 @@ export class MockBackend implements AccountBackend {
   subscribeSocial(cb: () => void) {
     this.socialListeners.add(cb);
     return () => void this.socialListeners.delete(cb);
+  }
+
+  // ─── Configuración pública ───────────────────────────────
+  private isLive(a: Announcement) {
+    const now = Date.now();
+    return a.active && Date.parse(a.startsAt) <= now && (a.expiresAt === null || Date.parse(a.expiresAt) > now);
+  }
+  async listActiveAnnouncements(): Promise<Announcement[]> {
+    return this.db.announcements.filter((a) => this.isLive(a)).sort((a, b) => b.id - a.id).map((a) => ({ ...a }));
+  }
+  async listProviderSwitches(): Promise<ProviderSwitch[]> {
+    return this.db.switches.map((s) => ({ ...s }));
+  }
+
+  // ─── Administración ──────────────────────────────────────
+  private staff(): MockUser {
+    const me = this.me();
+    if (!isStaff(me.profile.role)) throw new BackendError('forbidden');
+    return me;
+  }
+  async adminListAnnouncements(): Promise<Announcement[]> {
+    this.staff();
+    return [...this.db.announcements].sort((a, b) => b.id - a.id).map((a) => ({ ...a }));
+  }
+  async adminSaveAnnouncement(input: AnnouncementInput, id?: number): Promise<Announcement> {
+    this.staff();
+    const body = input.body.trim();
+    if (!body || body.length > 600 || input.title.length > 80) throw new BackendError('unknown', 'invalid announcement');
+    if (input.linkUrl && !/^https:\/\//.test(input.linkUrl)) throw new BackendError('unknown', 'invalid link');
+    const values = {
+      kind: input.kind,
+      display: input.display,
+      title: input.title.trim(),
+      body,
+      linkUrl: input.linkUrl?.trim() || null,
+      linkLabel: input.linkUrl?.trim() ? input.linkLabel?.trim() || null : null,
+      active: input.active ?? true,
+      startsAt: input.startsAt ?? new Date().toISOString(),
+      expiresAt: input.expiresAt ?? null,
+    };
+    let out: Announcement;
+    if (id === undefined) {
+      out = { id: this.db.nextAnnouncementId++, createdAt: new Date().toISOString(), ...values };
+      this.db.announcements.push(out);
+    } else {
+      const cur = this.db.announcements.find((a) => a.id === id);
+      if (!cur) throw new BackendError('forbidden');
+      Object.assign(cur, values);
+      out = cur;
+    }
+    this.save();
+    return { ...out };
+  }
+  async adminDeleteAnnouncement(id: number): Promise<void> {
+    this.staff();
+    const before = this.db.announcements.length;
+    this.db.announcements = this.db.announcements.filter((a) => a.id !== id);
+    if (this.db.announcements.length === before) throw new BackendError('forbidden');
+    this.save();
+  }
+  async adminSetProviderSwitch(providerId: string, reason: string | null): Promise<void> {
+    this.staff();
+    this.db.switches = this.db.switches.filter((s) => s.providerId !== providerId);
+    if (reason !== null) {
+      this.db.switches.push({ providerId, reason: reason.trim().slice(0, 200), updatedAt: new Date().toISOString() });
+    }
+    this.save();
+  }
+  async adminStats(): Promise<AdminStats> {
+    this.staff();
+    const week = Date.now() - 7 * 24 * 3600_000;
+    return {
+      usersTotal: this.db.users.length,
+      usersLast7Days: this.db.users.filter((u) => Date.parse(u.profile.createdAt) > week).length,
+      watchingNow: this.db.activity.filter((a) => a.active && Date.parse(a.updatedAt) > Date.now() - 15 * 60_000).length,
+      announcementsLive: this.db.announcements.filter((a) => this.isLive(a)).length,
+    };
+  }
+  async adminListStaff(): Promise<StaffMember[]> {
+    this.staff();
+    return this.db.users
+      .filter((u) => isStaff(u.profile.role))
+      .sort((a, b) => Number(b.profile.role === 'owner') - Number(a.profile.role === 'owner') || a.profile.username.localeCompare(b.profile.username))
+      .map((u) => ({ profile: this.pub(u.id), role: u.profile.role }));
+  }
+  async adminSetRole(userId: string, role: 'user' | 'admin'): Promise<void> {
+    const me = this.me();
+    if (me.profile.role !== 'owner') throw new BackendError('forbidden');
+    const target = this.db.users.find((u) => u.id === userId);
+    if (!target) throw new BackendError('not_found');
+    if (target.profile.role === 'owner') throw new BackendError('forbidden');
+    target.profile.role = role;
+    this.save();
   }
 }

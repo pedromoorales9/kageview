@@ -53,9 +53,6 @@ declare global {
       discordSetActivity: (opts: { details: string; state: string }) => Promise<void>;
       discordClear: () => Promise<void>;
 
-      // Panel de Desarrollador
-      devPanelUnlock: (password: string) => Promise<boolean>;
-
       // Progreso de episodios persistido
       getWatchProgress: (animeId: number) => Promise<number | null>;
       setWatchProgress: (animeId: number, episode: number) => Promise<void>;
