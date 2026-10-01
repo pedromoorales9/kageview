@@ -323,6 +323,28 @@ async function createWindow(): Promise<void> {
           // y NO mandamos Origin (las peticiones de <img> no lo necesitan).
           details.requestHeaders['Referer'] = 'https://manga-oni.com/';
           delete details.requestHeaders['Origin'];
+        } else if (url.includes('pstatic.net') || url.includes('webtoons.com')) {
+          // WEBTOON: su CDN de imágenes (webtoon-phinf.pstatic.net) responde 403 si el
+          // Referer no es webtoons.com (ni con uno ajeno ni sin él).
+          details.requestHeaders['Referer'] = 'https://www.webtoons.com/';
+          delete details.requestHeaders['Origin'];
+        } else if (
+          url.includes('planeptune.us') || url.includes('lastation.us') || url.includes('compsci88.com') ||
+          url.includes('weebcentral.com') || url.includes('mangakatana.com') ||
+          url.includes('archiviumbar.com') || url.includes('mantrazscan.co') ||
+          url.includes('olympusxyz.com') || url.includes('imagesolymp.xyz') || url.includes('leercapitulo.co')
+        ) {
+          // Fuentes de manga que no exigen Referer, pero conviene no mandarles el de
+          // animeflv (por defecto) por si activan protección anti-hotlink: se usa el de su web.
+          const site =
+            url.includes('mangakatana') ? 'https://mangakatana.com/' :
+            url.includes('archiviumbar') ? 'https://archiviumbar.com/' :
+            url.includes('mantrazscan') ? 'https://mantrazscan.co/' :
+            url.includes('olympus') || url.includes('imagesolymp') ? 'https://olympusxyz.com/' :
+            url.includes('leercapitulo') ? 'https://www.leercapitulo.co/' :
+            'https://weebcentral.com/';
+          details.requestHeaders['Referer'] = site;
+          delete details.requestHeaders['Origin'];
         } else if (url.includes('mp4upload')) {
           details.requestHeaders['Referer'] = 'https://www.mp4upload.com/';
           details.requestHeaders['Origin'] = 'https://www.mp4upload.com';

@@ -1,0 +1,74 @@
+{
+ "current_page": 1,
+ "data": [
+  {
+   "name": "¡Que abundante cosecha, señor demonio!",
+   "slug": "que-abundante-cosecha-senor-demonio-20261001-080357083",
+   "id": 1498,
+   "cover": "https://media.imagesolymp.xyz/comics/covers/1498/tmp2sn0inv1-lg.webp",
+   "cover_srcset": "https://media.imagesolymp.xyz/comics/covers/1498/tmp2sn0inv1-lg.webp 768w, https://media.imagesolymp.xyz/comics/covers/1498/tmp2sn0inv1-xl.webp 1536w",
+   "last_chapters": [
+    {
+     "id": 133826,
+     "name": "87",
+     "published_at": "2026-10-01T20:44:09.000000Z"
+    },
+    {
+     "id": 133506,
+     "name": "86",
+     "published_at": "2026-09-23T16:12:05.000000Z"
+    }
+   ],
+   "status": "Activo",
+   "type": "comic"
+  },
+  {
+   "name": "El Dios Demonio",
+   "slug": "el-dios-demonio",
+   "id": 1663,
+   "cover": "https://media.imagesolymp.xyz/comics/covers/1663/tmp45ziyibk-lg.webp",
+   "cover_srcset": "https://media.imagesolymp.xyz/comics/covers/1663/tmp45ziyibk-lg.webp 768w, https://media.imagesolymp.xyz/comics/covers/1663/tmp45ziyibk-xl.webp 1536w",
+   "last_chapters": [
+    {
+     "id": 133825,
+     "name": "51",
+     "published_at": "2026-10-01T20:02:28.000000Z"
+    },
+    {
+     "id": 133513,
+     "name": "50",
+     "published_at": "2026-09-23T17:23:39.000000Z"
+    }
+   ],
+   "status": "Activo",
+   "type": "comic"
+  },
+  {
+   "name": "Sin fin skills",
+   "slug": "sin-fin-skills-20261001-080402281",
+   "id": 175,
+   "cover": "https://media.imagesolymp.xyz/comics/covers/175/tmp54p78p1x-lg.webp",
+   "cover_srcset": "https://media.imagesolymp.xyz/comics/covers/175/tmp54p78p1x-lg.webp 768w, https://media.imagesolymp.xyz/comics/covers/175/tmp54p78p1x-xl.webp 1536w",
+   "last_chapters": [
+    {
+     "id": 133824,
+     "name": "279",
+     "published_at": "2026-10-01T19:43:51.000000Z"
+    },
+    {
+     "id": 133577,
+     "name": "278",
+     "published_at": "2026-09-24T21:26:01.000000Z"
+    }
+   ],
+   "status": "Activo",
+   "type": "comic"
+  }
+ ],
+ "from": 1,
+ "last_page": 59,
+ "per_page": 15,
+ "prev_page_url": null,
+ "to": 15,
+ "total": 876
+}

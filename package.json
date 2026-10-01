@@ -1,6 +1,6 @@
 {
   "name": "kageview",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "KageView — Anime Desktop Streaming App",
   "main": "dist/main/main.js",
   "author": "Sh4Dow",
@@ -49,6 +49,7 @@
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
     "html-webpack-plugin": "^5.5.4",
+    "linkedom": "^0.18.13",
     "material-symbols": "^0.47.5",
     "mini-css-extract-plugin": "^2.7.6",
     "postcss": "^8.4.32",

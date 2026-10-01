@@ -1,0 +1,51 @@
+{
+ "data": [
+  {
+   "name": "279",
+   "id": 133824,
+   "published_at": "2026-10-01T19:43:51.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  },
+  {
+   "name": "278",
+   "id": 133577,
+   "published_at": "2026-09-24T21:26:01.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  },
+  {
+   "name": "277",
+   "id": 133270,
+   "published_at": "2026-09-17T19:49:53.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  },
+  {
+   "name": "276",
+   "id": 132961,
+   "published_at": "2026-09-10T21:03:17.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  }
+ ],
+ "links": {},
+ "meta": {
+  "current_page": 1,
+  "last_page": 3,
+  "per_page": 40,
+  "total": 279
+ }
+}

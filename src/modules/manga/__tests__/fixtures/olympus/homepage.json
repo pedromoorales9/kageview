@@ -1,0 +1,50 @@
+{
+ "success": true,
+ "data": {
+  "popular_comics": "[{\"id\": 1775, \"name\": \"El H\\u00e9roe no Puede Descansar\", \"slug\": \"el-heroe-no-puede-descansar\", \"status\": {\"id\": 1, \"name\": \"Activo\", \"created_at\": \"2023-01-24T19:07:54.000000Z\", \"updated_at\": \"2023-01-24T19:07:54.000000Z\"}, \"cover\": \"https://media.imagesolymp.xyz/comics/covers/1775/tmpzwfu7r1b-lg.webp\", \"cover_srcset\": \"https://media.imagesolymp.xyz/comics/covers/1775/tmpzwfu7r1b-lg.webp 768w, https://media.imagesolymp.xyz/comics/covers/1775/tmpzwfu7r1b-xl.webp 1536w\", \"type\": \"comic\"}, {\"id\": 1774, \"name\": \"El replicador de armas de la Academia\", \"slug\": \"el-replicador-de-armas-de-la-academia\", \"status\": {\"id\": 1, \"name\": \"Activo\", \"created_at\": \"2023-01-24T19:07:54.000000Z\", \"updated_at\": \"2023-01-24T19:07:54.000000Z\"}, \"cover\": \"https://media.imagesolymp.xyz/comics/covers/1774/tmpniia8hhm-lg.webp\", \"cover_srcset\": \"https://media.imagesolymp.xyz/comics/covers/1774/tmpniia8hhm-lg.webp 768w, https://media.imagesolymp.xyz/comics/covers/1774/tmpniia8hhm-xl.webp 1536w\", \"type\": \"comic\"}]",
+  "new_chapters": [
+   {
+    "name": "El Dios Demonio",
+    "slug": "el-dios-demonio",
+    "id": 1663,
+    "cover": "https://media.imagesolymp.xyz/comics/covers/1663/tmp45ziyibk-lg.webp",
+    "cover_srcset": "https://media.imagesolymp.xyz/comics/covers/1663/tmp45ziyibk-lg.webp 768w, https://media.imagesolymp.xyz/comics/covers/1663/tmp45ziyibk-xl.webp 1536w",
+    "last_chapters": [
+     {
+      "id": 133825,
+      "name": "51",
+      "published_at": "2026-10-01T20:02:28.000000Z"
+     },
+     {
+      "id": 133513,
+      "name": "50",
+      "published_at": "2026-09-23T17:23:39.000000Z"
+     }
+    ],
+    "status": null,
+    "type": "comic"
+   },
+   {
+    "name": "Sin fin skills",
+    "slug": "sin-fin-skills-20261001-080402281",
+    "id": 175,
+    "cover": "https://media.imagesolymp.xyz/comics/covers/175/tmp54p78p1x-lg.webp",
+    "cover_srcset": "https://media.imagesolymp.xyz/comics/covers/175/tmp54p78p1x-lg.webp 768w, https://media.imagesolymp.xyz/comics/covers/175/tmp54p78p1x-xl.webp 1536w",
+    "last_chapters": [
+     {
+      "id": 133824,
+      "name": "279",
+      "published_at": "2026-10-01T19:43:51.000000Z"
+     },
+     {
+      "id": 133577,
+      "name": "278",
+      "published_at": "2026-09-24T21:26:01.000000Z"
+     }
+    ],
+    "status": null,
+    "type": "comic"
+   }
+  ]
+ }
+}

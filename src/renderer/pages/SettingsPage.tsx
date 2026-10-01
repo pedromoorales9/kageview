@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../../modules/store';
 import { buildBuiltinProvider, buildCustomProvider } from '../../modules/providers/registry';
-import { getAllMangaProviders } from '../../modules/manga';
+import { getAllMangaProviders, providerLanguage } from '../../modules/manga';
 import { clearCache } from '../../modules/cache';
 import { useToast } from '../components/ui/Toast';
 import { errorMessage, openAuth, signOut } from '../../modules/account';
@@ -645,6 +645,9 @@ export default function SettingsPage({ onOpenAdmin }: SettingsPageProps) {
                     {/* Name */}
                     <span className="flex-1 text-sm font-label text-on-surface">
                       {p.name}
+                      {providerLanguage(p.id) === 'en' && (
+                        <span className="ml-2 align-middle text-[9.5px] font-bold tracking-wider text-on-surface-variant bg-white/[0.08] rounded px-1.5 py-0.5" title="Capítulos solo en inglés">EN</span>
+                      )}
                       {remoteReason && (
                         <span className="block text-[10px] text-error mt-0.5">
                           Desactivado por el desarrollador: {remoteReason}

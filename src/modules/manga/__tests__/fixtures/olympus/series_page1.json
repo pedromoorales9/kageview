@@ -1,0 +1,61 @@
+{
+ "data": {
+  "series": {
+   "current_page": 1,
+   "data": [
+    {
+     "id": 11,
+     "name": "Academia de la Ascensión",
+     "slug": "academia-de-la-ascension-20261001-080335945",
+     "status": {
+      "id": 1,
+      "name": "Activo"
+     },
+     "cover": "https://media.imagesolymp.xyz/comics/covers/11/tmpedu9scno-lg.webp",
+     "cover_srcset": "https://media.imagesolymp.xyz/comics/covers/11/tmpedu9scno-lg.webp 768w, https://media.imagesolymp.xyz/comics/covers/11/tmpedu9scno-xl.webp 1536w",
+     "chapter_count": 201,
+     "type": "comic",
+     "total_views": 0,
+     "monthly_views": 0
+    },
+    {
+     "id": 1039,
+     "name": "Academia privada laprossa (Spin off de <el hijo menor del maestro de la espada>)",
+     "slug": "academia-privada-laprossa",
+     "status": {
+      "id": 4,
+      "name": "Finalizado"
+     },
+     "cover": "https://media.imagesolymp.xyz/comics/covers/1039/Academia-privada-laprossa-lg.webp",
+     "cover_srcset": "https://media.imagesolymp.xyz/comics/covers/1039/Academia-privada-laprossa-lg.webp 768w, https://media.imagesolymp.xyz/comics/covers/1039/Academia-privada-laprossa-xl.webp 1536w",
+     "chapter_count": 53,
+     "type": "comic",
+     "total_views": 0,
+     "monthly_views": 0
+    },
+    {
+     "id": 1336,
+     "name": "Acampando en otro Mundo: buscandole el sazon a la vida",
+     "slug": "acampando-en-otro-mundo-buscandole-el-sazon-a-la-vida-20261001-080418211",
+     "status": {
+      "id": 1,
+      "name": "Activo"
+     },
+     "cover": "https://media.imagesolymp.xyz/comics/covers/1336/tmpmpwr_my_-lg.webp",
+     "cover_srcset": "https://media.imagesolymp.xyz/comics/covers/1336/tmpmpwr_my_-lg.webp 768w, https://media.imagesolymp.xyz/comics/covers/1336/tmpmpwr_my_-xl.webp 1536w",
+     "chapter_count": 118,
+     "type": "comic",
+     "total_views": 0,
+     "monthly_views": 0
+    }
+   ],
+   "from": 1,
+   "last_page": 59,
+   "per_page": 15,
+   "prev_page_url": null,
+   "to": 15,
+   "total": 878
+  },
+  "recommended_series": "[]"
+ }
+}

@@ -7,6 +7,7 @@ import {
   DEFAULT_PROVIDER_ID,
   ProviderSearchResult,
   getAllMangaProviders,
+  providerLanguage,
   getMangaProvider,
   searchAllProviders,
 } from '../../modules/manga';
@@ -259,6 +260,9 @@ export default function MangaPage({ onSelectManga, onContinueManga, searchReques
         {enabledProviders.map((p) => (
           <Chip key={p.id} active={p.id === activeProviderId && !(searching && searchAll)} onClick={() => { setActiveProviderId(p.id); setSearchAll(false); }}>
             {p.name}
+            {providerLanguage(p.id) === 'en' && (
+              <span title="Solo en inglés" className="ml-1.5 text-[9.5px] font-bold tracking-wider opacity-70">EN</span>
+            )}
           </Chip>
         ))}
         {enabledProviders.length === 0 && <span className="text-[13px] text-muted">Sin proveedores habilitados (Ajustes)</span>}

@@ -1,0 +1,62 @@
+{
+ "result": {
+  "query": "amor",
+  "start": 1,
+  "display": 30,
+  "total": 4,
+  "searchedList": [
+   {
+    "titleNo": 7944,
+    "title": "Mordiscos de amor",
+    "readCount": 25788120,
+    "thumbnailMobile": "/20250502_287/1746161059945KQ5pP_JPEG/LoveBites_Thumbnail_Square.jpg",
+    "authorNameList": [
+     "Ele",
+     "Anzaitea",
+     "Saisho",
+     "Jun",
+     "WmW",
+     "Alicia Wallace"
+    ],
+    "representGenre": "ROMANCE",
+    "titleUnsuitableForChildren": false,
+    "titleBadges": null,
+    "searchMode": "TITLE"
+   },
+   {
+    "titleNo": 3243,
+    "title": "Amarrados al amor (Manía secreta)",
+    "readCount": 17067618,
+    "thumbnailMobile": "/20250718_28/1752833729856RbpjR_JPEG/Thumb_Square_3243.jpg",
+    "authorNameList": [
+     "Winter"
+    ],
+    "representGenre": "COMEDY",
+    "titleUnsuitableForChildren": false,
+    "titleBadges": null,
+    "searchMode": "TITLE"
+   },
+   {
+    "titleNo": 9360,
+    "title": "Amor dulce, convivencia ardiente",
+    "readCount": 8021311,
+    "thumbnailMobile": "/20260114_253/1768376515508l9JCC_JPEG/Thumb_Square_9360.jpg",
+    "authorNameList": [
+     "Seoru"
+    ],
+    "representGenre": "ROMANCE",
+    "titleUnsuitableForChildren": false,
+    "titleBadges": null,
+    "searchMode": "TITLE"
+   },
+   {
+    "authorName": "John Amor",
+    "titleNameList": [
+     "Animal urbano"
+    ],
+    "searchMode": "AUTHOR"
+   }
+  ]
+ },
+ "success": true
+}

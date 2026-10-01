@@ -1,0 +1,46 @@
+{
+ "genres": [
+  {
+   "id": 1,
+   "name": "Acción "
+  },
+  {
+   "id": 72,
+   "name": "Stream"
+  },
+  {
+   "id": 3,
+   "name": "Apocalíptico"
+  },
+  {
+   "id": 4,
+   "name": "Artes marciales"
+  },
+  {
+   "id": 5,
+   "name": "Aventura "
+  }
+ ],
+ "statuses": [
+  {
+   "id": 1,
+   "name": "Activo"
+  },
+  {
+   "id": 4,
+   "name": "Finalizado"
+  },
+  {
+   "id": 5,
+   "name": "Cancelado por el autor"
+  },
+  {
+   "id": 3,
+   "name": "Pausado por el autor (Hiatus)"
+  },
+  {
+   "id": 7,
+   "name": "Abandonado por el scan"
+  }
+ ]
+}

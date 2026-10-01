@@ -28,6 +28,13 @@ const SOURCE_LABEL: Record<string, string> = {
   inmanga: 'InManga',
   manhwaweb: 'ManhwaWeb',
   mangaoni: 'MangaOni',
+  leercapitulo: 'LeerCapitulo',
+  olympus: 'Olympus',
+  barmanga: 'BarManga',
+  mantrazscan: 'Mantraz Scan',
+  webtoons: 'WEBTOON',
+  weebcentral: 'WeebCentral',
+  mangakatana: 'MangaKatana',
 };
 
 /** Tipo (manga/manhwa/manhua) deducido de la fuente, el id o las etiquetas. */

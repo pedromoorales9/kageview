@@ -1,0 +1,121 @@
+{
+ "data": [
+  {
+   "name": "10",
+   "id": 133823,
+   "published_at": "2026-10-01T18:02:02.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  },
+  {
+   "name": "9",
+   "id": 133805,
+   "published_at": "2026-10-01T00:23:57.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  },
+  {
+   "name": "8",
+   "id": 133552,
+   "published_at": "2026-09-24T05:28:12.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  },
+  {
+   "name": "7.1",
+   "id": 133354,
+   "published_at": "2026-09-19T18:29:18.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  },
+  {
+   "name": "7",
+   "id": 133353,
+   "published_at": "2026-09-19T18:26:12.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  },
+  {
+   "name": "6",
+   "id": 133344,
+   "published_at": "2026-09-19T16:33:23.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  },
+  {
+   "name": "5",
+   "id": 133332,
+   "published_at": "2026-09-19T01:10:42.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  },
+  {
+   "name": "4",
+   "id": 133303,
+   "published_at": "2026-09-18T07:41:24.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  },
+  {
+   "name": "3",
+   "id": 133301,
+   "published_at": "2026-09-18T03:58:50.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  },
+  {
+   "name": "2",
+   "id": 133298,
+   "published_at": "2026-09-18T02:32:21.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  },
+  {
+   "name": "1",
+   "id": 133258,
+   "published_at": "2026-09-17T08:36:34.000000Z",
+   "team": {
+    "id": 1,
+    "name": "Olympus "
+   },
+   "read_by_auth": false
+  }
+ ],
+ "links": {},
+ "meta": {
+  "current_page": 1,
+  "last_page": 1,
+  "per_page": 40,
+  "total": 11
+ }
+}

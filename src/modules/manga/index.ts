@@ -3,6 +3,13 @@ import { MangaDexProvider, setMangaDexIncludeEnglish } from './providers/mangade
 import { InMangaProvider } from './providers/inmanga';
 import { ManhwaWebProvider } from './providers/manhwaweb';
 import { MangaOniProvider } from './providers/mangaoni';
+import { LeerCapituloProvider } from './providers/leercapitulo';
+import { OlympusProvider } from './providers/olympus';
+import { BarMangaProvider } from './providers/barmanga';
+import { MantrazScanProvider } from './providers/mantrazscan';
+import { WebtoonsProvider } from './providers/webtoons';
+import { WeebCentralProvider } from './providers/weebcentral';
+import { MangaKatanaProvider } from './providers/mangakatana';
 import { normalizeChapters } from './chapters';
 
 export * from './types';
@@ -13,7 +20,27 @@ export const MANGA_PROVIDERS: Record<string, MangaProvider> = {
   [InMangaProvider.id]: InMangaProvider,
   [ManhwaWebProvider.id]: ManhwaWebProvider,
   [MangaOniProvider.id]: MangaOniProvider,
+  [LeerCapituloProvider.id]: LeerCapituloProvider,
+  [OlympusProvider.id]: OlympusProvider,
+  [BarMangaProvider.id]: BarMangaProvider,
+  [MantrazScanProvider.id]: MantrazScanProvider,
+  [WebtoonsProvider.id]: WebtoonsProvider,
+  [WeebCentralProvider.id]: WeebCentralProvider,
+  [MangaKatanaProvider.id]: MangaKatanaProvider,
 };
+
+/**
+ * Idioma de los capítulos de cada fuente: 'es' español, 'en' solo inglés, 'multi' varios.
+ * La interfaz marca con «EN» las que están solo en inglés. Una fuente nueva sin entrada
+ * se considera española.
+ */
+export type SourceLanguage = 'es' | 'en' | 'multi';
+export const PROVIDER_LANGUAGE: Record<string, SourceLanguage> = {
+  mangadex: 'multi',
+  weebcentral: 'en',
+  mangakatana: 'en',
+};
+export const providerLanguage = (id: string): SourceLanguage => PROVIDER_LANGUAGE[id] ?? 'es';
 
 export const DEFAULT_PROVIDER_ID = MangaDexProvider.id;
 

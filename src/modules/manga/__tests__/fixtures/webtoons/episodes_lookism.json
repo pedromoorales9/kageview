@@ -1,0 +1,62 @@
+{
+ "result": {
+  "episodeList": [
+   {
+    "episodeNo": 1,
+    "thumbnail": "/20200303_266/15832088531463Q8eV_PNG/thumb_1583208764936193019.png",
+    "episodeTitle": "EP 1",
+    "viewerLink": "/es/drama/lookism/ep-1/viewer?title_no=1930&episode_no=1",
+    "exposureDateMillis": 1583283629000,
+    "displayUp": false,
+    "hasBgm": false
+   },
+   {
+    "episodeNo": 2,
+    "thumbnail": "/20200303_296/1583219692950M0jVM_PNG/thumb_LOOKISM_002_03_Capa_4.png",
+    "episodeTitle": "EP 2",
+    "viewerLink": "/es/drama/lookism/ep-2/viewer?title_no=1930&episode_no=2",
+    "exposureDateMillis": 1583283629000,
+    "displayUp": false,
+    "hasBgm": false
+   },
+   {
+    "episodeNo": 3,
+    "thumbnail": "/20200303_51/1583220304073bzJg2_PNG/thumb_LOOKISM_003_01_Capa_14.png",
+    "episodeTitle": "EP 3",
+    "viewerLink": "/es/drama/lookism/ep-3/viewer?title_no=1930&episode_no=3",
+    "exposureDateMillis": 1583283629000,
+    "displayUp": false,
+    "hasBgm": false
+   },
+   {
+    "episodeNo": 593,
+    "thumbnail": "/20260811_180/1786442704576OKR86_PNG/thumb_17864426525224319_APARI3NCIAS_EP593_0016.png",
+    "episodeTitle": " EP 593",
+    "viewerLink": "/es/drama/lookism/ep-593/viewer?title_no=1930&episode_no=593",
+    "exposureDateMillis": 1789088440000,
+    "displayUp": false,
+    "hasBgm": false
+   },
+   {
+    "episodeNo": 594,
+    "thumbnail": "/20260818_261/1787016600067Sp4O2_PNG/thumb_17870165804853189_APARI3NCIAS_EP594_0040.png",
+    "episodeTitle": " EP 594",
+    "viewerLink": "/es/drama/lookism/ep-594/viewer?title_no=1930&episode_no=594",
+    "exposureDateMillis": 1789693237000,
+    "displayUp": false,
+    "hasBgm": false
+   },
+   {
+    "episodeNo": 595,
+    "thumbnail": "/20260827_98/1787825516880h7fDs_PNG/thumb_1787825497439324_APARI3NCIAS_EP595_0022.png",
+    "episodeTitle": " EP 595",
+    "viewerLink": "/es/drama/lookism/ep-595/viewer?title_no=1930&episode_no=595",
+    "exposureDateMillis": 1790298036000,
+    "displayUp": false,
+    "hasBgm": false
+   }
+  ],
+  "nextCursor": 0
+ },
+ "success": true
+}

@@ -1,0 +1,74 @@
+{
+ "data": [
+  {
+   "id": 8,
+   "name": "Los gemelos Baek ",
+   "slug": "los-gemelos-baek-20261001-080411928",
+   "cover": "https://media.imagesolymp.xyz/comics/covers/8/baek-sm.webp",
+   "type": "comic"
+  },
+  {
+   "id": 9,
+   "name": " El mecánico legendario ",
+   "slug": "las-flo5324anico-chingon",
+   "cover": "https://media.imagesolymp.xyz/comics/covers/9/portadas-sm.webp",
+   "type": "comic"
+  },
+  {
+   "id": 10,
+   "name": "Subo de nivel solo",
+   "slug": "10-05-2025-nivel-solo5324",
+   "cover": "https://media.imagesolymp.xyz/comics/covers/10/subo-de-nivel-solo-sm.webp",
+   "type": "comic"
+  },
+  {
+   "id": 11,
+   "name": "Academia de la Ascensión",
+   "slug": "academia-de-la-ascension-20261001-080335945",
+   "cover": "https://media.imagesolymp.xyz/comics/covers/11/tmpedu9scno-sm.webp",
+   "type": "comic"
+  },
+  {
+   "id": 12,
+   "name": "Acumulación en el Infierno",
+   "slug": "al-que-10-05-2025uieren-chupar513424",
+   "cover": "https://media.imagesolymp.xyz/comics/covers/12/acumulacion-sm.webp",
+   "type": "comic"
+  },
+  {
+   "id": 13,
+   "name": " Realmente no quiero renacer",
+   "slug": "otra-serie-chin10-05-2025encarnacion",
+   "cover": "https://media.imagesolymp.xyz/comics/covers/13/maNrm-sm.webp",
+   "type": "comic"
+  },
+  {
+   "id": 4,
+   "name": "El Regreso de la Secta del Monte Hua (Novela)",
+   "slug": "el-regreso-de-la-secta-del-monte-hua-novela",
+   "cover": "https://media.imagesolymp.xyz/novels/covers/4/Return-of-Mount-Hua-Sect-sm.webp",
+   "type": "novel"
+  },
+  {
+   "id": 163,
+   "name": "Mi hija es el jefe final",
+   "slug": "mi-hija-20-225-es-el-jefe-final13424",
+   "cover": "https://media.imagesolymp.xyz/comics/covers/163/hija-sm.webp",
+   "type": "comic"
+  },
+  {
+   "id": 229,
+   "name": "Solía ser un jefe",
+   "slug": "solia-ser-un-jefe-20261001-080403687",
+   "cover": "https://media.imagesolymp.xyz/comics/covers/229/solia ser un jefe-sm.webp",
+   "type": "comic"
+  },
+  {
+   "id": 382,
+   "name": "Me parezco demasiado al jefe y el mundo en realidad lo cree",
+   "slug": "me-parezco-demasiado-al-jefe-y-el-mundo-en-realidad-lo-cree",
+   "cover": "https://media.imagesolymp.xyz/comics/covers/382/7a3862783f3b0b794341b7b66fc34159b6181001.jpg@500w-sm.webp",
+   "type": "comic"
+  }
+ ]
+}

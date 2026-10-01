@@ -65,6 +65,13 @@ KageView conecta múltiples fuentes y cambia automáticamente si una falla. Pued
 | 🟢 MangaOni | 🇪🇸 Español | Manga / Manhwa / Manhua | Activo |
 | 🟢 InManga | 🇪🇸 Español | Manga | Activo |
 | 🟢 ManhwaWeb | 🇪🇸 Español | Manhwa | Activo |
+| 🟢 LeerCapitulo | 🇪🇸 Español | Manga / Manhwa / Manhua (+27.000 series, con géneros) | Activo |
+| 🟢 Olympus Scanlation | 🇪🇸 Español | Manhwa / Manhua (~870 series, API propia) | Activo |
+| 🟢 BarManga | 🇪🇸 Español | Manhua / Manhwa (~500 series) | Activo |
+| 🟢 Mantraz Scan | 🇪🇸 Español | Manhwa / Manhua (~5.000 series) | Activo |
+| 🟢 WEBTOON | 🇪🇸 Español | Webtoons Originales oficiales (~600 series) | Activo |
+| 🟢 WeebCentral | 🇬🇧 Inglés | Manga (decenas de miles, con géneros) | Activo |
+| 🟢 MangaKatana | 🇬🇧 Inglés | Manga (~27.000 series, con géneros) | Activo |
 
 > Los providers en inglés (HiAnime, Gogoanime) están desactivados por ahora.
 
@@ -251,6 +258,13 @@ src/
 ---
 
 ## 📋 Changelog
+
+### v1.8.0 — 7 fuentes nuevas de manga
+- **Ahora hay 11 fuentes**: LeerCapitulo, Olympus Scanlation, BarManga, Mantraz Scan y WEBTOON (en español) y WeebCentral y MangaKatana (solo inglés, marcadas con «EN»). Cada una admite búsqueda, populares, recientes, paginación y, casi todas, géneros
+- Funcionan con la **búsqueda en todas las fuentes**, la biblioteca, el progreso sincronizado y compartir por el chat, igual que las anteriores
+- Se descartaron, tras probarlas, las webs que exigen superar Cloudflare/captcha, login o pago (no se intenta saltar ninguna protección)
+- Una **base reutilizable para webs con el tema Madara** (`providers/madaraBase.ts`) facilita añadir más en el futuro
+- Para desarrolladores: tests con datos reales de cada web + tests «en vivo» opcionales (`LIVE=1 npx vitest run src/modules/manga/__tests__/provider-<id>.live.test.ts`), que sirven para detectar cuándo una web cambia y rompe su fuente
 
 ### v1.7.0 — Copiar y pegar, y responder mensajes en el chat
 - **Copiar y pegar funcionan en toda la app** (⌘C / ⌘V / ⌘X / ⌘A / ⌘Z): faltaba el menú *Edición*, y en macOS los atajos pasan por él. Además hay **menú de clic derecho** (Cortar / Copiar / Pegar / Seleccionar todo) en los campos de texto y *Copiar* sobre texto seleccionado

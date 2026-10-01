@@ -1,0 +1,23 @@
+{
+ "chapter": {
+  "id": 86358,
+  "name": "24",
+  "title": null,
+  "view_count": 0,
+  "published_at": "2024-01-15 01:25:06",
+  "pages": [
+   "https://media.imagesolymp.xyz/comics/1100/86358/c-1100-000.webp",
+   "https://media.imagesolymp.xyz/comics/1100/86358/c-1100-01.webp",
+   "https://media.imagesolymp.xyz/comics/1100/86358/c-1100-02.webp",
+   "https://media.imagesolymp.xyz/comics/1100/86358/c-1100-03.webp"
+  ],
+  "type": "comic",
+  "team": null
+ },
+ "prev_chapter": {
+  "id": 86355,
+  "name": "23"
+ },
+ "next_chapter": null,
+ "series_id": 1100
+}
