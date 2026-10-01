@@ -115,7 +115,7 @@ update public.profiles
 Después, el owner nombra o quita administradores desde el propio panel (pestaña *Equipo*).
 
 - **Anuncios**: banner (franja descartable) o ventana emergente, con tipo, enlace https opcional, programación y caducidad. Los ve **todo el mundo**, incluso sin sesión. La app los consulta al arrancar, al volver a la ventana y cada 5 minutos.
-- **Servicios**: apagar AnimeFLV, MangaDex… para todos, con el motivo visible y desde cuándo.
+- **Servicios**: apagar una fuente concreta para todos, con el motivo visible y desde cuándo.
 - **Segmentación** (migración 0005): un anuncio puede ir solo a macOS/Windows/Linux y/o solo a versiones anteriores a una dada (p. ej. «hay una versión nueva» solo a quien aún no la tiene). Lo aplican las apps con esta actualización; las anteriores lo muestran a todos.
 - **Usuarios** (migración 0005): búsqueda y paginación (sin correos) y **suspensión**: un usuario suspendido conserva su cuenta y sus datos pero no puede escribir mensajes, enviar solicitudes, publicar «viendo ahora» ni editar su perfil. Nunca se puede suspender a un admin ni al owner.
 - **Registro** (migración 0005): todo lo que hace el equipo (anuncios, servicios, suspensiones, cambios de rol) queda anotado con quién y cuándo; nadie puede editarlo ni borrarlo. Lo hecho desde el SQL Editor aparece como «sistema».

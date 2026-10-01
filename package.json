@@ -1,7 +1,7 @@
 {
   "name": "kageview",
   "version": "1.8.0",
-  "description": "KageView — Anime Desktop Streaming App",
+  "description": "KageView — cliente de escritorio para anime y manga",
   "main": "dist/main/main.js",
   "author": "Sh4Dow",
   "license": "MIT",

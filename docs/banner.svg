@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" role="img" aria-label="KageView">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b060c"/>
+      <stop offset="0.55" stop-color="#1a0a14"/>
+      <stop offset="1" stop-color="#2a0c1c"/>
+    </linearGradient>
+    <radialGradient id="moon" cx="0.38" cy="0.32" r="0.9">
+      <stop offset="0" stop-color="#ff7d93"/>
+      <stop offset="0.55" stop-color="#ff3d5a"/>
+      <stop offset="1" stop-color="#b3153a"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff3d5a" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#ff3d5a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="title" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#ffb3c1"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="360" fill="url(#bg)"/>
+  <circle cx="1030" cy="150" r="300" fill="url(#halo)"/>
+
+  <!-- luna de sangre -->
+  <circle cx="1030" cy="150" r="118" fill="url(#moon)"/>
+  <circle cx="1030" cy="150" r="124" fill="none" stroke="#ffb3c1" stroke-opacity="0.35" stroke-width="2"/>
+
+  <!-- silueta (sombra) -->
+  <g fill="#09050a">
+    <path d="M1002 262 C1004 214 1014 186 1030 186 C1046 186 1056 214 1058 262 Z"/>
+    <circle cx="1030" cy="170" r="17"/>
+    <path d="M1004 172 L1030 150 L1056 172 L1030 160 Z"/>
+  </g>
+  <path d="M0 300 C220 280 380 322 600 304 C820 286 960 322 1280 296 L1280 360 L0 360 Z" fill="#09050a" fill-opacity="0.75"/>
+
+  <!-- pétalos de sakura -->
+  <g fill="#ff8fa8" fill-opacity="0.85">
+    <ellipse cx="760" cy="70" rx="9" ry="5" transform="rotate(35 760 70)"/>
+    <ellipse cx="860" cy="250" rx="8" ry="4.5" transform="rotate(-25 860 250)"/>
+    <ellipse cx="1180" cy="90" rx="9" ry="5" transform="rotate(60 1180 90)"/>
+    <ellipse cx="1210" cy="250" rx="7" ry="4" transform="rotate(10 1210 250)"/>
+    <ellipse cx="640" cy="200" rx="6" ry="3.5" transform="rotate(-50 640 200)"/>
+    <ellipse cx="900" cy="40" rx="7" ry="4" transform="rotate(20 900 40)"/>
+  </g>
+
+  <!-- texto -->
+  <g font-family="'SF Pro Display','Segoe UI','Inter','Helvetica Neue',Helvetica,Arial,sans-serif">
+    <text x="80" y="156" font-size="84" font-weight="800" fill="url(#title)" letter-spacing="-2">KageView</text>
+    <text x="84" y="206" font-size="26" font-weight="500" fill="#e8c8d0">Anime y manga en tu escritorio. En español.</text>
+    <g font-size="17" font-weight="600" fill="#ffd3dc">
+      <rect x="84" y="240" width="108" height="34" rx="17" fill="#ffffff" fill-opacity="0.09"/>
+      <text x="138" y="262" text-anchor="middle">Windows</text>
+      <rect x="204" y="240" width="92" height="34" rx="17" fill="#ffffff" fill-opacity="0.09"/>
+      <text x="250" y="262" text-anchor="middle">macOS</text>
+      <rect x="308" y="240" width="150" height="34" rx="17" fill="#ffffff" fill-opacity="0.09"/>
+      <text x="383" y="262" text-anchor="middle">Código abierto</text>
+    </g>
+  </g>
+</svg>

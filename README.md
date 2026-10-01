@@ -1,79 +1,113 @@
 <div align="center">
 
-<img src="assets/icon.png" alt="KageView" width="120" />
-
-# 影 KageView
-
-**App de escritorio para streaming de anime y lectura de manga — sin anuncios, sin cuentas, en español.**
-
-[![Version](https://img.shields.io/badge/version-1.2.0-cb97ff?style=flat-square&labelColor=0e0e13)](https://github.com/pedromoorales9/kageview/releases/latest)
-[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-cb97ff?style=flat-square&labelColor=0e0e13)](https://www.gnu.org/licenses/gpl-3.0)
-[![Electron](https://img.shields.io/badge/Electron-28-47c4ff?style=flat-square&labelColor=0e0e13)](https://electronjs.org)
-[![React](https://img.shields.io/badge/React-18-f673b7?style=flat-square&labelColor=0e0e13)](https://reactjs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-cb97ff?style=flat-square&labelColor=0e0e13)](https://typescriptlang.org)
-[![Platform](https://img.shields.io/badge/Platform-Windows-be83fa?style=flat-square&labelColor=0e0e13)]()
+<img src="docs/banner.svg" alt="KageView — anime y manga en tu escritorio" width="100%" />
 
 <br/>
 
-*"Mientras otros veían anime, yo construí el lugar donde verlo."*
+[![Última versión](https://img.shields.io/github/v/release/pedromoorales9/kageview?style=for-the-badge&color=ff3d5a&labelColor=0b060c&label=versi%C3%B3n)](https://github.com/pedromoorales9/kageview/releases/latest)
+[![Descargas](https://img.shields.io/github/downloads/pedromoorales9/kageview/total?style=for-the-badge&color=ff8fa8&labelColor=0b060c&label=descargas)](https://github.com/pedromoorales9/kageview/releases)
+[![Licencia MIT](https://img.shields.io/badge/licencia-MIT-ffb3c1?style=for-the-badge&labelColor=0b060c)](LICENSE)
 
-<br/>
+![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-ff3d5a?style=flat-square&labelColor=0b060c)
+![macOS](https://img.shields.io/badge/macOS-11%2B-ff3d5a?style=flat-square&labelColor=0b060c)
+![Electron](https://img.shields.io/badge/Electron-28-47c4ff?style=flat-square&labelColor=0b060c)
+![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&labelColor=0b060c)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?style=flat-square&labelColor=0b060c)
+![Tests](https://img.shields.io/badge/tests-490%2B-35e66a?style=flat-square&labelColor=0b060c)
 
-[**⬇️ Descargar**](#-descarga) · [**✨ Features**](#-features) · [**🔌 Providers**](#-providers) · [**🛠️ Desarrollo**](#️-desarrollo) · [**📋 Changelog**](#-changelog)
+**[⬇️ Descargar](#️-descarga)** · **[✨ Funciones](#-funciones)** · **[🔐 Privacidad](#-privacidad-y-seguridad)** · **[🛠️ Desarrollo](#️-desarrollo)** · **[📋 Novedades](#-novedades)** · **[⚖️ Aviso legal](#️-aviso-legal-y-descargo-de-responsabilidad)**
 
 </div>
 
 ---
 
-## ✨ Features
+## 🌙 ¿Qué es KageView?
 
-| Feature | Descripción |
-|---------|-------------|
-| 🚫 **Sin anuncios** | Bloqueador multicapa de popups, overlays y dominios de publicidad |
-| 📺 **Player integrado** | HLS nativo, velocidad, pantalla completa, skip intro/outro automático |
-| ⏭️ **Auto-play** | Cuenta atrás de 5 segundos para reproducir el siguiente episodio |
-| ⚡ **Fallback automático** | Si un provider falla, el siguiente entra solo sin interrumpir |
-| ⭐ **Proveedor favorito** | Marca tu provider preferido de anime y manga — siempre carga primero |
-| 👥 **Cuentas, amigos y chat** | Registro propio (Supabase): tus listas, foto de perfil, amigos, qué están viendo ahora y mensajería en tiempo real (con anime compartido) |
-| 📚 **Manga integrado** | Lector con 4 fuentes, retoma donde lo dejaste, biblioteca con capítulos nuevos y sincronizada en tu cuenta; tus amigos ven lo que lees y puedes compartir mangas por el chat |
-| 📅 **Calendario de emisión** | Vista semanal con cuenta atrás en tiempo real para nuevos episodios |
-| 🔔 **Notificaciones** | Aviso nativo de Windows cuando sale un episodio nuevo hoy |
-| 🎨 **Cinematic Shadow UI** | Design system oscuro con glows y glassmorphism |
-| 🔄 **Auto-updater** | Avisa de cada versión nueva y se actualiza sola, en Windows y en macOS |
-| 🎮 **Discord Rich Presence** | Muestra el anime y episodio que estás viendo en tu perfil de Discord (opcional) |
-| 💾 **Preferencias persistentes** | Idioma, providers, skips y ajustes se conservan entre sesiones |
+**KageView** es una aplicación de escritorio de código abierto, para Windows y macOS, que reúne en una sola interfaz cuidada el **catálogo de anime y manga**, un **reproductor y un lector** cómodos, tu **biblioteca personal** y una pequeña **red social** para compartir lo que ves y lees con tus amigos.
+
+> 🛡️ **KageView no aloja, almacena ni distribuye ningún contenido protegido por derechos de autor.** Es un cliente que muestra información pública y se conecta, a petición del usuario y desde su propio equipo, a servicios web de terceros. Lee el [aviso legal](#️-aviso-legal-y-descargo-de-responsabilidad) antes de usarla.
 
 ---
 
-## 🔌 Providers
+## ✨ Funciones
 
-### Anime
+<table>
+<tr>
+<td width="33%" valign="top">
 
-KageView conecta múltiples fuentes y cambia automáticamente si una falla. Puedes marcar tu favorito desde Ajustes — ese provider siempre será el primero en intentarse.
+### 📺 Reproductor
+Velocidad, pantalla completa, salto de intro y outro, y **siguiente episodio automático** con cuenta atrás. Si una fuente falla, prueba otra sin interrumpirte.
 
-| Provider | Idioma | Sub | Dub | Estado |
-|----------|--------|-----|-----|--------|
-| 🟢 AnimeFLV | 🇪🇸 Español | ✅ | ✅ | Activo |
-| 🟢 JKAnime | 🇪🇸 Español | ✅ | ✅ | Activo |
-| 🟢 AnimeAV1 | 🇪🇸 Español | ✅ | ✅ | Activo |
+</td>
+<td width="33%" valign="top">
 
-### Manga
+### 📚 Lector de manga
+**Retoma por donde lo dejaste** (capítulo y página), modo cascada, páginas o derecha a izquierda, atajos de teclado, precarga y ahorro de datos.
 
-| Provider | Idioma | Tipo | Estado |
-|----------|--------|------|--------|
-| 🟢 MangaDex | 🌐 Multi | Manga / Manhwa / Manhua | Activo |
-| 🟢 MangaOni | 🇪🇸 Español | Manga / Manhwa / Manhua | Activo |
-| 🟢 InManga | 🇪🇸 Español | Manga | Activo |
-| 🟢 ManhwaWeb | 🇪🇸 Español | Manhwa | Activo |
-| 🟢 LeerCapitulo | 🇪🇸 Español | Manga / Manhwa / Manhua (+27.000 series, con géneros) | Activo |
-| 🟢 Olympus Scanlation | 🇪🇸 Español | Manhwa / Manhua (~870 series, API propia) | Activo |
-| 🟢 BarManga | 🇪🇸 Español | Manhua / Manhwa (~500 series) | Activo |
-| 🟢 Mantraz Scan | 🇪🇸 Español | Manhwa / Manhua (~5.000 series) | Activo |
-| 🟢 WEBTOON | 🇪🇸 Español | Webtoons Originales oficiales (~600 series) | Activo |
-| 🟢 WeebCentral | 🇬🇧 Inglés | Manga (decenas de miles, con géneros) | Activo |
-| 🟢 MangaKatana | 🇬🇧 Inglés | Manga (~27.000 series, con géneros) | Activo |
+</td>
+<td width="33%" valign="top">
 
-> Los providers en inglés (HiAnime, Gogoanime) están desactivados por ahora.
+### 🗂️ Biblioteca
+Tus listas de anime y manga con estados, **aviso de capítulos nuevos** y sincronización entre tus dispositivos.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 👥 Amigos
+Añade amigos, mira **qué están viendo y leyendo ahora** y explora sus listas. Tú decides qué se comparte.
+
+</td>
+<td valign="top">
+
+### 💬 Chat
+Mensajes en tiempo real, **respuestas con cita** (arrastra un mensaje hacia la derecha), tarjetas para recomendar un anime o un manga.
+
+</td>
+<td valign="top">
+
+### 📅 Calendario
+Vista semanal de emisión con **cuenta atrás** y avisos nativos cuando sale un episodio nuevo.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🔄 Siempre al día
+Se **actualiza sola** en Windows y en macOS: te avisa de cada versión y la instala con un clic.
+
+</td>
+<td valign="top">
+
+### 🎮 Discord
+*Rich Presence* opcional: muestra en tu perfil lo que estás viendo. Se apaga cuando quieras.
+
+</td>
+<td valign="top">
+
+### 🎨 Diseño «Luna de sangre»
+Interfaz oscura y fluida pensada para macOS y Windows: cristal, pétalos de sakura y animaciones sin gastar batería en reposo.
+
+</td>
+</tr>
+</table>
+
+### 🧭 Cómo funciona
+
+```mermaid
+flowchart LR
+    U(["💻 Tu equipo<br/>KageView"])
+    U -- "catálogo y fichas" --> A[("AniList<br/>API pública")]
+    U -- "cuentas, listas y chat" --> S[("Supabase<br/>con seguridad por filas")]
+    U -- "solo cuando tú lo pides" --> T["🌐 Servicios web de terceros"]
+    U -- "actualizaciones" --> G["GitHub Releases"]
+    classDef n fill:#1a0a14,stroke:#ff3d5a,color:#ffffff;
+    class U,A,S,T,G n;
+```
+
+KageView **no tiene servidores de contenido**: las consultas a servicios de terceros las hace tu propio equipo, y esos servicios son los únicos responsables de lo que publican.
 
 ---
 
@@ -81,21 +115,34 @@ KageView conecta múltiples fuentes y cambia automáticamente si una falla. Pued
 
 | Sistema | Archivo | |
 |---------|---------|--|
-| Windows 10/11 | `KageView-Setup-1.2.0.exe` | [**Descargar →**](https://github.com/pedromoorales9/kageview/releases/latest) |
-| macOS 11+ (Apple Silicon e Intel) | `KageView-x.x.x-mac.dmg` | [**Descargar →**](https://github.com/pedromoorales9/kageview/releases/latest) |
-| Linux | — | Próximamente |
+| 🪟 Windows 10 / 11 | `KageView-Setup-x.y.z.exe` | [**Descargar →**](https://github.com/pedromoorales9/kageview/releases/latest) |
+| 🍎 macOS 11+ (Apple Silicon e Intel) | `KageView-x.y.z-mac.dmg` | [**Descargar →**](https://github.com/pedromoorales9/kageview/releases/latest) |
+| 🐧 Linux | — | Próximamente |
 
-> En Windows la app se actualiza sola. En macOS, al haber una versión nueva te avisa y te lleva a la página de descargas.
+> Descarga siempre desde la [página oficial de *Releases*](https://github.com/pedromoorales9/kageview/releases). Cualquier otro sitio que ofrezca KageView no está bajo mi control.
 
 ### 🍎 Instalar en macOS
 
-1. Abre `KageView-x.x.x-mac.dmg` y **arrastra KageView a Aplicaciones**.
+1. Abre `KageView-x.y.z-mac.dmg` y **arrastra KageView a Aplicaciones**.
 2. La **primera vez**, macOS mostrará un aviso porque la app aún no está firmada con un Developer ID de Apple. Es normal; se autoriza una sola vez:
    - **macOS 15 (Sequoia) o posterior:** intenta abrir KageView → *Ajustes del Sistema → Privacidad y seguridad* → baja hasta el aviso de KageView y pulsa **Abrir igualmente**.
    - **macOS 14 o anterior:** en *Aplicaciones*, **clic derecho sobre KageView → Abrir → Abrir**.
-3. Si macOS dijera que la app "está dañada", abre la Terminal y ejecuta: `xattr -dr com.apple.quarantine /Applications/KageView.app`
+3. Si macOS dijera que la app «está dañada», abre la Terminal y ejecuta: `xattr -dr com.apple.quarantine /Applications/KageView.app`
 
-**Actualizaciones:** a partir de la 1.5.0, KageView se actualiza sola también en Mac (avisa al abrir; basta pulsar *Inicializar actualización* y *Reiniciar e instalar*). No hace falta volver a autorizarla. Si la app no está en *Aplicaciones* (o macOS la ejecuta aislada), el aviso te lo explica y ofrece descargar a mano.
+**Actualizaciones:** a partir de la 1.5.0, KageView se actualiza sola también en Mac (avisa al abrir; basta pulsar *Inicializar actualización* y *Reiniciar e instalar*). Si la app no está en *Aplicaciones*, el aviso te lo explica y ofrece descargar a mano.
+
+---
+
+## 🔐 Privacidad y seguridad
+
+- **Sin telemetría ni analítica propias.** KageView no incluye herramientas de seguimiento de uso.
+- **Cuenta opcional.** Sin cuenta, la app funciona en local. Con cuenta se guardan tu correo, nombre de usuario, foto, listas, progreso de lectura y mensajes en el proyecto de [Supabase](https://supabase.com) configurado en la aplicación.
+- **Tú controlas lo que ven tus amigos:** puedes ocultar tu actividad («viendo/leyendo ahora») y tus listas desde tu perfil. Solo los amigos aceptados pueden ver algo.
+- **Seguridad en la base de datos:** los permisos los imponen políticas de seguridad por filas (*RLS*) verificadas con tests automáticos (`npm test`), no la interfaz.
+- **Los mensajes no están cifrados de extremo a extremo.** No compartas información sensible por el chat.
+- **Eliminar tu cuenta** (*Perfil → Eliminar cuenta*) borra tus datos de la base de datos.
+- **Conexiones a terceros:** cuando consultas un servicio web de terceros, ese servicio ve tu dirección IP, como en cualquier navegador.
+- **Contenido para mayores de edad:** los listados de manga lo ocultan por defecto; hay que activar expresamente la opción «Contenido +18», y solo si eres mayor de edad en tu país.
 
 ---
 
@@ -117,7 +164,7 @@ npm install
 
 ### Configurar las cuentas (Supabase)
 
-Las cuentas, listas, amigos y el "viendo ahora" viven en **Supabase**. AniList solo se usa como catálogo público (tendencias, búsqueda, fichas): ya **no** hace falta cuenta ni credenciales de AniList.
+Las cuentas, listas, amigos, el chat y el «viendo ahora» viven en **Supabase**. AniList solo se usa como catálogo público (tendencias, búsqueda, fichas): no hace falta cuenta ni credenciales de AniList.
 
 1. Crea un proyecto en [supabase.com](https://supabase.com).
 2. Sigue la guía **[`supabase/README.md`](supabase/README.md)** (aplicar el SQL, configurar el correo y la URL de redirección `kageview://auth-callback`).
@@ -129,7 +176,7 @@ SUPABASE_ANON_KEY=tu_anon_key_publica
 ```
 
 > 🔐 La `anon key` es **pública por diseño** (va dentro de la app); los datos los protegen las políticas RLS de `supabase/migrations`, cubiertas por `npm test`. **Nunca** pongas la clave `service_role` en la app ni en el `.env`.
-> Sin estas variables la app funciona igualmente (catálogo y reproducción), pero sin cuentas.
+> Sin estas variables la app funciona igualmente, pero sin cuentas.
 
 Para probar la interfaz sin proyecto de Supabase existe un backend en memoria **solo para desarrollo** con usuarios de ejemplo:
 
@@ -141,15 +188,13 @@ KAGEVIEW_BACKEND=mock npm start
 
 ### Discord Rich Presence (opcional)
 
-Crea una aplicación en el [Discord Developer Portal](https://discord.com/developers/applications)
-y añade su Application ID al `.env`:
+Crea una aplicación en el [Discord Developer Portal](https://discord.com/developers/applications) y añade su Application ID al `.env`:
 
 ```bash
 DISCORD_CLIENT_ID=tu_application_id
 ```
 
-Sin él, la función queda desactivada silenciosamente. Se puede apagar
-en cualquier momento desde **Ajustes → Integraciones**.
+Sin él, la función queda desactivada silenciosamente. Se puede apagar en cualquier momento desde **Ajustes → Integraciones**.
 
 ### Lanzar en desarrollo
 
@@ -159,11 +204,14 @@ npm start
 
 ### Tests
 
-Los parsers de providers (la parte más frágil: dependen del HTML de sitios
-de terceros) y el title matcher tienen tests con fixtures:
-
 ```bash
 npm test
+```
+
+Incluyen las políticas de seguridad de la base de datos (sobre Postgres real en memoria), la lógica del chat y la sincronización, y los conectores de fuentes con datos de ejemplo. Los conectores tienen además pruebas «en vivo» opcionales, útiles para detectar cuándo un servicio externo cambia y deja de funcionar:
+
+```bash
+LIVE=1 npx vitest run src/modules/manga/__tests__/provider-<id>.live.test.ts
 ```
 
 ### Compilar instalador Windows
@@ -180,227 +228,138 @@ El instalador se genera en `release/build/KageView-Setup-x.x.x.exe`.
 npm run dist:mac
 ```
 
-Genera `release/build/KageView-x.x.x-mac.dmg`: un único instalador **universal** (Apple Silicon + Intel) con ventana de instalación propia (fondo, tarjetas y flecha "arrastra a Aplicaciones"). Necesita el `.env` con las claves públicas de Supabase, que se incrustan en la build.
+Genera `release/build/KageView-x.x.x-mac.dmg`: un único instalador **universal** (Apple Silicon + Intel) con ventana de instalación propia. Necesita el `.env` con las claves públicas de Supabase, que se incrustan en la build.
 
-- **Iconos y fondo del instalador:** se generan con `npm run assets:build` (`scripts/make-icons.js` recorta el logo y crea `build/icon.icns`; `scripts/make-dmg-background.js` renderiza `scripts/dmg-background.html` a `build/dmg-background.tiff`). Solo hay que repetirlo si cambian `assets/icon.png` o el diseño del fondo.
-- **Firma:** sin certificado, la app se firma *ad-hoc* (necesario para arrancar en Apple Silicon) y los usuarios deben autorizarla la primera vez (ver arriba). Con una cuenta de [Apple Developer Program](https://developer.apple.com/programs/) (99 $/año) se elimina ese paso: define `CSC_LINK` + `CSC_KEY_PASSWORD` (certificado *Developer ID Application*) y las credenciales de notarización `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, y el mismo `npm run dist:mac` firma con *hardened runtime* y notariza. La actualización automática **no** depende de ello: en Mac usa un actualizador propio (`src/main/macUpdater.ts`) que descarga el `.zip` de la release, comprueba su SHA-512 (de `latest-mac.yml`) y sustituye la app al reiniciar. **Al publicar una release hay que subir también `KageView-x.y.z-mac.zip` y `latest-mac.yml`** (además del `.dmg`). Ver `electron-builder.config.js`.
-- **Publicar:** sube a la release de GitHub el `.dmg` y `latest-mac.yml`.
+- **Iconos y fondo del instalador:** se generan con `npm run assets:build`. Solo hay que repetirlo si cambian `assets/icon.png` o el diseño del fondo.
+- **Firma:** sin certificado, la app se firma *ad-hoc* (necesario para arrancar en Apple Silicon) y los usuarios deben autorizarla la primera vez (ver arriba). Con una cuenta de [Apple Developer Program](https://developer.apple.com/programs/) se elimina ese paso: define `CSC_LINK` + `CSC_KEY_PASSWORD` y las credenciales de notarización `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, y el mismo comando firma con *hardened runtime* y notariza. La actualización automática no depende de ello: en Mac usa un actualizador propio (`src/main/macUpdater.ts`) que descarga el `.zip` de la release, comprueba su SHA-512 y sustituye la app al reiniciar.
+- **Publicar:** sube a la release de GitHub el `.dmg`, el `.zip` y `latest-mac.yml` (además de los archivos de Windows).
 
----
-
-## 🧱 Tech Stack
+### 🧱 Tecnologías
 
 ```
 Electron 28          →  Runtime de escritorio + IPC
-React 18             →  UI framework
+React 18             →  Interfaz
 TypeScript 5         →  Tipado estático
 Tailwind CSS 3       →  Estilos con design tokens
 Zustand 4            →  Estado global
-HLS.js               →  Streaming HLS nativo
-electron-store 8     →  Persistencia local cifrada
+HLS.js               →  Reproducción HLS
+electron-store 8     →  Persistencia local
 electron-updater 6   →  Auto-actualizaciones (Windows) desde GitHub Releases; en macOS, actualizador propio
 AniList GraphQL v2   →  Catálogo público de anime (sin cuenta)
-Supabase            →  Cuentas, listas, amigos y "viendo ahora" (RLS + Realtime)
-AniSkip API v2       →  Timestamps de intro/outro
-fastest-levenshtein  →  Title matching fuzzy entre providers
-Discord IPC nativo   →  Rich Presence sin dependencias (src/main/discordRpc.ts)
-Vitest               →  Tests de parsers de providers y title matcher
+Supabase             →  Cuentas, listas, amigos y chat (RLS + Realtime)
+AniSkip API v2       →  Marcas de intro/outro
+Discord IPC nativo   →  Rich Presence sin dependencias
+Vitest               →  Tests
 ```
 
----
-
-## 🎨 Design System — Cinematic Shadow
-
-```css
---background:               #0e0e13;  /* Base canvas */
---primary:                  #cb97ff;  /* Morado — acción principal */
---secondary:                #f673b7;  /* Rosa — acento */
---surface-container:        #19191f;  /* Cards */
---surface-container-highest:#25252c;  /* Hover states */
---on-surface:               #f8f5fd;  /* Texto principal */
---on-surface-variant:       #acaab1;  /* Texto secundario */
-```
-
-**Tipografía:** Plus Jakarta Sans (headlines) + Inter (body)
-
----
-
-## 📁 Estructura del proyecto
+### 📁 Estructura del proyecto
 
 ```
 src/
-├── main/                    # Proceso principal Electron
-│   ├── main.ts              # Entry point, IPC handlers, store
-│   ├── preload.ts           # Bridge seguro main ↔ renderer
-│   ├── menu.ts              # Menú de aplicación
-│   └── updater.ts           # Auto-updater logic
+├── main/                  # Proceso principal de Electron (ventana, menú, actualizaciones, red)
 ├── modules/
-│   ├── providers/           # Providers de anime
-│   │   ├── IProvider.ts     # Interfaz común
-│   │   ├── registry.ts      # Registro + fallback automático
-│   │   ├── animeflv.ts      # AnimeFLV
-│   │   ├── jkanime.ts       # JKAnime
-│   │   └── animeav1.ts      # AnimeAV1
-│   ├── manga/               # Providers de manga
-│   │   ├── index.ts         # Registro de manga providers
-│   │   ├── types.ts         # Modelos de datos
-│   │   └── providers/       # MangaDex, MangaOni, InManga, ManhwaWeb
-│   ├── anilist/             # GraphQL client + queries
-│   ├── aniskip.ts           # Skip intro/outro timestamps
-│   ├── store.ts             # Zustand global store
-│   └── cache.ts             # Persistencia via electron-store
+│   ├── backend/           # Cuentas, amigos, chat (Supabase + backend en memoria para desarrollo)
+│   ├── providers/         # Conectores de anime y registro con respaldo automático
+│   ├── manga/             # Conectores de manga, lector, biblioteca y sincronización
+│   ├── anilist/           # Cliente GraphQL del catálogo público
+│   └── …                  # chat, social, presencia, caché, estado global
 └── renderer/
-    ├── pages/               # Discover, Library, Search, Manga, Calendar, Settings
-    ├── components/          # Sidebar, Player, Modal, Cards, MangaReader
-    └── hooks/               # useAniList, useProvider, useAnimeInfo
+    ├── pages/             # Descubrir, Biblioteca, Búsqueda, Manga, Calendario, Amigos, Ajustes
+    ├── components/        # Reproductor, lector, tarjetas, chat, panel de administración…
+    └── hooks/
+supabase/                  # Migraciones SQL, políticas de seguridad y sus tests
+docs/                      # Recursos del README
 ```
 
 ---
 
-## 📋 Changelog
+## 📋 Novedades
 
-### v1.8.0 — 7 fuentes nuevas de manga
-- **Ahora hay 11 fuentes**: LeerCapitulo, Olympus Scanlation, BarManga, Mantraz Scan y WEBTOON (en español) y WeebCentral y MangaKatana (solo inglés, marcadas con «EN»). Cada una admite búsqueda, populares, recientes, paginación y, casi todas, géneros
-- Funcionan con la **búsqueda en todas las fuentes**, la biblioteca, el progreso sincronizado y compartir por el chat, igual que las anteriores
-- Se descartaron, tras probarlas, las webs que exigen superar Cloudflare/captcha, login o pago (no se intenta saltar ninguna protección)
-- Una **base reutilizable para webs con el tema Madara** (`providers/madaraBase.ts`) facilita añadir más en el futuro
-- Para desarrolladores: tests con datos reales de cada web + tests «en vivo» opcionales (`LIVE=1 npx vitest run src/modules/manga/__tests__/provider-<id>.live.test.ts`), que sirven para detectar cuándo una web cambia y rompe su fuente
+### v1.8.0 — Más fuentes de manga
+- **7 fuentes nuevas de manga** (ahora hay 11): varias en español y dos solo en inglés, que se marcan con «EN». Admiten búsqueda, populares, recientes, paginación y, casi todas, géneros
+- Funcionan con la **búsqueda en todas las fuentes**, la biblioteca, el progreso sincronizado y compartir por el chat
+- Solo se incorporan servicios que se pueden consultar con normalidad: no se intenta saltar captchas, inicios de sesión ni muros de pago
 
-### v1.7.0 — Copiar y pegar, y responder mensajes en el chat
-- **Copiar y pegar funcionan en toda la app** (⌘C / ⌘V / ⌘X / ⌘A / ⌘Z): faltaba el menú *Edición*, y en macOS los atajos pasan por él. Además hay **menú de clic derecho** (Cortar / Copiar / Pegar / Seleccionar todo) en los campos de texto y *Copiar* sobre texto seleccionado
-- **Responder a un mensaje con cita**, como en WhatsApp: arrastra el mensaje hacia la derecha (con ratón, con el dedo en una pantalla táctil o deslizando con dos dedos en el trackpad) o pulsa el icono ↩ al pasar el ratón. Aparece «Respondiendo a…» sobre el campo de texto (cancela con ✕ o Esc)
-- La cita va dentro de la burbuja; **al pulsarla se salta al mensaje original** y se resalta un momento, cargando mensajes antiguos si hace falta. Si el original se borró, la cita lo indica
-- Con ratón, arrastrar sobre el texto de un mensaje sigue **seleccionando texto** (para copiar); el arrastre responde si empiezas sobre el borde de la burbuja o sobre una tarjeta de anime/manga
-- **Requiere aplicar `20261003000007_chat_replies.sql`** (ver `supabase/README.md`); sin ella el chat normal funciona igual
-
+### v1.7.0 — Copiar y pegar, y responder en el chat
+- **Copiar y pegar funcionan en toda la app** (⌘C / ⌘V / ⌘X / ⌘A / ⌘Z): faltaba el menú *Edición*, y en macOS los atajos pasan por él. Además hay **menú de clic derecho** en los campos de texto
+- **Responder a un mensaje con cita**: arrastra el mensaje hacia la derecha (ratón, táctil o dos dedos en el trackpad) o pulsa ↩. Al pulsar la cita se salta al mensaje original
+- Requiere aplicar `20261003000007_chat_replies.sql` (ver `supabase/README.md`)
 
 ### v1.6.0 — Manga a fondo y manga en tu cuenta
-**Lector y biblioteca**
-- **Retoma donde lo dejaste**: recuerda capítulo *y página*; el botón principal es «Continuar»
-- Biblioteca de manga con estados, insignia «+N» de capítulos nuevos (se comprueban cada 3 h y a petición) y orden por novedades
-- Lista completa de capítulos en MangaDex (paginada), ordenados igual en todas las fuentes; corrige numeraciones como «1,000» o «12,5»
-- Lector: modo derecha-a-izquierda, interfaz que se oculta sola, atajos de teclado, precarga y ahorro de datos, con reintento por página
-- Búsqueda en todas las fuentes a la vez, géneros y orden en MangaDex, paginación en todas las fuentes y opción de capítulos en inglés
-- Marcar capítulos como leídos/no leídos y «leído hasta aquí»
-
-**Manga en tu cuenta** *(requiere aplicar `20261002000006_manga_cloud.sql`, ver `supabase/README.md`)*
-- **Biblioteca y progreso sincronizados** entre dispositivos (gana el cambio más reciente; funciona sin conexión y sincroniza al volver)
-- **Tus amigos ven** lo que estás leyendo ahora y tu biblioteca de manga (respeta las opciones de privacidad); pestaña **Manga** en su perfil
-- **Compartir un manga por el chat** con una tarjeta que se abre directamente
-- Si otra cuenta inicia sesión en el mismo equipo, los datos locales se guardan aparte para no mezclarlos
-
+- **Retoma donde lo dejaste** (capítulo y página), biblioteca con estados, insignia «+N» de capítulos nuevos y lista de capítulos ordenada igual en todas las fuentes
+- Lector: modo derecha-a-izquierda, interfaz que se oculta sola, atajos, precarga y ahorro de datos, con reintento por página
+- Búsqueda en todas las fuentes a la vez, géneros y orden, y marcar capítulos como leídos
+- **Biblioteca y progreso sincronizados** entre dispositivos; tus amigos ven lo que lees y pueden ver tu biblioteca (según tu privacidad); **compartir un manga por el chat**
+- Requiere aplicar `20261002000006_manga_cloud.sql`
 
 ### v1.5.0 — Actualizaciones automáticas en macOS
-- **Auto-actualización en Mac** — KageView avisa de cada versión nueva y se actualiza sola, igual que en Windows: *Inicializar actualización* → *Reiniciar e instalar*. La descarga se verifica (SHA-512, identificador, versión y firma) antes de sustituir la app, y si algo falla se restaura la anterior
-- Sin necesidad de certificado de Apple: usa un actualizador propio (`src/main/macUpdater.ts`) porque `electron-updater` en macOS exige Developer ID
-- **Importante:** quien tenga una versión anterior en Mac debe instalar esta a mano una vez (desde el `.dmg`); a partir de aquí se actualizará sola
-- Cada release de Mac publica ahora `.dmg`, `.zip` y `latest-mac.yml`
+- KageView se actualiza sola también en Mac. La descarga se verifica (SHA-512, identificador, versión y firma) antes de sustituir la app, y si algo falla se restaura la anterior
+- Quien tenga una versión anterior en Mac debe instalar esta a mano una vez
 
-### v1.4.1 — Panel de administración v2 y corrección de Servicios
-- **Corregido:** activar/desactivar servicios en el panel fallaba con «sesión caducada» aunque la sesión estuviera bien (era un permiso de la base de datos, mal explicado). Ahora funciona y, si falta un permiso, el mensaje lo dice claro
-- **Nuevo menú lateral** con Resumen, Anuncios, Servicios, Usuarios, Equipo y Registro
-- **Resumen** con gráfica de registros por día (7/30/90 días), actividad reciente del equipo y aviso si hay servicios apagados
-- **Usuarios** — búsqueda y moderación: se puede **suspender** a alguien (conserva su cuenta pero no puede escribir mensajes, enviar solicitudes, publicar «viendo ahora» ni editar su perfil). Nunca a un admin ni al owner. Sin mostrar correos
-- **Registro de actividad** — todo lo que hace el equipo queda anotado (quién, qué y cuándo) y nadie puede editarlo ni borrarlo
-- **Anuncios** — plantillas (nueva versión, mantenimiento, servicio caído…), **segmentación** por sistema (macOS/Windows/Linux) y por «versiones anteriores a X», filtros por estado, búsqueda y duplicar
-- **Servicios** — desde cuándo está apagado cada uno, motivos rápidos y «Reactivar todos»
-- Requiere aplicar `supabase/migrations/20261001000005_admin_v2.sql`
+<details>
+<summary><b>Versiones anteriores</b></summary>
 
-### v1.4.0 — Panel de administración y anuncios para todos
-- **Roles y panel de administración** — nuevos roles *owner* y *admin* (Ajustes → Administración, solo visible para el equipo) con insignia en el perfil. La autorización la impone la base de datos (RLS), no la interfaz; el rol no se puede cambiar desde la app
-- **Anuncios para todos los usuarios** — banner descartable o ventana emergente, con tipo (información, novedad, evento, aviso, mantenimiento), enlace, programación, caducidad, borradores y reenvío. Los ve todo el mundo, incluso sin sesión
-- **Servicios apagables** — desactiva AnimeFLV, MangaDex… para todos con el motivo visible cuando una página se cae
-- **Equipo y resumen** — el owner nombra o quita administradores; cifras agregadas de usuarios y actividad (sin ver listas ni mensajes)
-- Se retira el panel de desarrollador antiguo (contraseña + token de GitHub). Requiere aplicar `supabase/migrations/20261001000004_admin.sql`
+### v1.4.1 — Panel de administración v2
+- Corregido el interruptor de servicios del panel; nuevo menú lateral, resumen con gráfica, moderación (suspender usuarios), registro de actividad inalterable, anuncios con plantillas y segmentación
 
-### v1.3.0 — Rediseño para macOS, cuentas, amigos e instalador .dmg
-- **Rediseño completo "Luna de sangre"** — nueva identidad a partir del logo: tinta con matiz vino, luna carmesí y sakura. Ventana nativa de macOS (semáforos integrados, *vibrancy*), barra lateral estilo Finder, barra superior de cristal con búsqueda ⌘K, héroe cinematográfico con lluvia de pétalos y nueva intro
-- **Cuentas propias (Supabase)** — registro con correo y contraseña, foto de perfil, listas (Viendo, Completado, Por ver…) y recuperación de contraseña. AniList pasa a ser solo el catálogo público: ya no hace falta cuenta de AniList
-- **Amigos y "viendo ahora"** — solicitudes de amistad, búsqueda de usuarios, ver la lista de un amigo y qué está viendo en tiempo real. Privacidad por usuario (ocultar actividad y/o lista). **Chat entre amigos** con mensajes en tiempo real, no leídos, avisos y tarjetas de anime compartido. Seguridad verificada con 60+ tests sobre Postgres (`npm test`)
-- **Instalador para macOS** — `.dmg` universal (Apple Silicon + Intel) con ventana de instalación propia e icono nuevo con transparencia
-- **Reproductor** — corregido YourUpload (Referer del CDN) y ampliada la lista de bloqueo de publicidad y trackers
-- **Rendimiento** — sin animaciones infinitas en reposo (de ~40 % de CPU/GPU a 0 %), modales sin desenfoque de fondo, DevTools solo bajo demanda
-- **Iconos sin conexión** — la fuente de iconos va incluida en la app (antes se descargaba de Google Fonts)
+### v1.4.0 — Panel de administración y anuncios
+- Roles *owner* y *admin* (la autorización la impone la base de datos), anuncios para todos los usuarios, fuentes que se pueden apagar con un motivo visible y cifras agregadas sin ver listas ni mensajes
 
-### v1.2.0 — Discord Rich Presence, prefs persistentes y tests
-- **Discord Rich Presence real** — muestra el anime y episodio que estás viendo en tu perfil de Discord. Implementación IPC nativa sin dependencias (el paquete `discord-rpc` estaba declarado pero nunca cableado; se eliminó). Opcional vía `DISCORD_CLIENT_ID` y toggle en Ajustes → Integraciones
-- **Preferencias persistentes** — idioma, providers, favoritos y skips ya no se pierden al cerrar la app: se guardan en electron-store y se restauran al arrancar
-- **Tests de parsers y matcher** — suite de Vitest para los parsers de los 3 providers de anime y el title matcher (`npm test`), portada de la versión nativa de macOS
+### v1.3.0 — Rediseño para macOS, cuentas, amigos e instalador
+- Rediseño completo «Luna de sangre», cuentas propias con Supabase, amigos, «viendo ahora», chat en tiempo real e instalador `.dmg` universal
+- Rendimiento: sin animaciones infinitas en reposo (de ~40 % de CPU/GPU a 0 %) e iconos incluidos en la app (sin descargar fuentes externas)
 
-### v1.1.0 — MangaOni, UI responsive y login propio
-- **Nuevo provider de manga: MangaOni** (manga-oni.com) — manga, manhwa y manhua en español, con filtro de contenido +18
-- **MangaDex restaurado** — corregido el bloqueo por User-Agent que rompía API y portadas
-- **ManhwaWeb** — portadas arregladas (referer correcto de su CDN)
-- **Lista de episodios estilo Crunchyroll** — cuadrícula de miniaturas con orden ascendente/descendente y carga por lotes (soporta series enormes como One Piece sin congelar)
-- **Buscador de episodios** dentro del modal de anime (por número o título)
-- **UI responsive** — las cuadrículas y filas se adaptan al ancho de la ventana
-- **Login con tu propia cuenta (OAuth Implicit Grant)** — la app ya no incrusta ningún `clientSecret`; cada usuario entra con su cuenta y el token se guarda solo en su equipo
-- **Optimización de rendimiento** — menos `backdrop-blur` por tarjeta, memoización y render por lotes para evitar tirones
-- Credenciales movidas a `.env` (inyección en build) para que persistan entre actualizaciones
+### v1.2.0 — Discord Rich Presence, preferencias y tests
+- Rich Presence nativo, preferencias persistentes y suite de tests
 
-### v1.0.9 — Proveedor favorito
-- Selector de proveedor favorito en Ajustes para **anime** y **manga**
-- El provider marcado con ⭐ siempre carga primero
-- La sección de Manga se actualiza automáticamente al cambiar el favorito
+### v1.1.0 — Nueva fuente de manga, interfaz adaptable y login propio
+- Nueva fuente de manga en español con filtro de contenido +18
+- Lista de episodios en cuadrícula con orden y carga por lotes, buscador de episodios e interfaz adaptable al ancho de ventana
+- Login con tu propia cuenta: la app ya no incrusta ningún secreto de cliente
 
-### v1.0.8 — Fix calendario
-- Corregido el bug que mostraba nombres de día incorrectos en el calendario (Mar en columna Mié, etc.)
+### v1.0.x
+- Proveedor favorito, calendario de emisión con cuenta atrás y notificaciones nativas, cuenta atrás para el siguiente episodio, carrusel de la página principal y primera versión con auto-actualizaciones desde GitHub Releases
 
-### v1.0.7 — Auto-play y controles
-- Skip intro/outro funciona ahora en todos los providers (modo iframe incluido)
-- Cuenta atrás de 5 segundos para reproducir el siguiente episodio automáticamente
-- Controles y cuenta atrás visibles en pantalla completa
-- Carrusel de episodios con scroll horizontal en el modal de anime
-- Página Descubrir con carrusel paginado: Tendencia, Temporada, Valorados, Recomendados
-
-### v1.0.6 — Modal renovado
-- Rediseño completo del carrusel de episodios en el modal
-- Coexistencia correcta entre episodios y animes relacionados
-- Fix: clic en anime relacionado ahora navega correctamente
-
-### v1.0.5 — AnimeAV1 + Calendario global
-- Nuevo provider AnimeAV1 como fuente de contingencia secundaria
-- Calendario semanal de emisión impulsado por GraphQL de AniList
-
-### v1.0.4 — Calendario y notificaciones
-- Vista semanal de episodios con cuenta atrás en tiempo real
-- Notificaciones nativas de Windows para nuevos episodios
-- Ícono animado en esquina inferior con menú de opciones
-
-### v1.0.3 — Ad-blocker y navegación
-- Bloqueador multicapa: popups, overlays y dominios de publicidad a nivel de red
-- Botón "Siguiente episodio" en pantalla de error
-- Controles de navegación visibles en modo iframe
-
-### v1.0.0–1.0.2 — Lanzamiento inicial
-- Primera versión para Windows
-- Integración AniList OAuth, progreso y puntuaciones
-- Sistema de auto-actualizaciones desde GitHub Releases
+</details>
 
 ---
 
-## ⚠️ Aviso legal
+## ⚖️ Aviso legal y descargo de responsabilidad
 
-KageView no aloja ningún contenido. Actúa únicamente como cliente que enlaza a contenido disponible en sitios de terceros. Todo el contenido es responsabilidad de dichos sitios. El desarrollador no se hace responsable del uso del contenido enlazado.
+**Naturaleza del software.** KageView es un cliente de escritorio de código abierto y de uso general. **No aloja, almacena, sube, transmite ni distribuye** vídeos, imágenes, capítulos ni ningún otro contenido protegido, y no dispone de servidores de contenido. Solo muestra información y enlaces procedentes de servicios web de terceros en el momento en que el usuario lo solicita, directamente desde el equipo del usuario.
+
+**Derechos de autor y marcas.** Todas las obras, imágenes, nombres y marcas mencionados o mostrados pertenecen a sus respectivos titulares. KageView **no está afiliado, patrocinado ni respaldado** por ellos ni por ninguno de los servicios de terceros a los que pueda conectarse. AniList, Supabase, Discord, GitHub, Apple, Microsoft y otros nombres citados lo son únicamente a título identificativo; KageView no es un producto oficial de ninguno de ellos.
+
+**Servicios de terceros.** El desarrollador no controla, revisa ni garantiza el contenido, la disponibilidad ni la licitud de los servicios de terceros, y no asume responsabilidad alguna por ellos. Las condiciones de uso de cada servicio son responsabilidad exclusiva de quien lo utiliza.
+
+**Responsabilidad del usuario.** Cada usuario es el único responsable del uso que haga del software y de los contenidos a los que acceda con él. Debes cumplir la legislación de propiedad intelectual y las condiciones de los servicios aplicables en tu país. Si una obra está disponible en un servicio oficial en tu región, te animamos a usarlo y a **apoyar a sus creadores**.
+
+**Retirada de contenidos y reclamaciones.** KageView no aloja contenido, por lo que no puede retirarlo. Si eres titular de derechos y consideras que una referencia incluida en este repositorio infringe tus derechos, abre un [Issue](../../issues) indicando qué referencia es y cómo acreditar la titularidad. Se atenderá con diligencia y, cuando proceda, se retirará la referencia de la aplicación.
+
+**Sin garantía.** El software se ofrece **«tal cual»**, sin garantía de ningún tipo (ver [licencia](LICENSE)). El autor no responde de daños derivados de su uso, de la indisponibilidad de servicios externos ni de la pérdida de datos.
+
+**Contenido para adultos.** Algunos servicios de terceros pueden ofrecer material solo apto para mayores de edad. La aplicación lo oculta por defecto en los listados de manga; activarlo es decisión y responsabilidad exclusivas del usuario, que debe ser mayor de edad según la ley de su país.
+
+**Licencia.** Código publicado bajo licencia [MIT](LICENSE). La licencia cubre el código de KageView, no los contenidos de terceros.
 
 ---
 
 ## 🤝 Contribuir
 
-1. Abre un [Issue](../../issues)
+1. Abre un [Issue](../../issues) para comentar la idea o el fallo
 2. Haz fork del repositorio
 3. Crea una rama: `git checkout -b fix/nombre-del-fix`
-4. Commit: `git commit -m "fix: descripción"`
-5. Pull Request
+4. Haz commit: `git commit -m "fix: descripción"`
+5. Abre un Pull Request
+
+> No se aceptarán contribuciones que añadan enlaces a contenido que se sepa ilícito, ni que eludan medidas técnicas de protección (captchas, cifrado/DRM, inicios de sesión o muros de pago).
 
 ---
 
 <div align="center">
 
-**GPL-3.0 © 2026 [Sh4Dow]
+**MIT © 2026 Sh4Dow**
 
 *Hecho con ♥ y demasiadas horas de madrugada.*
-
-*"Mientras otros veían anime, yo construí el lugar donde verlo."*
 
 </div>
