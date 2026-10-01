@@ -299,7 +299,7 @@ export class MockBackend implements AccountBackend {
     );
     this.db.messages.push({
       id: this.db.nextMessageId++, senderId: 'seed-mika', recipientId: id, kind: 'text',
-      body: '¡Hola! ¿Has visto Frieren? Te va a encantar 🍜', media: null, manga: null,
+      body: '¡Hola! ¿Has visto Frieren? Te va a encantar 🍜', media: null, manga: null, replyTo: null,
       createdAt: now, readAt: null, deleted: false,
     });
     this.db.sessionUserId = id;
@@ -526,10 +526,17 @@ export class MockBackend implements AccountBackend {
     if (kind === 'text' && !body.trim()) throw new BackendError('unknown', 'mensaje vacío');
     if (kind === 'anime' && !input.media) throw new BackendError('unknown', 'falta el anime');
     if (kind === 'manga' && !input.manga) throw new BackendError('unknown', 'falta el manga');
+    // Igual que el trigger de la base de datos: el citado existe, no está borrado y es de esta conversación
+    if (input.replyTo != null) {
+      const parent = this.db.messages.find((m) => m.id === input.replyTo);
+      const sameChat = parent && ((parent.senderId === me.id && parent.recipientId === friendId) || (parent.senderId === friendId && parent.recipientId === me.id));
+      if (!parent || parent.deleted || !sameChat) throw new BackendError('not_found');
+    }
     const msg: ChatMessage = {
       id: this.db.nextMessageId++, senderId: me.id, recipientId: friendId, kind, body,
       media: kind === 'anime' ? input.media ?? null : null,
       manga: kind === 'manga' ? input.manga ?? null : null,
+      replyTo: input.replyTo ?? null,
       createdAt: new Date().toISOString(), readAt: null, deleted: false,
     };
     this.db.messages.push(msg);
@@ -543,7 +550,7 @@ export class MockBackend implements AccountBackend {
         if (!this.db.users.some((u) => u.id === me.id)) return;
         const r: ChatMessage = {
           id: this.db.nextMessageId++, senderId: friendId, recipientId: me.id, kind: 'text', body: reply,
-          media: null, manga: null, createdAt: new Date().toISOString(), readAt: null, deleted: false,
+          media: null, manga: null, replyTo: null, createdAt: new Date().toISOString(), readAt: null, deleted: false,
         };
         this.db.messages.push(r);
         this.save();
@@ -551,6 +558,14 @@ export class MockBackend implements AccountBackend {
       }, 1200);
     }
     return { ...msg };
+  }
+  async getMessagesByIds(friendId: string, ids: number[]): Promise<ChatMessage[]> {
+    const me = this.me();
+    if (!this.areFriends(me.id, friendId)) return [];
+    const wanted = new Set(ids);
+    return this.db.messages
+      .filter((m) => wanted.has(m.id) && ((m.senderId === me.id && m.recipientId === friendId) || (m.senderId === friendId && m.recipientId === me.id)))
+      .map((m) => ({ ...m }));
   }
   async markConversationRead(friendId: string): Promise<number> {
     const me = this.me();

@@ -1359,3 +1359,97 @@ describe('manga en la cuenta: sincronización, amigos y chat', () => {
   });
 });
 
+
+describe('chat: responder a mensajes', () => {
+  const setup = async () => {
+    await admin(`delete from public.messages`);
+    await admin(`delete from public.friendships`);
+    await admin(`insert into public.friendships (requester_id, addressee_id, status, responded_at) values ($1,$2,'accepted',now())`, [ids.alice, ids.bob]);
+    await admin(`insert into public.friendships (requester_id, addressee_id, status, responded_at) values ($1,$2,'accepted',now())`, [ids.carol, ids.dave]);
+  };
+  const say = async (who: string, to: string, body: string, replyTo?: number | null) =>
+    (await asCommit(who, (q) =>
+      q(`insert into public.messages (recipient_id, body, reply_to) values ('${ids[to]}', $1, $2) returning id, reply_to`, [body, replyTo ?? null])
+    ))[0] as { id: number; reply_to: number | null };
+  const sayErr = (who: string, to: string, body: string, replyTo: number) =>
+    asExpectError(who, `insert into public.messages (recipient_id, body, reply_to) values ('${ids[to]}', $1, $2)`, [body, replyTo]);
+
+  it('se puede responder a un mensaje propio o del amigo y queda guardado el id', async () => {
+    await setup();
+    const a = await say('alice', 'bob', 'hola');
+    const b = await say('bob', 'alice', 'qué tal', a.id);
+    const c = await say('alice', 'bob', 'bien', b.id);
+    const d = await say('alice', 'bob', 'y tú', c.id); // a un mensaje propio
+    expect([b.reply_to, c.reply_to, d.reply_to]).toEqual([a.id, b.id, c.id]);
+    const seen = await as('bob', (q) => q(`select id, reply_to from public.messages order by id`));
+    expect(seen.map((m) => m.reply_to)).toEqual([null, a.id, b.id, c.id]);
+  });
+
+  it('un mensaje normal sigue sin cita', async () => {
+    await setup();
+    expect((await say('alice', 'bob', 'suelto')).reply_to).toBeNull();
+  });
+
+  it('no se puede citar un mensaje de OTRA conversación (ni existente ni inventado)', async () => {
+    await setup();
+    const other = await say('carol', 'dave', 'secreto de carol y dave');
+    expect(await sayErr('alice', 'bob', 'te cito', other.id)).toMatch(/invalid reply/i);
+    expect(await sayErr('alice', 'bob', 'cita falsa', 999999)).toMatch(/invalid reply/i);
+    // tampoco quien participa en una conversación puede citar en otra que no es suya
+    const mine = await say('alice', 'bob', 'mío');
+    expect(await sayErr('carol', 'dave', 'cruzado', mine.id)).toMatch(/invalid reply/i);
+  });
+
+  it('no se puede citar un mensaje ya borrado', async () => {
+    await setup();
+    const a = await say('alice', 'bob', 'borrame');
+    await asCommit('alice', (q) => q(`select public.delete_message(${a.id})`));
+    expect(await sayErr('bob', 'alice', 'respondo', a.id)).toMatch(/invalid reply/i);
+  });
+
+  it('si se borra el mensaje original DESPUÉS, la respuesta se conserva y la cita queda vacía', async () => {
+    await setup();
+    const a = await say('alice', 'bob', 'dato importante');
+    const b = await say('bob', 'alice', 'ok', a.id);
+    await asCommit('alice', (q) => q(`select public.delete_message(${a.id})`));
+    const parent = await as('bob', (q) => q(`select body, deleted_at is not null as gone from public.messages where id = ${a.id}`));
+    expect(parent[0]).toMatchObject({ body: '', gone: true });          // no se filtra el texto original
+    expect((await as('bob', (q) => q(`select reply_to from public.messages where id = ${b.id}`)))[0].reply_to).toBe(a.id);
+  });
+
+  it('reply_to no se puede modificar a posteriori ni escribirse en nombre de otro', async () => {
+    await setup();
+    const a = await say('alice', 'bob', 'uno');
+    const b = await say('alice', 'bob', 'dos');
+    expect(await asExpectError('alice', `update public.messages set reply_to = ${a.id} where id = ${b.id}`)).toMatch(/permission denied/i);
+  });
+
+  it('un tercero no ve las respuestas y quien deja de ser amigo pierde acceso', async () => {
+    await setup();
+    const a = await say('alice', 'bob', 'hola');
+    await say('bob', 'alice', 'respuesta', a.id);
+    expect(await as('eve', (q) => q(`select 1 from public.messages`))).toHaveLength(0);
+    await admin(`delete from public.friendships where requester_id = $1`, [ids.alice]);
+    expect(await as('bob', (q) => q(`select 1 from public.messages`))).toHaveLength(0);
+    expect(await sayErr('bob', 'alice', 'ya no', a.id)).toMatch(/row-level security|invalid reply/i);
+  });
+
+  it('si el mensaje original desaparece de la base (retención / cuenta eliminada) la respuesta queda sin cita', async () => {
+    await setup();
+    const a = await say('alice', 'bob', 'original');
+    const b = await say('bob', 'alice', 'respuesta', a.id);
+    await admin(`delete from public.messages where id = $1`, [a.id]);
+    expect((await admin(`select reply_to from public.messages where id = $1`, [b.id]))[0].reply_to).toBeNull();
+    // y borrar una cuenta con conversaciones citadas no rompe por claves foráneas
+    const ghost = await signup('replyghost', 'replyghost');
+    await admin(`insert into public.friendships (requester_id, addressee_id, status, responded_at) values ($1,$2,'accepted',now())`, [ghost, ids.bob]);
+    const g = await say('replyghost', 'bob', 'adiós');
+    await say('bob', 'replyghost', 'chao', g.id);
+    await admin(`delete from public.profiles where id = $1`, [ghost]);
+    expect(await admin(`select 1 from public.messages where sender_id = $1 or recipient_id = $1`, [ghost])).toHaveLength(0);
+  });
+
+  it('los anónimos no pueden insertar con reply_to', async () => {
+    expect(await asExpectError('anon', `insert into public.messages (recipient_id, body, reply_to) values ('${ids.alice}', 'x', 1)`)).toMatch(/permission denied/i);
+  });
+});

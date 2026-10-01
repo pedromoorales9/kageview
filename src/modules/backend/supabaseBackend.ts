@@ -145,6 +145,8 @@ interface MessageRow {
   kind: MessageKind;
   body: string;
   payload: MediaSnapshot | null;
+  /** Ausente si la migración de respuestas aún no está aplicada. */
+  reply_to?: number | null;
   created_at: string;
   read_at: string | null;
   deleted_at: string | null;
@@ -186,6 +188,7 @@ const toMessage = (r: MessageRow): ChatMessage => ({
   body: r.body ?? '',
   media: r.kind === 'anime' ? (r.payload as MediaSnapshot | null) ?? null : null,
   manga: r.kind === 'manga' ? parseMangaShare(r.payload) : null,
+  replyTo: typeof r.reply_to === 'number' && Number.isInteger(r.reply_to) ? r.reply_to : null,
   createdAt: r.created_at,
   readAt: r.read_at ?? null,
   deleted: r.deleted_at != null,
@@ -856,6 +859,7 @@ export class SupabaseBackend implements AccountBackend {
     await this.requireUserId();
     const kind: MessageKind = input.kind ?? 'text';
     const body = (input.body ?? '').slice(0, 2000);
+    const replyTo = Number.isInteger(input.replyTo) && (input.replyTo as number) > 0 ? input.replyTo : undefined;
     const res = await this.sb
       .from('messages')
       .insert({
@@ -863,15 +867,33 @@ export class SupabaseBackend implements AccountBackend {
         kind,
         body,
         payload: kind === 'manga' ? input.manga ?? null : input.media ?? null,
+        // Solo se envía si se responde: así el chat normal funciona aunque la migración no esté aplicada
+        ...(replyTo ? { reply_to: replyTo } : {}),
       })
       .select('*')
       .single();
     if (res.error) {
+      const e = res.error as ErrorLike;
       // 42501 al insertar = la política exige amistad aceptada
-      if ((res.error as ErrorLike).code === '42501') throw new BackendError('not_friends');
+      if (e.code === '42501') throw new BackendError('not_friends');
+      // El mensaje citado ya no existe, está borrado o es de otra conversación
+      if (e.code === '23514' && (e.message ?? '').toLowerCase().includes('invalid reply')) throw new BackendError('not_found');
+      // Falta la columna reply_to (migración sin aplicar)
+      if (replyTo && (e.code === 'PGRST204' || e.code === '42703')) throw new BackendError('unavailable');
       throw mapError(res.error);
     }
     return toMessage(res.data as MessageRow);
+  }
+
+  async getMessagesByIds(friendId: string, ids: number[]): Promise<ChatMessage[]> {
+    const me = await this.requireUserId();
+    const wanted = [...new Set(ids.filter((n) => Number.isInteger(n) && n > 0))].slice(0, 50);
+    if (wanted.length === 0) return [];
+    const rows = check(await this.sb.from('messages').select('*').in('id', wanted)) as MessageRow[];
+    // La RLS ya limita a mis conversaciones; aquí se acota a ESTA
+    return rows
+      .map(toMessage)
+      .filter((m) => (m.senderId === me && m.recipientId === friendId) || (m.senderId === friendId && m.recipientId === me));
   }
 
   async markConversationRead(friendId: string): Promise<number> {

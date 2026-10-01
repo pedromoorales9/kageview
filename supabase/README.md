@@ -8,7 +8,8 @@ supabase/
 │   ├── 20260929000001_init.sql      tablas, RLS, funciones RPC y Realtime
 │   ├── 20260929000002_storage.sql   bucket público `avatars` + políticas
 │   ├── 20260930000003_chat.sql      mensajes entre amigos (+ RPC y Realtime)
-│   └── 20261002000006_manga_cloud.sql  biblioteca de manga en la nube, «leyendo ahora» y manga en el chat
+│   ├── 20261002000006_manga_cloud.sql  biblioteca de manga en la nube, «leyendo ahora» y manga en el chat
+│   └── 20261003000007_chat_replies.sql responder a mensajes (cita estilo WhatsApp)
 └── tests/rls.test.ts                pruebas de seguridad (Postgres real vía PGlite)
 ```
 
@@ -38,6 +39,7 @@ Dashboard → **SQL Editor** → *New query*: pega y ejecuta, **en este orden**:
 4. `migrations/20261001000004_admin.sql`  (roles, anuncios y servicios)
 5. `migrations/20261001000005_admin_v2.sql`  (registro de auditoría, suspensiones, segmentación de anuncios, usuarios)
 6. `migrations/20261002000006_manga_cloud.sql`  (biblioteca y progreso de manga en tu cuenta, «leyendo ahora», manga compartido en el chat)
+7. `migrations/20261003000007_chat_replies.sql`  (responder a mensajes con cita)
 
 > Si ya aplicaste las anteriores, ejecuta **solo la que falte** (cada archivo es independiente de los posteriores). Nunca edites una migración ya aplicada: añade una nueva.
 
@@ -86,6 +88,7 @@ npm test
 - El remitente **siempre** es quien escribe (`default auth.uid()` + privilegios por columna): nadie puede escribir "como" otro ni falsear fechas o el estado de lectura.
 - No hay `UPDATE`/`DELETE` directos. Marcar como leído (`mark_conversation_read`) y borrar un mensaje propio (`delete_message`, borrado *suave*) van por RPC, así Realtime propaga los cambios.
 - Límites: 2000 caracteres, anime compartido < 4 KB y máximo 20 mensajes cada 10 s por remitente.
+- **Responder (cita)**: `messages.reply_to` guarda solo el ID; la cita que ve cada persona sale del mensaje original (nadie puede inventarse «lo que dijiste»). Un trigger exige que el citado exista, no esté borrado y sea de **la misma conversación**. Si la migración no está aplicada, el chat normal sigue funcionando y al responder la app avisa de que falta actualizar la base de datos.
 - **No es cifrado de extremo a extremo**: el contenido queda en texto plano en tu base de datos.
 
 ## Manga en la cuenta

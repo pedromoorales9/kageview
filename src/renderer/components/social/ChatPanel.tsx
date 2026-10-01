@@ -3,16 +3,19 @@ import { CHAT_MAX_LENGTH, ChatMessage, Friend, MangaShare } from '../../../modul
 import {
   closeConversation,
   discardMessage,
+  findQuoted,
   loadOlder,
   messagePreview,
   openConversation,
   removeMessage,
   retryMessage,
   sendText,
+  setReplyTarget,
   useChatStore,
 } from '../../../modules/chat';
 import { isWatchingNow, useSocialStore } from '../../../modules/social';
 import { useAppStore } from '../../../modules/store';
+import { useSwipeToReply } from '../../hooks/useSwipeToReply';
 import Avatar from '../account/Avatar';
 import CoverImage from '../ui/CoverImage';
 import Spinner from '../ui/Spinner';
@@ -43,6 +46,61 @@ function shortWhen(iso: string): string {
   if (sameDay(d, today)) return hhmm(iso);
   if (sameDay(d, yesterday)) return 'Ayer';
   return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+}
+
+// ─── Citas (respuestas) ────────────────────────────────────
+interface QuoteInfo {
+  id: number;
+  author: string;
+  text: string;
+  /** El mensaje citado es mío (cambia el color de la barra). */
+  mine: boolean;
+  state: 'ok' | 'loading' | 'gone';
+}
+
+/** Texto de una cita: el mensaje, o el título si es un anime / manga compartido. */
+function quoteText(m: ChatMessage): string {
+  if (m.deleted) return 'Mensaje eliminado';
+  if (m.kind === 'anime') return `🎬 ${m.media ? m.media.title.english || m.media.title.romaji : 'Anime compartido'}`;
+  if (m.kind === 'manga') return `📖 ${m.manga?.title ?? 'Manga compartido'}`;
+  return m.body.replace(/\s+/g, ' ').trim().slice(0, 140);
+}
+
+function buildQuote(
+  replyTo: number | null | undefined,
+  thread: readonly ChatMessage[],
+  quotes: Parameters<typeof findQuoted>[1],
+  me: string | undefined,
+  friendName: string
+): QuoteInfo | null {
+  if (!replyTo) return null;
+  const q = findQuoted(thread, quotes, replyTo);
+  if (q === undefined) return { id: replyTo, author: '', text: '…', mine: false, state: 'loading' };
+  if (q === 'gone') return { id: replyTo, author: '', text: 'Mensaje no disponible', mine: false, state: 'gone' };
+  const mine = q.senderId === me;
+  return { id: replyTo, author: mine ? 'Tú' : friendName, text: quoteText(q), mine, state: q.deleted ? 'gone' : 'ok' };
+}
+
+function QuoteBlock({ q, inBubble, ownBubble, onJump }: { q: QuoteInfo; inBubble: boolean; ownBubble: boolean; onJump: (id: number) => void }) {
+  const clickable = q.state !== 'loading';
+  return (
+    <button
+      type="button"
+      onClick={() => clickable && onJump(q.id)}
+      disabled={!clickable}
+      title={clickable ? 'Ir al mensaje' : undefined}
+      className={`block w-full text-left rounded-lg border-l-[3px] pl-2.5 pr-3 py-1.5 transition-colors ${
+        inBubble
+          ? `mb-1.5 ${ownBubble ? 'bg-black/20 hover:bg-black/30 border-white/85' : 'bg-black/20 hover:bg-black/30 border-primary'}`
+          : 'mb-1 bg-white/[0.07] hover:bg-white/[0.12] border-primary max-w-[250px]'
+      }`}
+    >
+      {q.author && (
+        <span className={`block text-[12px] font-semibold leading-tight ${inBubble && ownBubble ? 'text-white' : 'text-secondary'}`}>{q.author}</span>
+      )}
+      <span className={`block text-[12.5px] leading-snug line-clamp-2 break-words ${q.state === 'ok' ? 'opacity-85' : 'italic opacity-70'}`}>{q.text}</span>
+    </button>
+  );
 }
 
 // ─── Burbuja ───────────────────────────────────────────────
@@ -101,10 +159,18 @@ interface BubbleProps {
   onDelete: (m: ChatMessage) => void;
   onRetry: (m: ChatMessage) => void;
   onDiscard: (m: ChatMessage) => void;
+  quote: QuoteInfo | null;
+  onReply: (m: ChatMessage) => void;
+  onJump: (id: number) => void;
+  /** Resaltado breve tras saltar a este mensaje desde una cita. */
+  flash: boolean;
 }
 
-function Bubble({ m, mine, showTime, showAvatar, friend, receipt, onOpenAnime, onOpenManga, onDelete, onRetry, onDiscard }: BubbleProps) {
+function Bubble({ m, mine, showTime, showAvatar, friend, receipt, onOpenAnime, onOpenManga, onDelete, onRetry, onDiscard, quote, onReply, onJump, flash }: BubbleProps) {
   const [confirming, setConfirming] = useState(false);
+  const canReply = !m.deleted && !m.pending && !m.failed && m.id > 0;
+  const swipe = useSwipeToReply(() => onReply(m), canReply);
+  const isText = !m.deleted && m.kind === 'text';
 
   const body = m.deleted ? (
     <div className="px-3.5 py-2 rounded-[18px] text-[13px] italic text-muted ring-1 ring-white/10 ring-inset">Mensaje eliminado</div>
@@ -120,52 +186,85 @@ function Bubble({ m, mine, showTime, showAvatar, friend, receipt, onOpenAnime, o
           : 'bg-white/[0.09] text-on-surface rounded-[18px] rounded-bl-[6px] ring-[0.5px] ring-white/10'
       } ${m.pending ? 'opacity-60' : ''} ${m.failed ? 'ring-1 ring-error/60' : ''}`}
     >
+      {quote && <QuoteBlock q={quote} inBubble ownBubble={mine} onJump={onJump} />}
       {m.body}
     </div>
   );
 
+  const replyButton = canReply && (
+    <button
+      onClick={() => onReply(m)}
+      aria-label="Responder"
+      title="Responder"
+      className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 w-6 h-6 rounded-full flex items-center justify-center text-muted hover:text-white hover:bg-white/10 transition-all flex-none"
+    >
+      <span className="material-symbols-outlined text-[16px]">reply</span>
+    </button>
+  );
+
   return (
-    <div className={`group flex items-end gap-2 ${mine ? 'justify-end' : 'justify-start'}`}>
-      {!mine && (showAvatar ? <Avatar profile={friend} size={26} /> : <div className="w-[26px] flex-none" />)}
-      <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} min-w-0`}>
-        <div className="flex items-center gap-1.5">
-          {mine && !m.deleted && !m.pending && !m.failed && (
-            confirming ? (
-              <span className="flex items-center gap-1.5 text-[12px] mr-1">
-                <button onClick={() => { setConfirming(false); onDelete(m); }} className="text-error font-semibold hover:underline">Eliminar</button>
-                <button onClick={() => setConfirming(false)} className="text-muted hover:text-white">Cancelar</button>
-              </span>
-            ) : (
-              <button
-                onClick={() => setConfirming(true)}
-                aria-label="Eliminar mensaje"
-                title="Eliminar mensaje"
-                className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 w-6 h-6 rounded-full flex items-center justify-center text-muted hover:text-error hover:bg-error/10 transition-all"
-              >
-                <span className="material-symbols-outlined text-[15px]">delete</span>
-              </button>
-            )
-          )}
-          {body}
-        </div>
-        {(showTime || receipt || m.pending || m.failed) && (
-          <div className="mt-1 px-1 text-[11px] text-muted flex items-center gap-2">
-            {m.failed ? (
-              <>
-                <span className="text-error">No enviado</span>
-                <button onClick={() => onRetry(m)} className="text-secondary hover:text-white font-medium">Reintentar</button>
-                <button onClick={() => onDiscard(m)} className="hover:text-white">Descartar</button>
-              </>
-            ) : m.pending ? (
-              <span>Enviando…</span>
-            ) : (
-              <>
-                {showTime && <span>{hhmm(m.createdAt)}</span>}
-                {receipt && <span className={receipt === 'Leído' ? 'text-secondary' : ''}>{receipt}</span>}
-              </>
+    <div
+      data-msg-id={m.id}
+      {...swipe.handlers}
+      className={`relative rounded-2xl transition-colors duration-500 ${flash ? 'bg-primary/15' : ''}`}
+    >
+      {/* Icono que aparece al arrastrar hacia la derecha */}
+      <div
+        ref={swipe.hintRef}
+        aria-hidden
+        style={{ opacity: 0 }}
+        className="absolute left-1 top-1/2 -mt-[15px] w-[30px] h-[30px] rounded-full flex items-center justify-center bg-white/[0.12] text-white/80 data-[armed='1']:bg-primary data-[armed='1']:text-white pointer-events-none"
+      >
+        <span className="material-symbols-outlined text-[17px]">reply</span>
+      </div>
+      <div ref={swipe.moveRef} className={`group flex items-end gap-2 ${mine ? 'justify-end' : 'justify-start'}`}>
+        {!mine && (showAvatar ? <Avatar profile={friend} size={26} /> : <div className="w-[26px] flex-none" />)}
+        <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'} min-w-0`}>
+          <div className="flex items-center gap-1.5">
+            {mine && replyButton}
+            {mine && !m.deleted && !m.pending && !m.failed && (
+              confirming ? (
+                <span className="flex items-center gap-1.5 text-[12px] mr-1">
+                  <button onClick={() => { setConfirming(false); onDelete(m); }} className="text-error font-semibold hover:underline">Eliminar</button>
+                  <button onClick={() => setConfirming(false)} className="text-muted hover:text-white">Cancelar</button>
+                </span>
+              ) : (
+                <button
+                  onClick={() => setConfirming(true)}
+                  aria-label="Eliminar mensaje"
+                  title="Eliminar mensaje"
+                  className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 w-6 h-6 rounded-full flex items-center justify-center text-muted hover:text-error hover:bg-error/10 transition-all"
+                >
+                  <span className="material-symbols-outlined text-[15px]">delete</span>
+                </button>
+              )
             )}
+            <div className="flex flex-col min-w-0">
+              {/* Tarjetas de anime/manga: la cita va encima; en texto va dentro de la burbuja */}
+              {quote && !isText && !m.deleted && <QuoteBlock q={quote} inBubble={false} ownBubble={mine} onJump={onJump} />}
+              {body}
+            </div>
+            {!mine && replyButton}
           </div>
-        )}
+          {(showTime || receipt || m.pending || m.failed) && (
+            <div className="mt-1 px-1 text-[11px] text-muted flex items-center gap-2">
+              {m.failed ? (
+                <>
+                  <span className="text-error">No enviado</span>
+                  <button onClick={() => onRetry(m)} className="text-secondary hover:text-white font-medium">Reintentar</button>
+                  <button onClick={() => onDiscard(m)} className="hover:text-white">Descartar</button>
+                </>
+              ) : m.pending ? (
+                <span>Enviando…</span>
+              ) : (
+                <>
+                  {showTime && <span>{hhmm(m.createdAt)}</span>}
+                  {receipt && <span className={receipt === 'Leído' ? 'text-secondary' : ''}>{receipt}</span>}
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -178,6 +277,10 @@ function Thread({ friend, onOpenAnime, onOpenManga }: { friend: Friend; onOpenAn
   const hasMore = useChatStore((s) => s.hasMore[friend.profile.id]);
   const loading = useChatStore((s) => s.loadingThread[friend.profile.id]);
   const activity = useSocialStore((s) => s.activity.find((a) => a.userId === friend.profile.id));
+  const quotes = useChatStore((s) => s.quotes);
+  const replyId = useChatStore((s) => s.replyTarget[friend.profile.id]);
+  const friendName = friend.profile.displayName || friend.profile.username;
+  const [flashId, setFlashId] = useState<number | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
@@ -269,9 +372,55 @@ function Thread({ friend, onOpenAnime, onOpenManga }: { friend: Friend; onOpenAn
         next.senderId !== m.senderId ||
         new Date(next.createdAt).getTime() - new Date(m.createdAt).getTime() > 5 * 60_000 ||
         !sameDay(new Date(next.createdAt), new Date(m.createdAt));
-      return { m, newDay, groupEnd, receipt: i === lastMineIdx && !m.deleted && !m.pending ? (m.readAt ? 'Leído' : 'Enviado') : null };
+      return {
+        m,
+        newDay,
+        groupEnd,
+        receipt: i === lastMineIdx && !m.deleted && !m.pending ? (m.readAt ? 'Leído' : 'Enviado') : null,
+        quote: m.deleted ? null : buildQuote(m.replyTo, list, quotes, me, friendName),
+      };
     });
-  }, [messages, me]);
+  }, [messages, me, quotes, friendName]);
+
+  // Mensaje al que se está respondiendo (si sigue existiendo)
+  const replyMsg = useMemo(() => {
+    const m = replyId ? (messages ?? []).find((x) => x.id === replyId) : undefined;
+    return m && !m.deleted ? m : null;
+  }, [replyId, messages]);
+  const replyQuote = replyMsg ? { author: replyMsg.senderId === me ? 'Tú' : friendName, text: quoteText(replyMsg) } : null;
+
+  const startReply = useCallback(
+    (m: ChatMessage) => {
+      setReplyTarget(id, m.id);
+      requestAnimationFrame(() => inputRef.current?.focus());
+    },
+    [id]
+  );
+
+  // Salta al mensaje original de una cita (cargando mensajes anteriores si hace falta)
+  const jumpTo = useCallback(
+    async (target: number) => {
+      const find = () => scrollRef.current?.querySelector<HTMLElement>(`[data-msg-id="${target}"]`) ?? null;
+      let el = find();
+      for (let tries = 0; !el && tries < 6 && useChatStore.getState().hasMore[id]; tries++) {
+        await loadOlder(id);
+        await new Promise((r) => requestAnimationFrame(() => r(null)));
+        el = find();
+      }
+      if (!el) return;
+      stickRef.current = false;
+      // Solo se desplaza el chat (scrollIntoView movería también toda la página)
+      const box = scrollRef.current;
+      if (box) {
+        const er = el.getBoundingClientRect();
+        const br = box.getBoundingClientRect();
+        box.scrollTo({ top: box.scrollTop + (er.top - br.top) - (box.clientHeight - er.height) / 2, behavior: 'smooth' });
+      }
+      setFlashId(target);
+      setTimeout(() => setFlashId((cur) => (cur === target ? null : cur)), 1400);
+    },
+    [id]
+  );
 
   const watching = activity && isWatchingNow(activity);
 
@@ -297,7 +446,7 @@ function Thread({ friend, onOpenAnime, onOpenManga }: { friend: Friend; onOpenAn
 
       {/* Mensajes */}
       <div className="relative flex-1 min-h-0">
-        <div ref={scrollRef} onScroll={onScroll} role="log" aria-live="polite" aria-label="Mensajes" className="absolute inset-0 overflow-y-auto px-5 py-4">
+        <div ref={scrollRef} onScroll={onScroll} role="log" aria-live="polite" aria-label="Mensajes" className="absolute inset-0 overflow-y-auto overflow-x-hidden px-5 py-4">
           {hasMore && (
             <div className="flex justify-center mb-3">
               <button onClick={older} disabled={loading} className="h-8 px-4 rounded-full text-[12.5px] font-medium bg-white/[0.07] hover:bg-white/[0.13] text-on-surface-variant hover:text-white transition-colors disabled:opacity-50">
@@ -315,7 +464,7 @@ function Thread({ friend, onOpenAnime, onOpenManga }: { friend: Friend; onOpenAn
             </div>
           ) : (
             <div className="flex flex-col">
-              {rows.map(({ m, newDay, groupEnd, receipt }) => (
+              {rows.map(({ m, newDay, groupEnd, receipt, quote }) => (
                 <React.Fragment key={m.id}>
                   {newDay && (
                     <div className="flex justify-center my-4">
@@ -335,6 +484,10 @@ function Thread({ friend, onOpenAnime, onOpenManga }: { friend: Friend; onOpenAn
                       onDelete={(x) => void removeMessage(id, x.id)}
                       onRetry={(x) => retryMessage(id, x.id)}
                       onDiscard={(x) => discardMessage(id, x.id)}
+                      quote={quote}
+                      onReply={startReply}
+                      onJump={(t) => void jumpTo(t)}
+                      flash={flashId === m.id}
                     />
                   </div>
                 </React.Fragment>
@@ -352,6 +505,24 @@ function Thread({ friend, onOpenAnime, onOpenManga }: { friend: Friend; onOpenAn
 
       {/* Escribir */}
       <div className="flex-none px-4 pb-4 pt-2">
+        {replyQuote && (
+          <div className="mb-2 flex items-center gap-2 rounded-2xl bg-white/[0.06] hairline pl-3 pr-1.5 py-1.5 animate-fade-in">
+            <span className="w-[3px] self-stretch rounded-full bg-primary flex-none" />
+            <span className="material-symbols-outlined text-[18px] text-secondary flex-none">reply</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[12px] font-semibold text-secondary leading-tight">Respondiendo a {replyQuote.author}</span>
+              <span className="block text-[12.5px] text-on-surface-variant truncate">{replyQuote.text}</span>
+            </span>
+            <button
+              onClick={() => setReplyTarget(id, null)}
+              aria-label="Cancelar respuesta"
+              title="Cancelar respuesta (Esc)"
+              className="w-7 h-7 rounded-full flex items-center justify-center text-muted hover:text-white hover:bg-white/10 transition-colors flex-none"
+            >
+              <span className="material-symbols-outlined text-[17px]">close</span>
+            </button>
+          </div>
+        )}
         <div className="flex items-end gap-2 rounded-[22px] bg-white/[0.06] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)] focus-within:shadow-[inset_0_0_0_1.5px_rgba(255,61,90,0.6),0_0_0_4px_rgba(255,61,90,0.12)] transition-shadow pl-4 pr-1.5 py-1.5">
           <textarea
             ref={inputRef}
@@ -363,6 +534,9 @@ function Thread({ friend, onOpenAnime, onOpenManga }: { friend: Friend; onOpenAn
               if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
                 submit();
+              } else if (e.key === 'Escape' && replyMsg) {
+                e.preventDefault();
+                setReplyTarget(id, null);
               }
             }}
             aria-label={`Mensaje para ${friend.profile.username}`}

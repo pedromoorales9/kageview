@@ -251,6 +251,8 @@ export interface ChatMessage {
   media: MediaSnapshot | null;
   /** Manga compartido (kind = 'manga'). */
   manga: MangaShare | null;
+  /** Id del mensaje al que responde (null = mensaje normal). */
+  replyTo: number | null;
   createdAt: string;
   readAt: string | null;
   /** Borrado por su autor: queda como "mensaje eliminado". */
@@ -265,6 +267,8 @@ export interface SendMessageInput {
   body?: string;
   media?: MediaSnapshot;
   manga?: MangaShare;
+  /** Responder a este mensaje (debe ser de la misma conversación). */
+  replyTo?: number;
 }
 
 export interface ChatSummaryItem {
@@ -443,6 +447,8 @@ export interface AccountBackend {
    */
   listMessages(friendId: string, opts?: { before?: MessageCursor; limit?: number }): Promise<ChatMessage[]>;
   sendMessage(friendId: string, input: SendMessageInput): Promise<ChatMessage>;
+  /** Mensajes concretos de una conversación (para mostrar la cita de una respuesta antigua). */
+  getMessagesByIds(friendId: string, ids: number[]): Promise<ChatMessage[]>;
   /** Marca como leídos los mensajes recibidos de ese amigo. Devuelve cuántos. */
   markConversationRead(friendId: string): Promise<number>;
   deleteMessage(id: number): Promise<void>;

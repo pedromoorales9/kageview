@@ -252,6 +252,14 @@ src/
 
 ## 📋 Changelog
 
+### v1.7.0 — Copiar y pegar, y responder mensajes en el chat
+- **Copiar y pegar funcionan en toda la app** (⌘C / ⌘V / ⌘X / ⌘A / ⌘Z): faltaba el menú *Edición*, y en macOS los atajos pasan por él. Además hay **menú de clic derecho** (Cortar / Copiar / Pegar / Seleccionar todo) en los campos de texto y *Copiar* sobre texto seleccionado
+- **Responder a un mensaje con cita**, como en WhatsApp: arrastra el mensaje hacia la derecha (con ratón, con el dedo en una pantalla táctil o deslizando con dos dedos en el trackpad) o pulsa el icono ↩ al pasar el ratón. Aparece «Respondiendo a…» sobre el campo de texto (cancela con ✕ o Esc)
+- La cita va dentro de la burbuja; **al pulsarla se salta al mensaje original** y se resalta un momento, cargando mensajes antiguos si hace falta. Si el original se borró, la cita lo indica
+- Con ratón, arrastrar sobre el texto de un mensaje sigue **seleccionando texto** (para copiar); el arrastre responde si empiezas sobre el borde de la burbuja o sobre una tarjeta de anime/manga
+- **Requiere aplicar `20261003000007_chat_replies.sql`** (ver `supabase/README.md`); sin ella el chat normal funciona igual
+
+
 ### v1.6.0 — Manga a fondo y manga en tu cuenta
 **Lector y biblioteca**
 - **Retoma donde lo dejaste**: recuerda capítulo *y página*; el botón principal es «Continuar»

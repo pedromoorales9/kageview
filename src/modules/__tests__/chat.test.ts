@@ -161,6 +161,117 @@ describe('chat', () => {
     expect(useChat.getState().threads[sora]).toHaveLength(0);
   });
 
+  describe('responder a mensajes', () => {
+    it('elegir un mensaje y enviar crea una respuesta; la cita se consume y no se repite', async () => {
+      const { chat, useChat, mika } = await boot();
+      await chat.openConversation(mika);
+      const welcome = useChat.getState().threads[mika][0];
+      chat.setReplyTarget(mika, welcome.id);
+      expect(useChat.getState().replyTarget[mika]).toBe(welcome.id);
+      chat.sendText(mika, 'sí, me encanta');
+      expect(useChat.getState().threads[mika].at(-1)!.replyTo).toBe(welcome.id);   // ya en la burbuja provisional
+      expect(useChat.getState().replyTarget[mika]).toBeNull();
+      await vi.advanceTimersByTimeAsync(10);
+      expect(useChat.getState().threads[mika].find((m) => m.body === 'sí, me encanta')!.replyTo).toBe(welcome.id); // y en el servidor
+      chat.sendText(mika, 'otra cosa');
+      expect(useChat.getState().threads[mika].at(-1)!.replyTo).toBeNull();
+    });
+
+    it('no se puede responder a un mensaje borrado, a uno aún sin enviar ni a uno inexistente', async () => {
+      const { chat, useChat, mika } = await boot();
+      await chat.openConversation(mika);
+      chat.sendText(mika, 'borrar');
+      const provisional = useChat.getState().threads[mika].at(-1)!;
+      chat.setReplyTarget(mika, provisional.id);                    // id negativo: todavía enviándose
+      expect(useChat.getState().replyTarget[mika] ?? null).toBeNull();
+      await vi.advanceTimersByTimeAsync(10);
+      const real = useChat.getState().threads[mika].find((m) => m.body === 'borrar')!;
+      await chat.removeMessage(mika, real.id);
+      chat.setReplyTarget(mika, real.id);
+      expect(useChat.getState().replyTarget[mika] ?? null).toBeNull();
+      chat.setReplyTarget(mika, 424242);
+      expect(useChat.getState().replyTarget[mika] ?? null).toBeNull();
+    });
+
+    it('si el mensaje al que respondías se borra mientras escribes, la respuesta se cancela y se envía normal', async () => {
+      const { chat, useChat, mika } = await boot();
+      await chat.openConversation(mika);
+      chat.sendText(mika, 'va a desaparecer');
+      await vi.advanceTimersByTimeAsync(10);
+      const target = useChat.getState().threads[mika].find((m) => m.body === 'va a desaparecer')!;
+      chat.setReplyTarget(mika, target.id);
+      await chat.removeMessage(mika, target.id);
+      expect(useChat.getState().replyTarget[mika]).toBeNull();
+      chat.sendText(mika, 'sigo');
+      expect(useChat.getState().threads[mika].at(-1)!.replyTo).toBeNull();
+    });
+
+    it('una respuesta que falla conserva su cita al reintentar', async () => {
+      const { chat, useChat, backend, mika } = await boot();
+      await chat.openConversation(mika);
+      const welcome = useChat.getState().threads[mika][0];
+      const real = backend.sendMessage.bind(backend);
+      let fail = true;
+      backend.sendMessage = async (id: string, input: any) => {
+        if (fail) { fail = false; throw new Error('boom'); }
+        return real(id, input);
+      };
+      chat.setReplyTarget(mika, welcome.id);
+      chat.sendText(mika, 'con cita');
+      await vi.advanceTimersByTimeAsync(10);
+      const failed = useChat.getState().threads[mika].at(-1)!;
+      expect(failed).toMatchObject({ failed: true, replyTo: welcome.id });
+      chat.retryMessage(mika, failed.id);
+      await vi.advanceTimersByTimeAsync(10);
+      const ok = useChat.getState().threads[mika].find((m) => m.body === 'con cita')!;
+      expect(ok.replyTo).toBe(welcome.id);
+      expect(ok.failed).toBeFalsy();
+    });
+
+    it('compartir un anime desde una ficha NO arrastra una respuesta a medias', async () => {
+      const { chat, useChat, mika } = await boot();
+      await chat.openConversation(mika);
+      chat.setReplyTarget(mika, useChat.getState().threads[mika][0].id);
+      chat.sendAnime(mika, { id: 1, title: { romaji: 'X' }, coverImage: { large: 'https://s4.anilist.co/x.jpg' } });
+      expect(useChat.getState().threads[mika].at(-1)!.replyTo).toBeNull();
+      expect(useChat.getState().replyTarget[mika]).toBe(useChat.getState().threads[mika][0].id); // sigue pendiente
+    });
+
+    it('la cita de una respuesta ANTIGUA (fuera de la página cargada) se trae aparte', async () => {
+      const { chat, useChat, backend, mika } = await boot();
+      const old = await backend.sendMessage(mika, { body: 'mensaje muy antiguo' });
+      await backend.sendMessage(mika, { body: 'respuesta lejana', replyTo: old.id });
+      for (let i = 0; i < 55; i++) await backend.sendMessage(mika, { body: `relleno ${i}` }); // empuja al original fuera de la página
+      await chat.loadThread(mika);
+      expect(useChat.getState().threads[mika].some((m) => m.id === old.id)).toBe(false);
+      await chat.loadOlder(mika);                                // trae la respuesta lejana (el original sigue fuera o dentro)
+      await vi.advanceTimersByTimeAsync(10);
+      const reply = useChat.getState().threads[mika].find((m) => m.body === 'respuesta lejana')!;
+      expect(reply.replyTo).toBe(old.id);
+      const quoted = chat.findQuoted(useChat.getState().threads[mika], useChat.getState().quotes, old.id);
+      expect(quoted).toMatchObject({ id: old.id, body: 'mensaje muy antiguo' });
+    });
+
+    it('el servidor rechaza citar mensajes de otra conversación o borrados; el error se explica', async () => {
+      const { chat, useChat, backend, mika } = await boot();
+      await expect(backend.sendMessage(mika, { body: 'x', replyTo: 987654 })).rejects.toMatchObject({ code: 'not_found' });
+      const m = await backend.sendMessage(mika, { body: 'ya no' });
+      await backend.deleteMessage(m.id);
+      await expect(backend.sendMessage(mika, { body: 'x', replyTo: m.id })).rejects.toMatchObject({ code: 'not_found' });
+      // en la UI: queda como fallido con aviso claro
+      await chat.openConversation(mika);
+      const live = (await backend.sendMessage(mika, { body: 'vivo' }));
+      await chat.loadThread(mika);
+      chat.setReplyTarget(mika, live.id);
+      await backend.deleteMessage(live.id);                      // se borra "por detrás" (otro dispositivo)
+      chat.sendText(mika, 'respondo tarde');
+      await vi.advanceTimersByTimeAsync(10);
+      const sent = useChat.getState().threads[mika].find((x) => x.body === 'respondo tarde')!;
+      expect(sent).toMatchObject({ failed: true, pending: false });
+      expect(notices.some((n) => n.type === 'error' && /ya no existe/.test(n.message))).toBe(true);
+    });
+  });
+
   it('compartir un anime crea un mensaje con su instantánea', async () => {
     const { chat, useChat, mika } = await boot();
     await chat.openConversation(mika);

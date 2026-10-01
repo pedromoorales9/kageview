@@ -38,6 +38,13 @@ interface ChatState {
   /** Amigo cuya conversación debe abrirse al entrar en la sección (desde otros sitios). */
   pendingOpen: string | null;
   totalUnread: number;
+  /** Mensaje al que se está respondiendo, por amigo (null/ausente = ninguno). */
+  replyTarget: Record<string, number | null>;
+  /**
+   * Mensajes citados que no están en la parte cargada de la conversación (respuestas
+   * antiguas). 'gone' = ya no existe en la base de datos.
+   */
+  quotes: Record<number, ChatMessage | 'gone'>;
 }
 
 const INITIAL: ChatState = {
@@ -48,6 +55,8 @@ const INITIAL: ChatState = {
   activeFriendId: null,
   pendingOpen: null,
   totalUnread: 0,
+  replyTarget: {},
+  quotes: {},
 };
 
 export const useChatStore = create<ChatState>(() => ({ ...INITIAL }));
@@ -87,6 +96,48 @@ function upsertMessage(list: ChatMessage[], msg: ChatMessage): ChatMessage[] {
 function setThread(friendId: string, updater: (list: ChatMessage[]) => ChatMessage[]) {
   const cur = st().threads[friendId] ?? [];
   set({ threads: { ...st().threads, [friendId]: updater(cur) } });
+}
+
+/**
+ * Mensaje citado por una respuesta: el de la conversación cargada, o uno traído
+ * aparte. `undefined` = aún se está buscando · 'gone' = ya no existe.
+ */
+export function findQuoted(
+  thread: readonly ChatMessage[] | undefined,
+  quotes: ChatState['quotes'],
+  id: number
+): ChatMessage | 'gone' | undefined {
+  return thread?.find((m) => m.id === id) ?? quotes[id];
+}
+
+const quoteFetching = new Set<number>();
+
+/** Trae los mensajes citados que no están cargados (respuestas a mensajes antiguos). */
+async function resolveQuotes(friendId: string): Promise<void> {
+  const backend = getBackend();
+  if (!backend) return;
+  const thread = st().threads[friendId] ?? [];
+  const missing = [
+    ...new Set(
+      thread
+        .map((m) => m.replyTo)
+        .filter((id): id is number => typeof id === 'number' && id > 0)
+        .filter((id) => !thread.some((m) => m.id === id) && st().quotes[id] === undefined && !quoteFetching.has(id))
+    ),
+  ];
+  if (missing.length === 0) return;
+  missing.forEach((id) => quoteFetching.add(id));
+  try {
+    const found = await backend.getMessagesByIds(friendId, missing);
+    const next = { ...st().quotes };
+    for (const id of missing) next[id] = found.find((m) => m.id === id) ?? 'gone';
+    set({ quotes: next });
+  } catch (err) {
+    // Sin conexión o migración sin aplicar: se reintenta en la próxima carga
+    console.warn('[chat] No se pudieron cargar los mensajes citados:', err);
+  } finally {
+    missing.forEach((id) => quoteFetching.delete(id));
+  }
 }
 
 function friendName(id: string): string {
@@ -138,6 +189,7 @@ export async function loadThread(friendId: string): Promise<void> {
       threads: { ...st().threads, [friendId]: merged },
       hasMore: { ...st().hasMore, [friendId]: msgs.length >= PAGE },
     });
+    void resolveQuotes(friendId);
   } catch (err) {
     console.warn('[chat] No se pudo cargar la conversación:', err);
   } finally {
@@ -154,6 +206,7 @@ export async function loadOlder(friendId: string): Promise<void> {
     const older = await backend.listMessages(friendId, { before: { createdAt: cur[0].createdAt, id: cur[0].id }, limit: PAGE });
     setThread(friendId, (list) => older.reduce((acc, m) => upsertMessage(acc, m), list));
     set({ hasMore: { ...st().hasMore, [friendId]: older.length >= PAGE } });
+    void resolveQuotes(friendId);
   } catch (err) {
     console.warn('[chat] No se pudieron cargar mensajes anteriores:', err);
   } finally {
@@ -206,6 +259,8 @@ function sendErrorText(err: unknown): string {
   if (code === 'not_friends') return 'Ya no sois amigos: no puedes enviar mensajes.';
   if (code === 'too_many_messages') return 'Vas demasiado rápido. Espera unos segundos.';
   if (code === 'network') return 'Sin conexión: el mensaje no se ha enviado.';
+  if (code === 'not_found') return 'El mensaje al que respondías ya no existe.';
+  if (code === 'unavailable') return 'Para responder a mensajes hay que actualizar la base de datos (ver supabase/README.md).';
   return 'No se pudo enviar el mensaje.';
 }
 
@@ -237,6 +292,7 @@ function enqueue(friendId: string, input: SendMessageInput): number | null {
     body: input.body ?? '',
     media: input.media ?? null,
     manga: input.manga ?? null,
+    replyTo: input.replyTo ?? null,
     createdAt: new Date().toISOString(),
     readAt: null,
     deleted: false,
@@ -247,14 +303,39 @@ function enqueue(friendId: string, input: SendMessageInput): number | null {
   return tempId;
 }
 
+/** Mensaje al que se va a responder en esta conversación (si sigue existiendo y no está borrado). */
+function currentReply(friendId: string): number | undefined {
+  const id = st().replyTarget[friendId];
+  if (!id || id < 0) return undefined; // los mensajes aún sin enviar (id negativo) no se pueden citar
+  const m = (st().threads[friendId] ?? []).find((x) => x.id === id);
+  return m && !m.deleted ? id : undefined;
+}
+
+/** Elige (o quita, con null) el mensaje al que se responderá en la próxima emisión. */
+export function setReplyTarget(friendId: string, messageId: number | null): void {
+  if (messageId !== null) {
+    const m = (st().threads[friendId] ?? []).find((x) => x.id === messageId);
+    // No se responde a mensajes borrados ni a los que todavía se están enviando
+    if (!m || m.deleted || m.pending || m.failed || messageId < 0) return;
+  }
+  set({ replyTarget: { ...st().replyTarget, [friendId]: messageId } });
+}
+
+/** Tras enviar, la respuesta en curso se da por usada. */
+function consumeReply(friendId: string): number | undefined {
+  const id = currentReply(friendId);
+  if (st().replyTarget[friendId] != null) set({ replyTarget: { ...st().replyTarget, [friendId]: null } });
+  return id;
+}
+
 /** Envía un mensaje de texto. Devuelve false si está vacío o es demasiado largo. */
 export function sendText(friendId: string, text: string): boolean {
   const body = text.replace(/\s+$/g, '').replace(/^\s+/g, '');
   if (!body || body.length > CHAT_MAX_LENGTH) return false;
-  return enqueue(friendId, { kind: 'text', body }) !== null;
+  return enqueue(friendId, { kind: 'text', body, replyTo: consumeReply(friendId) }) !== null;
 }
 
-/** Comparte un anime con un amigo. */
+/** Comparte un anime con un amigo (desde la ficha: nunca arrastra una respuesta a medias). */
 export function sendAnime(friendId: string, media: MediaSnapshot): boolean {
   return enqueue(friendId, { kind: 'anime', media }) !== null;
 }
@@ -268,7 +349,7 @@ export function retryMessage(friendId: string, tempId: number): void {
   const m = (st().threads[friendId] ?? []).find((x) => x.id === tempId);
   if (!m) return;
   setThread(friendId, (list) => list.map((x) => (x.id === tempId ? { ...x, pending: true, failed: false } : x)));
-  void deliver(friendId, tempId, { kind: m.kind, body: m.body, media: m.media ?? undefined, manga: m.manga ?? undefined });
+  void deliver(friendId, tempId, { kind: m.kind, body: m.body, media: m.media ?? undefined, manga: m.manga ?? undefined, replyTo: m.replyTo ?? undefined });
 }
 
 export function discardMessage(friendId: string, tempId: number): void {
@@ -282,11 +363,19 @@ export async function removeMessage(friendId: string, id: number): Promise<void>
   try {
     await backend.deleteMessage(id);
     setThread(friendId, (list) => list.map((m) => (m.id === id ? { ...m, deleted: true, body: '', media: null, manga: null } : m)));
+    dropReplyIfDeleted(friendId, id);
     refreshSummarySoon();
   } catch (err) {
     console.warn('[chat] No se pudo eliminar el mensaje:', err);
     notify('error', 'No se pudo eliminar el mensaje.');
   }
+}
+
+/** Si el mensaje al que estaba respondiendo se borra, se cancela la respuesta en curso. */
+function dropReplyIfDeleted(friendId: string, deletedId: number): void {
+  if (st().replyTarget[friendId] === deletedId) set({ replyTarget: { ...st().replyTarget, [friendId]: null } });
+  const q = st().quotes[deletedId];
+  if (q && q !== 'gone') set({ quotes: { ...st().quotes, [deletedId]: { ...q, deleted: true, body: '', media: null, manga: null } } });
 }
 
 // ─── Tiempo real ───────────────────────────────────────────
@@ -301,6 +390,8 @@ function handleIncoming(msg: ChatMessage): void {
   // Se refleja en la conversación si ya está cargada (o si es la abierta)
   if (st().threads[friendId] !== undefined || st().activeFriendId === friendId) {
     setThread(friendId, (list) => upsertMessage(list, msg));
+    if (msg.deleted) dropReplyIfDeleted(friendId, msg.id);
+    if (msg.replyTo) void resolveQuotes(friendId);
   }
 
   const incomingNew = msg.recipientId === me && !msg.readAt && !msg.deleted;

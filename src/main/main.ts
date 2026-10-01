@@ -12,7 +12,7 @@ import axios from 'axios';
 import Store from 'electron-store';
 import { version } from '../../package.json';
 import { initUpdater } from './updater';
-import { buildMenu } from './menu';
+import { attachContextMenu, buildMenu } from './menu';
 import * as discordRpc from './discordRpc';
 
 // ─── Electron Store ───────────────────────────────────────
@@ -225,6 +225,9 @@ async function createWindow(): Promise<void> {
 
   // Inicializar auto-updater con la ventana creada
   initUpdater(mainWindow);
+
+  // Clic derecho: copiar / pegar en campos de texto
+  attachContextMenu(mainWindow);
 
   // ─── Capturar errores del renderer en terminal ─────────
   mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
