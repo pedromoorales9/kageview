@@ -23,11 +23,9 @@
 
 <br/>
 
-<video src="https://github.com/pedromoorales9/kageview/raw/master/docs/KageView-anuncio.mp4" poster="https://github.com/pedromoorales9/kageview/raw/master/docs/anuncio.gif" width="760" controls muted loop playsinline>
-  <a href="https://github.com/pedromoorales9/kageview/raw/master/docs/KageView-anuncio.mp4"><img src="docs/anuncio.gif" alt="Vídeo de presentación de KageView" width="760" /></a>
-</video>
+<img src="docs/anuncio.gif" alt="Vídeo de presentación de KageView" width="760" />
 
-<sub>▶️ <a href="docs/KageView-anuncio.mp4"><b>Ver el vídeo completo</b></a> (24 s, con sonido)</sub>
+<sub>🎬 <a href="https://github.com/pedromoorales9/kageview/raw/master/docs/KageView-anuncio.mp4"><b>Descargar el vídeo completo</b></a> (MP4 · 24 s · con sonido · 5 MB)</sub>
 
 </div>
 
