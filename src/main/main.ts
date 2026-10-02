@@ -703,10 +703,11 @@ app.on('quit', () => {
   discordRpc.disconnect();
 });
 
+// Al cerrar la ventana (la X / el botón rojo) la app se cierra del todo en TODAS las
+// plataformas. Por defecto macOS la deja viva sin ventanas (como Safari o Finder), pero
+// aquí eso confundía: había que hacer clic derecho en el Dock → Salir para terminarla.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  app.quit();
 });
 
 app.on('activate', () => {

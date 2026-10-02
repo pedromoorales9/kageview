@@ -275,6 +275,9 @@ docs/                      # Recursos del README
 
 ## 📋 Novedades
 
+### v1.8.1 — Cierre en macOS
+- **Corregido:** en macOS, al pulsar la X (el botón rojo) la app seguía abierta y había que usar clic derecho → *Salir* en el Dock. Ahora **se cierra por completo**, igual que en Windows
+
 ### v1.8.0 — Más fuentes de manga
 - **7 fuentes nuevas de manga** (ahora hay 11): varias en español y dos solo en inglés, que se marcan con «EN». Admiten búsqueda, populares, recientes, paginación y, casi todas, géneros
 - Funcionan con la **búsqueda en todas las fuentes**, la biblioteca, el progreso sincronizado y compartir por el chat
