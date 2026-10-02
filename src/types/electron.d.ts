@@ -25,6 +25,15 @@ declare global {
       onAuthCallback: (cb: (url: string) => void) => void;
       removeAuthCallbackListener: () => void;
       consumePendingAuthUrl: () => Promise<string | null>;
+      // Cuenta de AniList
+      anilistStatus: () => Promise<import('../modules/anilist/sync/bridge').AniListStatus | null>;
+      anilistLogin: () => Promise<{ ok: boolean; error?: string }>;
+      anilistSubmitToken: (text: string) => Promise<{ ok: boolean; error?: string }>;
+      anilistLogout: () => Promise<boolean>;
+      anilistRequest: (query: string, variables?: Record<string, unknown>) => Promise<import('../modules/anilist/sync/bridge').BridgeResult>;
+      onAnilistStatus: (cb: (status: import('../modules/anilist/sync/bridge').AniListStatus) => void) => void;
+      onAnilistLoginResult: (cb: (result: { ok: boolean; error?: string }) => void) => void;
+
       windowControls: {
         minimize: () => void;
         maximize: () => void;

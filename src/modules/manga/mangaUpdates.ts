@@ -9,6 +9,7 @@
 
 import { loadMangaChapters } from './index';
 import { latestChapterNumber } from './chapters';
+import { ANILIST_SOURCE_ID } from '../anilist/sync/mapping';
 import { MangaRecord, applyUpdateCheck, libraryRecords, readPredicate, useMangaData } from './mangaStore';
 import type { MangaChapterModel, MangaModel } from './types';
 
@@ -71,7 +72,7 @@ export async function checkMangaUpdates(
 ): Promise<NewChaptersInfo[]> {
   const now = opts.now ?? Date.now();
   const targets = libraryRecords().filter(
-    (r: MangaRecord) => r.status === 'reading' && (opts.force || !r.checkedAt || now - r.checkedAt >= CHECK_MAX_AGE_MS)
+    (r: MangaRecord) => r.status === 'reading' && r.manga.sourceId !== ANILIST_SOURCE_ID && (opts.force || !r.checkedAt || now - r.checkedAt >= CHECK_MAX_AGE_MS)
   );
   const found: NewChaptersInfo[] = [];
 

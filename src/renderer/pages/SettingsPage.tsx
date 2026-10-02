@@ -6,6 +6,7 @@ import { clearCache } from '../../modules/cache';
 import { useToast } from '../components/ui/Toast';
 import { errorMessage, openAuth, signOut } from '../../modules/account';
 import Avatar from '../components/account/Avatar';
+import AniListCard from '../components/anilist/AniListCard';
 import Spinner from '../components/ui/Spinner';
 import RoleBadge from '../components/account/RoleBadge';
 import { isStaff } from '../../modules/backend';
@@ -393,6 +394,9 @@ export default function SettingsPage({ onOpenAdmin }: SettingsPageProps) {
               />
             </div>
           </section>
+
+          {/* AniList */}
+          <AniListCard />
 
           {/* Providers */}
           <section className="panel p-6">

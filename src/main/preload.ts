@@ -40,6 +40,22 @@ contextBridge.exposeInMainWorld('electron', {
   consumePendingAuthUrl: (): Promise<string | null> =>
     ipcRenderer.invoke('auth-consume-pending-url'),
 
+  // ─── Cuenta de AniList (el token nunca sale del proceso principal) ───
+  anilistStatus: (): Promise<unknown> => ipcRenderer.invoke('anilist-status'),
+  anilistLogin: (): Promise<unknown> => ipcRenderer.invoke('anilist-login'),
+  anilistSubmitToken: (text: string): Promise<unknown> => ipcRenderer.invoke('anilist-submit-token', text),
+  anilistLogout: (): Promise<boolean> => ipcRenderer.invoke('anilist-logout'),
+  anilistRequest: (query: string, variables?: Record<string, unknown>): Promise<unknown> =>
+    ipcRenderer.invoke('anilist-request', { query, variables }),
+  onAnilistStatus: (cb: (status: unknown) => void): void => {
+    ipcRenderer.removeAllListeners('anilist-status');
+    ipcRenderer.on('anilist-status', (_event, status) => cb(status));
+  },
+  onAnilistLoginResult: (cb: (result: unknown) => void): void => {
+    ipcRenderer.removeAllListeners('anilist-login-result');
+    ipcRenderer.on('anilist-login-result', (_event, result) => cb(result));
+  },
+
   windowControls: {
     minimize: () => ipcRenderer.send('window-minimize'),
     maximize: () => ipcRenderer.send('window-maximize'),

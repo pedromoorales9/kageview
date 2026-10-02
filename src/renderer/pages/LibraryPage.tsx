@@ -383,7 +383,7 @@ function MangaSection({
                       </span>
                     </button>
                   ) : (
-                    <span className="flex-1 text-[11.5px] text-muted px-1">Sin empezar</span>
+                    <span className="flex-1 text-[11.5px] text-muted px-1">{rec.manga.sourceId === 'anilist' ? 'De tu AniList' : 'Sin empezar'}</span>
                   )}
                   <select
                     value={rec.status}

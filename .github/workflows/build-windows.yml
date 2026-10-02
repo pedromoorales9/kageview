@@ -4,6 +4,7 @@
 #
 # Secrets necesarios (Settings → Secrets and variables → Actions):
 #   SUPABASE_URL, SUPABASE_ANON_KEY   (públicos por diseño; ver supabase/README.md)
+#   ANILIST_CLIENT_ID                 (opcional, público; activa la sincronización con AniList)
 name: Build Windows
 
 on:
@@ -23,6 +24,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          ANILIST_CLIENT_ID: ${{ secrets.ANILIST_CLIENT_ID }}
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer

@@ -14,6 +14,7 @@ import { version } from '../../package.json';
 import { initUpdater } from './updater';
 import { attachContextMenu, buildMenu } from './menu';
 import * as discordRpc from './discordRpc';
+import { handleAniListCallback, initAniList, isAniListCallbackUrl } from './anilistAuth';
 
 // ─── Electron Store ───────────────────────────────────────
 const store = new Store({
@@ -111,6 +112,15 @@ function isAuthCallbackUrl(url: string): boolean {
 }
 
 function handleDeepLink(url: string): void {
+  // Vuelta de AniList: el token lo gestiona el proceso principal (nunca llega a la interfaz)
+  if (isAniListCallbackUrl(url)) {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+    handleAniListCallback(url);
+    return;
+  }
   if (!isAuthCallbackUrl(url)) {
     console.warn('[KageView] Deep link ignorado:', url.slice(0, 40));
     return;
@@ -680,6 +690,9 @@ ipcMain.handle(
 
 // ─── App Lifecycle ────────────────────────────────────────
 app.whenReady().then(async () => {
+  // Cuenta de AniList (el token vive solo en este proceso)
+  initAniList(() => mainWindow);
+
   buildMenu();
   await createWindow();
 

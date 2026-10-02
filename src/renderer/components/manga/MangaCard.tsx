@@ -35,6 +35,7 @@ const SOURCE_LABEL: Record<string, string> = {
   webtoons: 'WEBTOON',
   weebcentral: 'WeebCentral',
   mangakatana: 'MangaKatana',
+  anilist: 'AniList',
 };
 
 /** Tipo (manga/manhwa/manhua) deducido de la fuente, el id o las etiquetas. */

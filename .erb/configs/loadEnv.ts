@@ -50,5 +50,7 @@ export function anilistDefinePlugin(): webpack.DefinePlugin {
     'process.env.SUPABASE_ANON_KEY': pick('SUPABASE_ANON_KEY', ''),
     'process.env.KAGEVIEW_BACKEND': pick('KAGEVIEW_BACKEND', ''),
     'process.env.DISCORD_CLIENT_ID': pick('DISCORD_CLIENT_ID', ''),
+    'process.env.ANILIST_CLIENT_ID': pick('ANILIST_CLIENT_ID', ''),
+    'process.env.KAGEVIEW_ANILIST': pick('KAGEVIEW_ANILIST', ''),
   });
 }

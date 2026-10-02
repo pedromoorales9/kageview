@@ -11,6 +11,7 @@ import { useAppStore } from './store';
 import { notify } from './notify';
 import { AniListAnime, MyListEntry } from '../types/types';
 import { safeCoverUrl } from './safeUrl';
+import { emitAnimeListChange } from './anilist/sync/changeBus';
 
 const st = () => useAppStore.getState();
 
@@ -128,6 +129,7 @@ async function persist(
       score,
       media: toSnapshot(anime),
     });
+    emitAnimeListChange();
   } catch (err) {
     st().patchMyList(anime.id, prev);
     console.warn('[library] Error guardando la lista:', err);
@@ -158,6 +160,7 @@ export async function setListStatus(anime: AniListAnime, status: ListStatus | nu
     st().patchMyList(anime.id, null);
     try {
       await backend.removeLibraryEntry('anime', anime.id);
+      emitAnimeListChange();
     } catch (err) {
       st().patchMyList(anime.id, prev);
       notify('error', 'No se pudo quitar de tu lista.');

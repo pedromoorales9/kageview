@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { MangaModel, MangaChapterModel, chapterLabel, getMangaProvider, loadMangaChapters } from '../../../modules/manga';
+import { MangaModel, MangaChapterModel, chapterLabel, getMangaProvider, loadMangaChapters, providerLanguage } from '../../../modules/manga';
 import { firstUnreadIndex, latestChapterNumber } from '../../../modules/manga/chapters';
 import { computeUnread } from '../../../modules/manga/mangaUpdates';
 import {
@@ -19,6 +19,8 @@ import { useAppStore } from '../../../modules/store';
 import Spinner from '../ui/Spinner';
 import { inferType } from './MangaCard';
 import ShareMangaButton from './ShareMangaButton';
+import AniListLinkButton from '../anilist/AniListLinkButton';
+import { ANILIST_SOURCE_ID } from '../../../modules/anilist/sync/mapping';
 
 const STATUS_I18N: Record<string, string> = {
   ongoing: 'En curso',
@@ -51,6 +53,11 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
   const includeEnglish = useAppStore((s) => s.prefs.mangaIncludeEnglish);
   const setPrefs = useAppStore((s) => s.setPrefs);
   const provider = getMangaProvider(manga.sourceId);
+  // Ficha importada de AniList: aún no tiene una fuente donde leer
+  const isPlaceholder = manga.sourceId === ANILIST_SOURCE_ID;
+  // Solo las fuentes con capítulos en varios idiomas ofrecen el selector «español / + inglés»
+  const multiLang = !isPlaceholder && providerLanguage(manga.sourceId) === 'multi' && !!provider.languages;
+  const englishOnly = !isPlaceholder && providerLanguage(manga.sourceId) === 'en';
   const record = useMangaData((s) => s.records[mangaKey(manga)]);
 
   const [chapters, setChapters] = useState<MangaChapterModel[]>([]); // ascendente
@@ -70,6 +77,12 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
   // ─── Capítulos ───────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
+    if (isPlaceholder) {
+      setChapters([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     setVisible(BATCH);
@@ -196,7 +209,7 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
             <div className="flex items-center gap-2.5 mt-2 flex-wrap text-[12.5px] text-muted">
               {manga.year && <span>{manga.year}</span>}
               {chapters.length > 0 && <span>{chapters.length} capítulos</span>}
-              <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10.5px] font-semibold uppercase tracking-wide">{provider.name}</span>
+              <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10.5px] font-semibold uppercase tracking-wide">{isPlaceholder ? 'AniList' : provider.name}</span>
             </div>
 
             {manga.tags.length > 0 && (
@@ -217,12 +230,12 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
             {/* ── Acciones ── */}
             <div className="mt-4 flex items-center gap-2.5 flex-wrap">
               <button
-                onClick={() => target && onReadChapter(target.index, chapters)}
-                disabled={!target}
+                onClick={() => (isPlaceholder ? onSearchElsewhere?.(manga.title) : target && onReadChapter(target.index, chapters))}
+                disabled={isPlaceholder ? !onSearchElsewhere : !target}
                 className="btn-moon h-11 px-5 rounded-full text-[14px] font-semibold flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
               >
-                <span className="material-symbols-outlined filled text-[20px]">{target?.kind === 'reread' ? 'replay' : 'auto_stories'}</span>
-                {loading ? 'Cargando…' : target ? targetLabel : 'Sin capítulos'}
+                <span className="material-symbols-outlined filled text-[20px]">{isPlaceholder ? 'travel_explore' : target?.kind === 'reread' ? 'replay' : 'auto_stories'}</span>
+                {isPlaceholder ? 'Buscar dónde leerlo' : loading ? 'Cargando…' : target ? targetLabel : 'Sin capítulos'}
               </button>
 
               <div className="relative">
@@ -273,6 +286,7 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
               </div>
 
               <ShareMangaButton manga={manga} />
+              <AniListLinkButton manga={manga} />
             </div>
 
             {/* Progreso de lectura */}
@@ -288,16 +302,18 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
 
           {/* ── Lista de capítulos ── */}
           <div className="flex-1 min-h-0 mt-4 px-6 pb-5 flex flex-col">
+            {!isPlaceholder && (
             <div className="flex items-center gap-2 mb-3 flex-wrap">
               <h3 className="text-[13.5px] font-headline font-semibold text-white flex items-center gap-2 mr-auto">
                 <span className="material-symbols-outlined text-primary text-[18px]">format_list_numbered</span>
                 Capítulos
-                {provider.languages && (
+                {multiLang && (
                   <span className="text-[11.5px] font-normal text-muted">· {includeEnglish ? 'Español e inglés' : 'En español'}</span>
                 )}
+                {englishOnly && <span className="text-[11.5px] font-normal text-muted">· En inglés</span>}
               </h3>
 
-              {provider.languages && (
+              {multiLang && (
                 <button
                   onClick={() => setPrefs({ mangaIncludeEnglish: !includeEnglish })}
                   aria-pressed={includeEnglish}
@@ -332,8 +348,23 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
                 />
               </div>
             </div>
+            )}
 
-            {loading ? (
+            {isPlaceholder ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-6">
+                <span className="material-symbols-outlined text-[#3db4f2] text-4xl">cloud_done</span>
+                <p className="text-[14px] text-white font-medium">Esta ficha viene de tu lista de AniList</p>
+                <p className="text-[13px] text-on-surface-variant max-w-sm leading-snug">
+                  Todavía no has elegido dónde leerla. Busca el título en las fuentes, añade la que prefieras a tu biblioteca y se fusionará con esta ficha (conservando tu estado y tu progreso).
+                </p>
+                {onSearchElsewhere && (
+                  <button onClick={() => onSearchElsewhere(manga.title)} className="btn-moon h-9 px-5 rounded-full text-[13px] font-semibold flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[17px]">travel_explore</span>
+                    Buscar en las fuentes
+                  </button>
+                )}
+              </div>
+            ) : loading ? (
               <div className="flex-1 flex items-center justify-center"><Spinner size={28} /></div>
             ) : error ? (
               <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
@@ -350,10 +381,10 @@ export default function MangaModal({ manga, onClose, onReadChapter, onSearchElse
               <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center">
                 <span className="material-symbols-outlined text-muted text-4xl">translate</span>
                 <p className="text-[13.5px] text-on-surface-variant max-w-xs">
-                  No hay capítulos disponibles {provider.languages && !includeEnglish ? 'en español' : ''} en {provider.name}.
+                  No hay capítulos disponibles {multiLang && !includeEnglish ? 'en español' : ''} en {provider.name}.
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
-                  {provider.languages && !includeEnglish && (
+                  {multiLang && !includeEnglish && (
                     <button onClick={() => setPrefs({ mangaIncludeEnglish: true })} className="btn-glass h-9 px-5 rounded-full text-[13px] font-medium">Buscar también en inglés</button>
                   )}
                   {onSearchElsewhere && (

@@ -47,8 +47,8 @@ Velocidad, pantalla completa, salto de intro y outro, y **siguiente episodio aut
 </td>
 <td width="33%" valign="top">
 
-### 🗂️ Biblioteca
-Tus listas de anime y manga con estados, **aviso de capítulos nuevos** y sincronización entre tus dispositivos.
+### 🗂️ Biblioteca y AniList
+Tus listas de anime y manga con estados, **aviso de capítulos nuevos** y sincronización entre dispositivos y, si quieres, **con tu cuenta de AniList** en los dos sentidos.
 
 </td>
 </tr>
@@ -136,6 +136,7 @@ KageView **no tiene servidores de contenido**: las consultas a servicios de terc
 ## 🔐 Privacidad y seguridad
 
 - **Sin telemetría ni analítica propias.** KageView no incluye herramientas de seguimiento de uso.
+- **AniList (opcional).** Si conectas tu cuenta, el acceso se guarda **cifrado con el llavero del sistema** y solo lo usa el proceso principal de la app (la interfaz nunca ve el token). Solo puede leer tu lista y crear o actualizar entradas: la app no tiene forma de borrar nada de tu AniList, y la sincronización nunca borra automáticamente. Puedes desconectarte aquí y revocar el acceso en AniList → Settings → Apps.
 - **Cuenta opcional.** Sin cuenta, la app funciona en local. Con cuenta se guardan tu correo, nombre de usuario, foto, listas, progreso de lectura y mensajes en el proyecto de [Supabase](https://supabase.com) configurado en la aplicación.
 - **Tú controlas lo que ven tus amigos:** puedes ocultar tu actividad («viendo/leyendo ahora») y tus listas desde tu perfil. Solo los amigos aceptados pueden ver algo.
 - **Seguridad en la base de datos:** los permisos los imponen políticas de seguridad por filas (*RLS*) verificadas con tests automáticos (`npm test`), no la interfaz.
@@ -185,6 +186,16 @@ KAGEVIEW_BACKEND=mock npm start
 ```
 
 > En modo *mock* puedes entrar como `kage@demo.dev` (owner) o `sora@demo.dev` (admin), contraseña `demo1234`, para probar el **panel de administración** (Ajustes → Administración). En producción, ver «Administración» en [`supabase/README.md`](supabase/README.md).
+
+### Sincronización con AniList (opcional)
+
+Para que la compilación pueda conectar cuentas de AniList hace falta un *Client ID* (público, sin secreto):
+
+1. Entra en [anilist.co/settings/developer](https://anilist.co/settings/developer) → **Create New Client**.
+2. **Name:** KageView · **Redirect URL:** `kageview://anilist-auth`
+3. Copia el número **ID** al `.env` (`ANILIST_CLIENT_ID=…`). El *Secret* no se usa.
+
+Sin él, la tarjeta de AniList en Ajustes indica que no está disponible. Para probar la interfaz sin cuenta: `KAGEVIEW_ANILIST=mock npm start` (AniList de mentira con listas de ejemplo).
 
 ### Discord Rich Presence (opcional)
 
@@ -274,6 +285,13 @@ docs/                      # Recursos del README
 ---
 
 ## 📋 Novedades
+
+### v1.9.0 — Sincronización con AniList
+- **Conecta tu cuenta de AniList** (Ajustes → AniList) y mantén **anime y manga** al día en los dos sitios. Lo que ves y lees en KageView se refleja en AniList, y lo que ya tenías en AniList aparece en KageView
+- **Nunca se borra nada automáticamente**, ni en KageView ni en AniList. Si cambias algo en los dos lados, gana el mayor progreso y, para el estado, el cambio más reciente
+- **Manga:** cada manga se vincula con su ficha de AniList por el título. Los claros se vinculan solos; los dudosos se te ofrecen para que **confirmes** (una ficha equivocada mandaría tu progreso a otra obra). Lo que solo existe en AniList se importa como ficha «sin fuente de lectura» y se fusiona cuando eliges dónde leerlo
+- **Seguridad:** el acceso a AniList va cifrado con el llavero del sistema y nunca llega a la interfaz; el proceso principal solo admite leer tu lista y crear o actualizar entradas
+- Corregido: las fichas de manga de fuentes solo en inglés mostraban «En español» y un botón «+ Inglés» sin sentido
 
 ### v1.8.1 — Cierre en macOS
 - **Corregido:** en macOS, al pulsar la X (el botón rojo) la app seguía abierta y había que usar clic derecho → *Salir* en el Dock. Ahora **se cierra por completo**, igual que en Windows

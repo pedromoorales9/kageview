@@ -284,6 +284,38 @@ export function removeFromLibrary(manga: { id: string; sourceId: string }): void
   });
 }
 
+/**
+ * Cambios que llegan de AniList (estado y hasta qué capítulo has leído). Cuentan como
+ * un cambio del usuario (también se suben a la nube de KageView). El progreso solo
+ * SUBE: marca como leídos los capítulos 1…N y nunca desmarca nada. Si el manga no
+ * estaba registrado se crea (así se importa una obra que solo existe en AniList).
+ */
+export function applyExternalProgress(manga: MangaModel, patch: { status?: MangaLibraryStatus; progress?: number }): void {
+  mutate((r, t) => {
+    const key = mangaKey(manga);
+    const now = Date.now();
+    const cur: MangaRecord = r[key] ?? { manga, updatedAt: now, read: [] };
+    const next: MangaRecord = { ...cur, updatedAt: now };
+    if (patch.status) {
+      next.status = patch.status;
+      next.addedAt = cur.addedAt ?? now;
+    }
+    const n = patch.progress ?? 0;
+    if (Number.isFinite(n) && n >= 1) next.readRanges = addSpan(cur.readRanges ?? [], 1, Math.floor(n));
+    r[key] = next;
+    delete t[key];
+  });
+}
+
+/** Borra un registro por completo (p. ej. una ficha de AniList que ya tiene fuente de lectura). */
+export function deleteRecord(key: string): void {
+  mutate((r, t) => {
+    if (!r[key]) return;
+    delete r[key];
+    t[key] = Date.now();
+  });
+}
+
 // ─── Lectura: dónde te quedaste y qué has leído ────────────
 /** Al abrir un capítulo. Si es el mismo en el que ibas, conserva la página. */
 export function recordOpen(

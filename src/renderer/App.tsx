@@ -3,6 +3,7 @@ import { AniListAnime, PlayMode, UserPreferences } from '../types/types';
 import { MangaModel, MangaChapterModel, configureMangaProviders, loadMangaChapters } from '../modules/manga';
 import { MangaRecord, flushMangaData, initMangaStore, readPredicate } from '../modules/manga/mangaStore';
 import { startMangaUpdateChecks } from '../modules/manga/mangaUpdates';
+import { startAniListSync, stopAniListSync } from '../modules/anilist/sync';
 import { firstUnreadIndex } from '../modules/manga/chapters';
 import { useAppStore } from '../modules/store';
 import { getCache } from '../modules/cache';
@@ -134,6 +135,7 @@ export default function App() {
   // ─── Manga: cargar biblioteca/historial y vigilar capítulos nuevos ───
   useEffect(() => {
     void initMangaStore();
+    void startAniListSync();
     const stop = startMangaUpdateChecks(
       (list) => {
         const first = list[0].manga.title;
@@ -147,7 +149,7 @@ export default function App() {
       },
       () => !!useAppStore.getState().prefs.mangaIncludeEnglish
     );
-    return () => { stop(); void flushMangaData(); };
+    return () => { stop(); stopAniListSync(); void flushMangaData(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -450,6 +452,11 @@ export default function App() {
   /** «Continuar leyendo»: abre el lector directamente en el capítulo (y página) guardados. */
   const handleContinueManga = useCallback(
     async (record: MangaRecord) => {
+      // Una ficha importada de AniList aún no tiene fuente de lectura: se abre su ficha para elegir una
+      if (record.manga.sourceId === 'anilist') {
+        setMangaModal(record.manga);
+        return;
+      }
       try {
         const chapters = await loadMangaChapters(record.manga, { includeEnglish: prefs.mangaIncludeEnglish });
         if (chapters.length === 0) {
