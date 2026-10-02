@@ -71,6 +71,9 @@ export default function AniListCard() {
 
   const avatar = safeCoverUrl(status?.user?.avatar ?? null);
 
+  // Sin identificador de AniList en esta compilación la función no existe para el usuario: no se muestra
+  if (!status?.configured) return null;
+
   return (
     <section className="panel p-6" id="anilist">
       <div className="flex items-center gap-3 mb-4">
