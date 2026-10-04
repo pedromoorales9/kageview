@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  confirmPlan,
   connectAniList,
+  dismissPlan,
   disconnectAniList,
   forgetAllLinks,
   setSettings,
@@ -15,6 +17,22 @@ import { safeCoverUrl } from '../../../modules/safeUrl';
 import { timeAgo } from '../../../modules/social';
 import Spinner from '../ui/Spinner';
 import LinkMangaModal from './LinkMangaModal';
+import type { PlanItem } from '../../../modules/anilist/sync/state';
+
+const STATUS_LABEL: Record<string, [string, string]> = {
+  CURRENT: ['Viendo', 'Leyendo'],
+  PLANNING: ['Por ver', 'Por leer'],
+  COMPLETED: ['Completado', 'Completado'],
+  PAUSED: ['Pausado', 'Pausado'],
+  DROPPED: ['Abandonado', 'Abandonado'],
+  REPEATING: ['Repitiendo', 'Releyendo'],
+};
+
+function planLine(it: PlanItem): string {
+  const label = STATUS_LABEL[it.status]?.[it.kind === 'anime' ? 0 : 1] ?? it.status;
+  const unit = it.kind === 'anime' ? 'ep.' : 'cap.';
+  return `${label}${it.progress > 0 ? ` · ${unit} ${it.progress}` : ''}`;
+}
 
 function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
@@ -35,7 +53,8 @@ export default function AniListCard() {
   const sync = useAniListSync();
   const records = useMangaData((s) => s.records);
   const signedIn = useAppStore((s) => s.account.status === 'signedIn');
-  const { status, settings, phase, detail, error, counts, lastSyncAt, links, skipped } = sync;
+  const { status, settings, phase, detail, error, counts, lastSyncAt, links, skipped, plan, confirmedViewerId } = sync;
+  const confirmed = !!status?.user && confirmedViewerId === status.user.id;
 
   const [waiting, setWaiting] = useState(false);
   const [manual, setManual] = useState(false);
@@ -175,6 +194,33 @@ export default function AniListCard() {
             </div>
           </div>
 
+          {/* Primera vez: nada se escribe en AniList hasta que lo confirmes */}
+          {plan && !syncing && (
+            <div className="rounded-xl border border-primary/40 bg-primary/[0.07] p-3.5 flex flex-col gap-2.5" role="alert">
+              <p className="text-sm font-semibold text-white">
+                Revisa esto antes de enviarlo a tu AniList
+              </p>
+              <p className="text-[12px] text-on-surface-variant leading-snug">
+                KageView añadiría o actualizaría {plan.items.length} {plan.items.length === 1 ? 'entrada' : 'entradas'} en tu lista de AniList
+                {plan.items.some((i) => i.isNew) && ` (${plan.items.filter((i) => i.isNew).length} ${plan.items.filter((i) => i.isNew).length === 1 ? 'nueva' : 'nuevas'})`}. No se ha escrito nada todavía.
+              </p>
+              <ul className="text-[12.5px] text-on-surface-variant divide-y divide-white/5 rounded-lg bg-black/20 max-h-44 overflow-y-auto">
+                {plan.items.map((it, i) => (
+                  <li key={`${it.kind}-${i}`} className="flex items-center gap-2 px-3 py-1.5">
+                    <span className="material-symbols-outlined text-[16px] text-muted flex-none">{it.kind === 'anime' ? 'play_circle' : 'menu_book'}</span>
+                    <span className="min-w-0 flex-1 truncate text-white/90">{it.title || 'Sin título'}</span>
+                    <span className="flex-none text-muted">{planLine(it)}</span>
+                    {it.isNew && <span className="flex-none text-[10px] font-bold uppercase tracking-wide text-primary">nueva</span>}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={() => void confirmPlan()} className="btn-moon h-9 px-4 rounded-full text-[13px] font-semibold">Enviar a AniList</button>
+                <button onClick={dismissPlan} className="btn-glass h-9 px-4 rounded-full text-[13px] font-medium">Ahora no</button>
+              </div>
+            </div>
+          )}
+
           {/* Estado */}
           <div className="rounded-xl bg-white/[0.04] p-3 flex flex-col gap-2">
             <div className="flex items-center gap-3">
@@ -186,14 +232,19 @@ export default function AniListCard() {
                 {syncing ? detail : lastSyncAt ? `Última vez ${timeAgo(new Date(lastSyncAt).toISOString())}` : 'Aún no se ha sincronizado'}
               </span>
             </div>
+            {!confirmed && !plan && !syncing && phase !== 'error' && (
+              <p className="text-[12px] text-on-surface-variant leading-snug">
+                Envío en pausa: no se escribirá nada en tu AniList hasta que lo confirmes. Pulsa «Sincronizar ahora» para revisarlo.
+              </p>
+            )}
             {phase === 'error' && error && <p className="text-[12.5px] text-error leading-snug">{error}</p>}
             {phase !== 'syncing' && counts && lastSyncAt && (
               <p className="text-[12px] text-on-surface-variant leading-snug">
                 {[
-                  counts.animePushed + counts.mangaPushed > 0 && `${counts.animePushed + counts.mangaPushed} enviados a AniList`,
-                  counts.animePulled + counts.mangaPulled > 0 && `${counts.animePulled + counts.mangaPulled} actualizados desde AniList`,
-                  counts.imported > 0 && `${counts.imported} importados`,
-                  counts.linkedAuto > 0 && `${counts.linkedAuto} mangas vinculados`,
+                  counts.animePushed + counts.mangaPushed > 0 && `${counts.animePushed + counts.mangaPushed} ${counts.animePushed + counts.mangaPushed === 1 ? 'enviado' : 'enviados'} a AniList`,
+                  counts.animePulled + counts.mangaPulled > 0 && `${counts.animePulled + counts.mangaPulled} ${counts.animePulled + counts.mangaPulled === 1 ? 'actualizado' : 'actualizados'} desde AniList`,
+                  counts.imported > 0 && `${counts.imported} ${counts.imported === 1 ? 'importado' : 'importados'}`,
+                  counts.linkedAuto > 0 && `${counts.linkedAuto} ${counts.linkedAuto === 1 ? 'manga vinculado' : 'mangas vinculados'}`,
                   counts.failed > 0 && `${counts.failed} no se pudieron sincronizar`,
                 ].filter(Boolean).join(' · ') || 'Todo está al día.'}
               </p>

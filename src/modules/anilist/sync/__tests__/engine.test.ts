@@ -39,6 +39,7 @@ async function boot() {
   engine.__setPaceForTests(async () => {});
   await state.initSyncState();
   await store.initMangaStore();
+  state.patchSync({ confirmedViewerId: fake.viewer.id });   // estos tests parten de «ya confirmó» (la primera vez se prueba aparte)
   return { backend, api, engine, state, store, fake, disk, useAppStore };
 }
 type Env = Awaited<ReturnType<typeof boot>>;
@@ -329,6 +330,8 @@ describe('sincronización con AniList', () => {
       e.fake.lists.ANIME.clear();                                              // la otra cuenta tiene la lista vacía
       await e.engine.syncNow();
       expect(e.state.getSync().viewerId).toBe(888);
+      expect(e.fake.lists.ANIME.size).toBe(0);                                  // cuenta nueva: no se escribe sin confirmar
+      await e.engine.confirmPlan();
       expect(e.fake.lists.ANIME.get(1)).toMatchObject({ progress: 4 });         // se vuelve a enviar a la nueva cuenta
     });
 

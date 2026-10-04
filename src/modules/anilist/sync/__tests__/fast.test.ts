@@ -11,7 +11,7 @@ class MemoryStorage {
 
 const notices: Array<{ type: string; message: string; title?: string }> = [];
 
-async function boot() {
+async function boot(confirmed = true) {
   vi.resetModules();
   notices.length = 0;
   const disk: Record<string, unknown> = {};
@@ -42,6 +42,7 @@ async function boot() {
   engine.__setPaceForTests(async () => {});
   await state.initSyncState();
   await store.initMangaStore();
+  if (confirmed) state.patchSync({ confirmedViewerId: fake.viewer.id });
   return { backend, engine, state, store, library, fake, useAppStore };
 }
 type Env = Awaited<ReturnType<typeof boot>>;
@@ -220,5 +221,80 @@ describe('huella del manga (para no sincronizar a cada página)', () => {
     expect(s1).not.toBe(s0);
     e.store.setLibraryStatus(m, 'completed');                                // cambiar el estado: cambia
     expect(e.engine.mangaSignature()).not.toBe(s1);
+  });
+});
+
+describe('primera sincronización: nada se escribe sin confirmar', () => {
+  let e: Env;
+  beforeEach(async () => {
+    e = await boot(false);
+    e.fake.addMedia({ id: 30002, type: 'MANGA', format: 'MANGA', title: { romaji: 'Berserk' } });
+    e.fake.addMedia({ id: 1, type: 'ANIME', format: 'TV', title: { romaji: 'Frieren' }, episodes: 28 });
+    e.fake.addMedia({ id: 2, type: 'ANIME', format: 'TV', title: { romaji: 'Bleach' }, episodes: 366 });
+    e.fake.setEntry('ANIME', { mediaId: 2, status: 'COMPLETED', progress: 366, score: 80 });          // ya está en AniList
+    await e.backend.upsertLibraryEntry({ mediaType: 'anime', mediaId: 1, status: 'CURRENT', progress: 3, score: 0, media: snap(1, 'Frieren') });
+    const m = { id: 'b.1', sourceId: 'mangakatana', title: 'Berserk', description: '', coverUrl: '', status: 'ongoing' as const, tags: [], year: null, lastChapter: null };
+    e.store.addToLibrary(m, 'reading'); e.store.applyExternalProgress(m, { progress: 14 });
+  });
+
+  it('solo prepara el resumen: no escribe en AniList ni en KageView', async () => {
+    await e.engine.syncNow();
+    expect(e.fake.saves).toHaveLength(0);
+    expect(e.fake.lists.ANIME.has(1)).toBe(false);
+    expect((await e.backend.listLibrary('anime')).map((x) => x.mediaId)).toEqual([1]);    // Bleach (solo en AniList) tampoco se trae aún
+    const plan = e.state.getSync().plan!;
+    expect(plan.items.map((i) => [i.kind, i.title, i.status, i.progress, i.isNew]).sort()).toEqual([
+      ['anime', 'Frieren', 'CURRENT', 3, true],
+      ['manga', 'Berserk', 'CURRENT', 14, true],
+    ]);
+    expect(e.state.getSync().confirmedViewerId).toBeNull();
+    expect(e.state.getSync().lastSyncAt).toBeNull();
+  });
+
+  it('el envío rápido de un episodio tampoco escribe hasta que se confirma', async () => {
+    expect(await e.engine.pushAnimeProgress(change({ mediaId: 1, progress: 4 }))).toBe('skipped');
+    expect(e.fake.saves).toHaveLength(0);
+  });
+
+  it('confirmar envía lo revisado y trae lo de AniList; después todo es normal', async () => {
+    await e.engine.syncNow();
+    await e.engine.confirmPlan();
+    expect(e.state.getSync().plan).toBeNull();
+    expect(e.fake.lists.ANIME.get(1)).toMatchObject({ status: 'CURRENT', progress: 3 });
+    expect(e.fake.lists.MANGA.get(30002)).toMatchObject({ status: 'CURRENT', progress: 14 });
+    expect((await e.backend.listLibrary('anime')).map((x) => x.mediaId).sort()).toEqual([1, 2]);
+    expect(e.engine.isConfirmed()).toBe(true);
+    expect(await e.engine.pushAnimeProgress(change({ mediaId: 1, progress: 4 }))).toBe('pushed');
+  });
+
+  it('«Ahora no» cierra el aviso sin enviar nada y vuelve a preguntar al sincronizar', async () => {
+    await e.engine.syncNow();
+    e.engine.dismissPlan();
+    expect(e.state.getSync().plan).toBeNull();
+    expect(e.fake.saves).toHaveLength(0);
+    expect(e.engine.isConfirmed()).toBe(false);
+    await e.engine.syncNow();
+    expect(e.state.getSync().plan?.items).toHaveLength(2);
+    expect(e.fake.saves).toHaveLength(0);
+  });
+
+  it('si no hay nada que enviar no se pregunta: se confirma solo y se trae lo de AniList', async () => {
+    const f = await boot(false);
+    f.fake.addMedia({ id: 2, type: 'ANIME', format: 'TV', title: { romaji: 'Bleach' }, episodes: 366 });
+    f.fake.setEntry('ANIME', { mediaId: 2, status: 'COMPLETED', progress: 366, score: 80 });
+    await f.engine.syncNow();
+    expect(f.state.getSync().plan).toBeNull();
+    expect(f.engine.isConfirmed()).toBe(true);
+    expect((await f.backend.listLibrary('anime')).map((x) => x.mediaId)).toEqual([2]);
+  });
+
+  it('otra cuenta de AniList vuelve a pedir confirmación', async () => {
+    await e.engine.syncNow();
+    await e.engine.confirmPlan();
+    e.fake.viewer = { id: 999, name: 'otra', avatar: { large: 'x' } };
+    e.fake.lists.ANIME.clear(); e.fake.lists.MANGA.clear();
+    await e.engine.syncNow();
+    expect(e.engine.isConfirmed()).toBe(false);
+    expect(e.state.getSync().plan?.items.length).toBeGreaterThan(0);
   });
 });

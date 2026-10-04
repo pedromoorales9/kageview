@@ -48,6 +48,7 @@ import {
   initSyncState,
   patchSync,
 } from './state';
+import type { PlanItem } from './state';
 import type { ALEntry, ALMedia, ALSave, ALStatus, MangaLink } from './types';
 
 // ─── Ajustes de ritmo (sustituibles en tests) ──────────────
@@ -147,6 +148,8 @@ export interface PushedItem {
 
 interface SectionResult {
   pushedItems?: PushedItem[];
+  /** Solo en la pasada de revisión: lo que se enviaría. */
+  plan?: PlanItem[];
   pushed: number;
   pulled: number;
   failed: number;
@@ -154,7 +157,11 @@ interface SectionResult {
   linkedAuto?: number;
 }
 
-export async function syncAnime(viewerId: number): Promise<SectionResult> {
+/**
+ * `dryRun`: no escribe nada (ni en KageView ni en AniList); solo devuelve en `plan` lo que
+ * se enviaría. Se usa la primera vez con una cuenta, para que el usuario lo confirme.
+ */
+export async function syncAnime(viewerId: number, dryRun = false): Promise<SectionResult> {
   const backend = getBackend();
   const res: SectionResult = { pushed: 0, pulled: 0, failed: 0 };
   if (!backend || useAppStore.getState().account.status !== 'signedIn') return res;
@@ -181,11 +188,16 @@ export async function syncAnime(viewerId: number): Promise<SectionResult> {
       toRemote.push({ mediaId: id, status: next.status, progress: next.progress, score: next.score });
       titles.set(id, (r ? mediaTitle(r.media) : l?.media.title.english || l?.media.title.romaji) || '');
     }
-    if (out.toLocal) {
+    if (out.toLocal && !dryRun) {
       const media = r ? mediaToSnapshot(r.media) : l?.media;
       if (media) toLocal.push({ id, upsert: { mediaType: 'anime', mediaId: id, status: next.status, progress: next.progress, score: next.score, media } });
     }
     if (!out.toRemote && !out.toLocal) nextBase[id] = next;
+  }
+
+  if (dryRun) {
+    res.plan = toRemote.map((it) => ({ kind: 'anime', title: titles.get(it.mediaId) ?? '', status: it.status, progress: it.progress, isNew: !rMap.has(it.mediaId) }));
+    return res;
   }
 
   // Escribir en KageView (directo al backend: no cuenta como cambio del usuario → sin rebote)
@@ -303,7 +315,7 @@ function foldPlaceholders(groups: Map<number, MangaRecord[]>): number {
   return folded;
 }
 
-export async function syncManga(viewerId: number, onDetail?: (t: string) => void): Promise<SectionResult> {
+export async function syncManga(viewerId: number, onDetail?: (t: string) => void, dryRun = false): Promise<SectionResult> {
   const res: SectionResult = { pushed: 0, pulled: 0, failed: 0, imported: 0, linkedAuto: 0 };
   const settings = getSync().settings;
 
@@ -341,7 +353,7 @@ export async function syncManga(viewerId: number, onDetail?: (t: string) => void
       titles.set(id, group[0]?.manga.title ?? (r ? mediaTitle(r.media) : ''));
     }
 
-    if (out.toLocal) {
+    if (out.toLocal && !dryRun) {
       if (group.length > 0) {
         for (const rec of group) applyExternalProgress(rec.manga, { status: alToManga(next.status), progress: next.progress });
         res.pulled++;
@@ -351,6 +363,11 @@ export async function syncManga(viewerId: number, onDetail?: (t: string) => void
       }
     }
     if (!out.toRemote) nextBase[id] = next;
+  }
+
+  if (dryRun) {
+    res.plan = toRemote.map((it) => ({ kind: 'manga', title: titles.get(it.mediaId) ?? '', status: it.status, progress: it.progress, isNew: !rMap.has(it.mediaId) }));
+    return res;
   }
 
   if (toRemote.length > 0) {
@@ -425,28 +442,43 @@ async function runOnce(reason: SyncReason): Promise<void> {
   if (!settings.anime && !settings.manga) return;
 
   // Otra cuenta de AniList: el «último estado acordado» era de la anterior
-  if (getSync().viewerId !== status.user.id) patchSync({ viewerId: status.user.id, anime: {}, manga: {}, noMatch: {} });
+  if (getSync().viewerId !== status.user.id) patchSync({ viewerId: status.user.id, plan: null, anime: {}, manga: {}, noMatch: {} });
 
-  patchSync({ phase: 'syncing', error: null, detail: 'Conectando con AniList…' });
+  // La primera vez con esta cuenta NO se escribe nada sin que el usuario lo confirme
+  const dryRun = getSync().confirmedViewerId !== status.user.id;
+
+  patchSync({ phase: 'syncing', error: null, detail: 'Conectando con AniList…', plan: null });
   const counts: Counts = { ...EMPTY_COUNTS };
   const pushedItems: PushedItem[] = [];
+  const plan: PlanItem[] = [];
   try {
     if (settings.anime) {
       patchSync({ detail: 'Sincronizando anime…' });
-      const a = await syncAnime(status.user.id);
+      const a = await syncAnime(status.user.id, dryRun);
       counts.animePushed = a.pushed;
       counts.animePulled = a.pulled;
       counts.failed += a.failed;
       pushedItems.push(...(a.pushedItems ?? []));
+      plan.push(...(a.plan ?? []));
     }
     if (settings.manga) {
-      const m = await syncManga(status.user.id, (detail) => patchSync({ detail }));
+      const m = await syncManga(status.user.id, (detail) => patchSync({ detail }), dryRun);
       counts.mangaPushed = m.pushed;
       counts.mangaPulled = m.pulled;
       counts.imported = m.imported ?? 0;
       counts.linkedAuto = m.linkedAuto ?? 0;
       counts.failed += m.failed;
       pushedItems.push(...(m.pushedItems ?? []));
+      plan.push(...(m.plan ?? []));
+    }
+    if (dryRun) {
+      if (plan.length === 0) {
+        // Nada que enviar: no hay nada que confirmar; se sincroniza (solo traer) como siempre
+        patchSync({ confirmedViewerId: status.user.id });
+        return runOnce(reason);
+      }
+      patchSync({ phase: 'idle', detail: null, plan: { items: plan } });
+      return;
     }
     patchSync({ phase: 'idle', detail: null, lastSyncAt: now(), counts });
     // Solo se avisa en los envíos automáticos tras tu cambio (no al pulsar «Sincronizar» ni al conectar)
@@ -480,6 +512,25 @@ export function syncNow(reason: SyncReason = 'manual'): Promise<void> {
 
 export const isSyncing = (): boolean => running !== null;
 
+/** El usuario acepta que KageView escriba en su AniList: se envía lo revisado y sigue la sincronización normal. */
+export function confirmPlan(): Promise<void> {
+  const id = getSync().status?.user?.id;
+  if (typeof id !== 'number') return Promise.resolve();
+  patchSync({ confirmedViewerId: id, plan: null });
+  return syncNow('manual');
+}
+
+/** «Ahora no»: se cierra el aviso y no se envía nada. Volverá a preguntar al pulsar «Sincronizar ahora». */
+export function dismissPlan(): void {
+  patchSync({ plan: null });
+}
+
+/** ¿El usuario ya aceptó escribir en la cuenta de AniList conectada? */
+export const isConfirmed = (): boolean => {
+  const s = getSync();
+  return typeof s.status?.user?.id === 'number' && s.confirmedViewerId === s.status.user.id;
+};
+
 // ─── Envío rápido de UN anime (al terminar un episodio) ────
 export type FastResult = 'pushed' | 'pulled' | 'skipped';
 
@@ -496,6 +547,7 @@ export async function pushAnimeProgress(change: AnimeChange): Promise<FastResult
   if (!s.status?.connected || !user || !s.settings.anime) return 'skipped';
   const backend = getBackend();
   if (!backend || useAppStore.getState().account.status !== 'signedIn') return 'skipped';
+  if (s.confirmedViewerId !== user.id) return 'skipped'; // primera vez: aún sin permiso para escribir
   if (isSyncing() || s.viewerId !== user.id) {
     void syncNow('auto');
     return 'skipped';

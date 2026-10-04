@@ -9,7 +9,7 @@ import { onMangaChange } from '../../manga/mangaStore';
 import { notify } from '../../notify';
 import { getStatus } from './api';
 import { AnimeChange, onAnimeListChange } from './changeBus';
-import { isSyncing, mangaSignature, pushAnimeProgress, syncNow } from './engine';
+import { isConfirmed, isSyncing, mangaSignature, pushAnimeProgress, syncNow } from './engine';
 import { getSync, initSyncState, patchSync } from './state';
 import type { AniListStatus } from './bridge';
 
@@ -36,10 +36,13 @@ let lastMangaSig = '';
 let animeTimer: ReturnType<typeof setTimeout> | null = null;
 const pendingAnime = new Map<number, AnimeChange>();
 
-const enabled = (): boolean => {
+const connected = (): boolean => {
   const s = getSync();
   return !!s.status?.connected && (s.settings.anime || s.settings.manga);
 };
+
+/** Conectado Y con permiso del usuario para escribir en su AniList (lo da al confirmar la primera vez). */
+const enabled = (): boolean => connected() && isConfirmed();
 
 /** Lanza una sincronización completa recordando cómo estaba el manga en ese momento. */
 function kick(reason: 'manual' | 'auto'): void {
@@ -90,7 +93,7 @@ export async function startAniListSync(): Promise<void> {
     window.electron?.onAnilistStatus?.((status: AniListStatus) => {
       const was = getSync().status?.connected;
       patchSync({ status });
-      if (status.connected && !was) kick('manual'); // acaba de conectarse
+      if (status.connected && !was) kick('manual'); // acaba de conectarse (la primera vez solo prepara el resumen a confirmar)
     });
     window.electron?.onAnilistLoginResult?.((r) => {
       if (r.ok) notify('success', 'Cuenta de AniList conectada.', 'AniList');
@@ -103,7 +106,7 @@ export async function startAniListSync(): Promise<void> {
 
   lastMangaSig = mangaSignature();
   unsubs.push(onMangaChange(onMangaChanged), onAnimeListChange(onAnimeChanged));
-  timers.push(setTimeout(() => { if (enabled()) kick('manual'); }, FIRST_SYNC_DELAY_MS));
+  timers.push(setTimeout(() => { if (connected()) kick('manual'); }, FIRST_SYNC_DELAY_MS));
   interval = setInterval(() => { if (enabled() && !isSyncing()) kick('manual'); }, EVERY_MS);
 }
 

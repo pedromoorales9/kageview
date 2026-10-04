@@ -1,3 +1,4 @@
+import './devIsolation';
 import {
   app,
   BrowserWindow,
