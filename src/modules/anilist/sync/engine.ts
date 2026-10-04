@@ -11,6 +11,8 @@
 // ═══════════════════════════════════════════════════════════
 
 import { ANILIST_DOWN_MESSAGE } from '../client';
+import { notify } from '../../notify';
+import type { AnimeChange } from './changeBus';
 import { getBackend } from '../../backend';
 import type { LibraryEntry, LibraryUpsert } from '../../backend';
 import { loadMyList } from '../../library';
@@ -136,7 +138,15 @@ export function forgetAllLinks(): void {
 }
 
 // ─── Anime ─────────────────────────────────────────────────
+/** Una entrada que se acaba de enviar a AniList (para el aviso al usuario). */
+export interface PushedItem {
+  kind: 'anime' | 'manga';
+  title: string;
+  progress: number;
+}
+
 interface SectionResult {
+  pushedItems?: PushedItem[];
   pushed: number;
   pulled: number;
   failed: number;
@@ -156,6 +166,7 @@ export async function syncAnime(viewerId: number): Promise<SectionResult> {
   const nextBase = { ...base };
 
   const toRemote: ALSave[] = [];
+  const titles = new Map<number, string>();
   const toLocal: Array<{ upsert: LibraryUpsert; id: number }> = [];
   const importRemote = getSync().settings.importRemote;
 
@@ -166,7 +177,10 @@ export async function syncAnime(viewerId: number): Promise<SectionResult> {
     const out = mergeEntry({ base: base[id] ?? null, local: animeSide(l), remote: remoteSide(r), scoreSynced: true });
     if (!out.next) continue;
     const next = out.next;
-    if (out.toRemote) toRemote.push({ mediaId: id, status: next.status, progress: next.progress, score: next.score });
+    if (out.toRemote) {
+      toRemote.push({ mediaId: id, status: next.status, progress: next.progress, score: next.score });
+      titles.set(id, (r ? mediaTitle(r.media) : l?.media.title.english || l?.media.title.romaji) || '');
+    }
     if (out.toLocal) {
       const media = r ? mediaToSnapshot(r.media) : l?.media;
       if (media) toLocal.push({ id, upsert: { mediaType: 'anime', mediaId: id, status: next.status, progress: next.progress, score: next.score, media } });
@@ -192,6 +206,7 @@ export async function syncAnime(viewerId: number): Promise<SectionResult> {
       const it = toRemote.find((x) => x.mediaId === id)!;
       nextBase[id] = { status: it.status, progress: it.progress, score: it.score ?? 0 };
       res.pushed++;
+      (res.pushedItems ??= []).push({ kind: 'anime', title: titles.get(id) ?? '', progress: it.progress });
     }
     res.failed += saved.failed.length;
   }
@@ -305,6 +320,7 @@ export async function syncManga(viewerId: number, onDetail?: (t: string) => void
   const base = getSync().manga;
   const nextBase = { ...base };
   const toRemote: ALSave[] = [];
+  const titles = new Map<number, string>();
 
   for (const id of new Set([...rMap.keys(), ...groups.keys()])) {
     const group = groups.get(id) ?? [];
@@ -320,7 +336,10 @@ export async function syncManga(viewerId: number, onDetail?: (t: string) => void
     if (!out.next) continue;
     const next = out.next;
 
-    if (out.toRemote) toRemote.push({ mediaId: id, status: next.status, progress: next.progress });
+    if (out.toRemote) {
+      toRemote.push({ mediaId: id, status: next.status, progress: next.progress });
+      titles.set(id, group[0]?.manga.title ?? (r ? mediaTitle(r.media) : ''));
+    }
 
     if (out.toLocal) {
       if (group.length > 0) {
@@ -341,6 +360,7 @@ export async function syncManga(viewerId: number, onDetail?: (t: string) => void
       const it = toRemote.find((x) => x.mediaId === id)!;
       nextBase[id] = { status: it.status, progress: it.progress, score: base[id]?.score ?? rMap.get(id)?.score ?? 0 };
       res.pushed++;
+      (res.pushedItems ??= []).push({ kind: 'manga', title: titles.get(id) ?? '', progress: it.progress });
     }
     res.failed += saved.failed.length;
   }
@@ -372,8 +392,31 @@ export function describeError(err: unknown): string {
 
 let running: Promise<void> | null = null;
 let rerun = false;
+/** Motivo de la petición que quedó en cola mientras había otra en curso. */
+let queuedReason: SyncReason = 'auto';
 
-async function runOnce(): Promise<void> {
+export type SyncReason = 'manual' | 'auto';
+
+/** Texto del aviso tras enviar progreso a AniList (null = nada que avisar). */
+export function progressMessage(items: readonly PushedItem[]): { title?: string; message: string } | null {
+  if (items.length === 0) return null;
+  if (items.length === 1) {
+    const it = items[0];
+    return {
+      title: it.title || undefined,
+      message: it.progress <= 0 ? 'Lista de AniList actualizada' : it.kind === 'anime' ? `Episodio ${it.progress} marcado como visto en AniList` : `Capítulo ${it.progress} marcado como leído en AniList`,
+    };
+  }
+  return { message: `${items.length} entradas actualizadas en AniList` };
+}
+
+function announce(items: readonly PushedItem[]): void {
+  if (!getSync().settings.notifyProgress) return;
+  const m = progressMessage(items);
+  if (m) notify('success', m.message, m.title ? `AniList · ${m.title}` : 'AniList');
+}
+
+async function runOnce(reason: SyncReason): Promise<void> {
   await initSyncState();
   const status = await api.getStatus();
   patchSync({ status });
@@ -386,6 +429,7 @@ async function runOnce(): Promise<void> {
 
   patchSync({ phase: 'syncing', error: null, detail: 'Conectando con AniList…' });
   const counts: Counts = { ...EMPTY_COUNTS };
+  const pushedItems: PushedItem[] = [];
   try {
     if (settings.anime) {
       patchSync({ detail: 'Sincronizando anime…' });
@@ -393,6 +437,7 @@ async function runOnce(): Promise<void> {
       counts.animePushed = a.pushed;
       counts.animePulled = a.pulled;
       counts.failed += a.failed;
+      pushedItems.push(...(a.pushedItems ?? []));
     }
     if (settings.manga) {
       const m = await syncManga(status.user.id, (detail) => patchSync({ detail }));
@@ -401,8 +446,11 @@ async function runOnce(): Promise<void> {
       counts.imported = m.imported ?? 0;
       counts.linkedAuto = m.linkedAuto ?? 0;
       counts.failed += m.failed;
+      pushedItems.push(...(m.pushedItems ?? []));
     }
     patchSync({ phase: 'idle', detail: null, lastSyncAt: now(), counts });
+    // Solo se avisa en los envíos automáticos tras tu cambio (no al pulsar «Sincronizar» ni al conectar)
+    if (reason === 'auto') announce(pushedItems);
   } catch (err) {
     patchSync({ phase: 'error', detail: null, error: describeError(err), counts });
     if (err instanceof AniListApiError && err.code === 'unauthorized') patchSync({ status: await api.getStatus() });
@@ -410,15 +458,19 @@ async function runOnce(): Promise<void> {
 }
 
 /** Sincroniza ya. Si hay una en curso, pide otra al terminar (sin solaparse). */
-export function syncNow(): Promise<void> {
+export function syncNow(reason: SyncReason = 'manual'): Promise<void> {
   if (running) {
     rerun = true;
+    if (reason === 'manual') queuedReason = 'manual';
     return running;
   }
   running = (async () => {
+    let why = reason;
     do {
       rerun = false;
-      await runOnce();
+      await runOnce(why);
+      why = queuedReason;
+      queuedReason = 'auto';
     } while (rerun);
   })().finally(() => {
     running = null;
@@ -427,4 +479,67 @@ export function syncNow(): Promise<void> {
 }
 
 export const isSyncing = (): boolean => running !== null;
+
+// ─── Envío rápido de UN anime (al terminar un episodio) ────
+export type FastResult = 'pushed' | 'pulled' | 'skipped';
+
+/**
+ * Envía a AniList el progreso de UN anime sin descargar toda la lista (1 lectura + 1 escritura),
+ * para que el episodio visto salga al momento. Si AniList va por delante (lo viste en otro
+ * dispositivo), se trae a KageView. Si hay una sincronización completa en curso o es la primera
+ * vez con esta cuenta, la deja en manos de la sincronización completa.
+ */
+export async function pushAnimeProgress(change: AnimeChange): Promise<FastResult> {
+  await initSyncState();
+  const s = getSync();
+  const user = s.status?.user;
+  if (!s.status?.connected || !user || !s.settings.anime) return 'skipped';
+  const backend = getBackend();
+  if (!backend || useAppStore.getState().account.status !== 'signedIn') return 'skipped';
+  if (isSyncing() || s.viewerId !== user.id) {
+    void syncNow('auto');
+    return 'skipped';
+  }
+
+  try {
+    const remote = await api.fetchEntry(user.id, change.mediaId, 'ANIME');
+    const out = mergeEntry({
+      base: getSync().anime[change.mediaId] ?? null,
+      local: { status: change.status, progress: change.progress, score: change.score, at: now() },
+      remote: remoteSide(remote ?? undefined),
+      scoreSynced: true,
+    });
+    if (!out.next) return 'skipped';
+    const next = out.next;
+    let result: FastResult = 'skipped';
+
+    if (out.toRemote) {
+      const saved = await api.saveEntries([{ mediaId: change.mediaId, status: next.status, progress: next.progress, score: next.score }]);
+      if (saved.ok.length === 0) return 'skipped';
+      result = 'pushed';
+    }
+    if (out.toLocal && remote) {
+      await backend.upsertLibraryEntry({
+        mediaType: 'anime', mediaId: change.mediaId, status: next.status, progress: next.progress, score: next.score,
+        media: mediaToSnapshot(remote.media),
+      });
+      await loadMyList();
+      if (result === 'skipped') result = 'pulled';
+    }
+    patchSync((st) => ({ anime: { ...st.anime, [change.mediaId]: next } }));
+    if (result === 'pushed') announce([{ kind: 'anime', title: change.title, progress: next.progress }]);
+    return result;
+  } catch (err) {
+    if (err instanceof AniListApiError && err.code === 'unauthorized') patchSync({ status: await api.getStatus() });
+    return 'skipped'; // la sincronización completa lo reintentará
+  }
+}
+
+/** Huella de lo que se sincroniza del manga: solo cambia si cambia un estado o un capítulo leído. */
+export function mangaSignature(): string {
+  return libraryRecords()
+    .map((r) => `${mangaKey(r.manga)}:${r.status}:${progressFromRanges(r.readRanges)}`)
+    .sort()
+    .join('|');
+}
 

@@ -3,6 +3,7 @@ import {
   connectAniList,
   disconnectAniList,
   forgetAllLinks,
+  setSettings,
   submitAniListToken,
   syncNow,
   unlinkedRecords,
@@ -152,18 +153,25 @@ export default function AniListCard() {
                 <p className="text-sm text-on-surface-variant">Anime</p>
                 {!signedIn && <p className="text-[11px] text-muted">Necesita iniciar sesión en tu cuenta de KageView (tus listas de anime viven en ella).</p>}
               </div>
-              <Switch checked={settings.anime} onChange={(v) => useAniListSync.setState({ settings: { ...settings, anime: v } })} label="Sincronizar anime" />
+              <Switch checked={settings.anime} onChange={(v) => setSettings({ anime: v })} label="Sincronizar anime" />
             </div>
             <div className="flex items-center justify-between gap-4">
               <p className="text-sm text-on-surface-variant">Manga</p>
-              <Switch checked={settings.manga} onChange={(v) => useAniListSync.setState({ settings: { ...settings, manga: v } })} label="Sincronizar manga" />
+              <Switch checked={settings.manga} onChange={(v) => setSettings({ manga: v })} label="Sincronizar manga" />
             </div>
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm text-on-surface-variant">Traer a KageView lo que solo está en AniList</p>
                 <p className="text-[11px] text-muted">Los mangas aparecen como fichas «sin fuente de lectura» hasta que elijas dónde leerlos.</p>
               </div>
-              <Switch checked={settings.importRemote} onChange={(v) => useAniListSync.setState({ settings: { ...settings, importRemote: v } })} label="Importar desde AniList" />
+              <Switch checked={settings.importRemote} onChange={(v) => setSettings({ importRemote: v })} label="Importar desde AniList" />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm text-on-surface-variant">Avisarme al actualizar mi progreso</p>
+                <p className="text-[11px] text-muted">Un aviso discreto, p. ej. «Episodio 5 marcado como visto en AniList».</p>
+              </div>
+              <Switch checked={settings.notifyProgress} onChange={(v) => setSettings({ notifyProgress: v })} label="Avisar al actualizar el progreso" />
             </div>
           </div>
 

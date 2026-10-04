@@ -6,6 +6,8 @@ import ShareAnimeButton from '../anime/ShareAnimeButton';
 import Badge from '../ui/Badge';
 import Chip from '../ui/Chip';
 import Spinner from '../ui/Spinner';
+import { useAppStore } from '../../../modules/store';
+import { resumeEpisode } from '../../../modules/library';
 
 interface AnimeModalProps {
   anime: AniListAnime;
@@ -54,7 +56,10 @@ const EPISODE_BATCH = 60;
 
 export default function AnimeModal({ anime: initialAnime, onClose, onPlay, onSelectRelation }: AnimeModalProps) {
   const [anime, setAnime] = useState<AniListAnime>(initialAnime);
-  const [lastWatchedEp, setLastWatchedEp] = useState<number | null>(null);
+  const [localEp, setLocalEp] = useState<number | null>(null);
+  // Retomar por el más adelantado entre este equipo y mi lista (que también recibe lo de otros dispositivos / AniList)
+  const listProgress = useAppStore((s) => s.myList[initialAnime.id]?.progress);
+  const lastWatchedEp = resumeEpisode(localEp, listProgress, anime.episodes);
   const [navigatingTo, setNavigatingTo] = useState<number | null>(null);
   const [visibleEpisodes, setVisibleEpisodes] = useState(EPISODE_BATCH);
   const [sortDesc, setSortDesc] = useState(false);
@@ -89,7 +94,7 @@ export default function AnimeModal({ anime: initialAnime, onClose, onPlay, onSel
   // Cargar último episodio visto desde local storage vía IPC
   useEffect(() => {
     if (window.electron?.getWatchProgress) {
-      window.electron.getWatchProgress(anime.id).then(setLastWatchedEp);
+      window.electron.getWatchProgress(anime.id).then(setLocalEp);
     }
   }, [anime.id]);
 

@@ -74,6 +74,26 @@ export function entryToAnime(e: LibraryEntry): AniListAnime {
 
 const toMy = (e: LibraryEntry): MyListEntry => ({ status: e.status, progress: e.progress, score: e.score });
 
+// ─── Por qué episodio retomar ──────────────────────────────
+/**
+ * Episodio con el que mostrar «Continuar». Combina lo guardado en ESTE equipo con el
+ * progreso de tu lista (que también llega de otros dispositivos o de AniList): se
+ * retoma por el que vaya más adelantado. Si la lista dice que ya los has visto todos y
+ * aquí no hay nada pendiente, no hay nada que continuar (null).
+ */
+export function resumeEpisode(
+  localEpisode: number | null | undefined,
+  listProgress: number | null | undefined,
+  totalEpisodes?: number | null
+): number | null {
+  const seen = Math.max(0, Math.floor(listProgress ?? 0));
+  const finished = !!totalEpisodes && seen >= totalEpisodes;
+  const fromList = seen > 0 && !finished ? seen + 1 : 0;
+  const local = Math.max(0, Math.floor(localEpisode ?? 0));
+  const best = Math.max(local, fromList);
+  return best > 0 ? best : null;
+}
+
 // ─── Índice de MI lista ────────────────────────────────────
 export async function loadMyList(): Promise<void> {
   const backend = getBackend();
@@ -129,7 +149,13 @@ async function persist(
       score,
       media: toSnapshot(anime),
     });
-    emitAnimeListChange();
+    emitAnimeListChange({
+      mediaId: anime.id,
+      title: anime.title.english || anime.title.romaji || anime.title.native || '',
+      status,
+      progress,
+      score,
+    });
   } catch (err) {
     st().patchMyList(anime.id, prev);
     console.warn('[library] Error guardando la lista:', err);

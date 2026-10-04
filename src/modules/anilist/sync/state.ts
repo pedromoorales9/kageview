@@ -27,9 +27,11 @@ export interface SyncSettings {
   manga: boolean;
   /** Traer a KageView lo que solo está en AniList. */
   importRemote: boolean;
+  /** Aviso discreto cuando el progreso se envía a AniList. */
+  notifyProgress: boolean;
 }
 
-export const DEFAULT_SETTINGS: SyncSettings = { anime: true, manga: true, importRemote: true };
+export const DEFAULT_SETTINGS: SyncSettings = { anime: true, manga: true, importRemote: true, notifyProgress: true };
 
 export interface Persisted {
   v: 1;
@@ -124,6 +126,11 @@ export function patchSync(patch: Partial<SyncStoreState> | ((s: SyncStoreState) 
   if (!getSync().loaded) return;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => void flushSyncState(), 500);
+}
+
+/** Cambia un ajuste y lo guarda en disco. */
+export function setSettings(patch: Partial<SyncSettings>): void {
+  patchSync((s) => ({ settings: { ...s.settings, ...patch } }));
 }
 
 let loading: Promise<void> | null = null;
