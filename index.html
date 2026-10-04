@@ -1,514 +1,546 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="./support.js"></script>
-</head>
-<body>
-<x-dc>
-<helmet>
-<link rel="stylesheet" href="_ds/sh4d0w-studio-design-system-fd85b929-0578-4ea7-96a8-29764932dcb7/components.css">
-<link rel="stylesheet" href="_ds/sh4d0w-studio-design-system-fd85b929-0578-4ea7-96a8-29764932dcb7/styles.css">
+<title>KageView — anime y manga en tu escritorio</title>
+<meta name="description" content="KageView es una aplicación de escritorio gratuita y de código abierto para organizar tu anime y tu manga: biblioteca, lector, calendario, amigos y sincronización opcional con AniList. Para Windows y macOS.">
+<meta name="theme-color" content="#0b060c">
+<meta property="og:type" content="website">
+<meta property="og:title" content="KageView — anime y manga en tu escritorio">
+<meta property="og:description" content="Biblioteca, lector de manga, calendario, amigos y sincronización opcional con AniList. Gratis y de código abierto.">
+<meta property="og:image" content="https://pedromoorales9.github.io/kageview/assets/icon.png">
+<link rel="icon" href="assets/icon.png" type="image/png">
 <style>
-  html, body { background: #0a0a0f; }
-  body { overflow-x: hidden; }
-  @keyframes kvFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
-  @keyframes kvFloatSlow { 0%,100% { transform: translateY(0) translateX(0); } 50% { transform: translateY(22px) translateX(14px); } }
-  @keyframes kvDrift { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(40px,-30px) scale(1.12); } }
-  @keyframes kvDrift2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-50px,30px) scale(1.18); } }
-  @keyframes kvPulse { 0%,100% { opacity: .85; filter: blur(0.4px); } 50% { opacity: 1; filter: blur(0px); } }
-  @keyframes kvRise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes kvScan { 0% { transform: translateY(-100%); } 100% { transform: translateY(220%); } }
-  @keyframes kvShine { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-  @keyframes kvBlink { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  :root {
+    --bg: #0b060c;
+    --surface: rgba(255, 255, 255, 0.045);
+    --surface-2: rgba(255, 255, 255, 0.075);
+    --border: rgba(255, 255, 255, 0.09);
+    --text: #f6eef1;
+    --muted: #b6a7ae;
+    --faint: #7d6f76;
+    --red: #ff3d5a;
+    --red-2: #ff6b82;
+    --pink: #ffb3c1;
+    --green: #35e66a;
+    --radius: 18px;
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); font-family: var(--font);
+    line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  a { color: inherit; }
+  img { max-width: 100%; display: block; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+  :focus-visible { outline: 2px solid var(--pink); outline-offset: 3px; border-radius: 8px; }
+
+  /* ── fondo ── */
+  .glow { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .glow i { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .5; }
+  .glow i:nth-child(1) { width: 620px; height: 620px; top: -220px; left: 4%; background: radial-gradient(circle, rgba(255,61,90,.55), transparent 66%); animation: drift 18s var(--ease) infinite; }
+  .glow i:nth-child(2) { width: 520px; height: 520px; top: 28%; right: -160px; background: radial-gradient(circle, rgba(139,60,170,.42), transparent 66%); animation: drift 23s var(--ease) infinite reverse; }
+  .glow i:nth-child(3) { width: 560px; height: 560px; bottom: -240px; left: 30%; background: radial-gradient(circle, rgba(255,107,130,.30), transparent 68%); animation: drift 20s var(--ease) infinite; }
+  @keyframes drift { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(36px,-28px) scale(1.1); } }
+  main, header, footer { position: relative; z-index: 1; }
+
+  /* ── navegación ── */
+  .nav { position: sticky; top: 0; z-index: 50; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); background: rgba(11,6,12,.78); border-bottom: 1px solid var(--border); }
+  .nav .wrap { display: flex; align-items: center; gap: 18px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; font-weight: 750; font-size: 19px; letter-spacing: -.02em; }
+  .brand img { width: 34px; height: 34px; border-radius: 9px; box-shadow: 0 6px 20px rgba(255,61,90,.35); }
+  .brand b { color: var(--red-2); font-weight: 750; }
+  .links { display: flex; gap: 4px; margin-left: auto; }
+  .links a { text-decoration: none; color: var(--muted); font-size: 14px; padding: 8px 12px; border-radius: 10px; transition: color .2s, background .2s; }
+  .links a:hover { color: var(--text); background: var(--surface); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; height: 46px; padding: 0 22px; border-radius: 999px; font: inherit; font-weight: 650; font-size: 15px; text-decoration: none; border: 1px solid transparent; cursor: pointer; transition: transform .2s var(--ease), box-shadow .2s, background .2s; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-primary { background: linear-gradient(180deg, #ff5873, #f0314f); color: #fff; box-shadow: 0 10px 30px rgba(255,61,90,.38), inset 0 1px 0 rgba(255,255,255,.25); }
+  .btn-primary:hover { box-shadow: 0 14px 38px rgba(255,61,90,.5), inset 0 1px 0 rgba(255,255,255,.25); }
+  .btn-ghost { background: var(--surface); border-color: var(--border); color: var(--text); }
+  .btn-ghost:hover { background: var(--surface-2); }
+  .btn-sm { height: 38px; padding: 0 16px; font-size: 14px; }
+  .btn svg { width: 18px; height: 18px; flex: none; }
+
+  /* ── hero ── */
+  .hero { text-align: center; padding: 88px 0 28px; position: relative; }
+  .kanji { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); font-size: clamp(240px, 36vw, 400px); line-height: 1; font-weight: 800; color: transparent; background: linear-gradient(180deg, rgba(255,61,90,.16), rgba(255,61,90,.02)); -webkit-background-clip: text; background-clip: text; pointer-events: none; user-select: none; z-index: -1; filter: blur(1.5px); }
+  .pill { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 14px; border-radius: 999px; background: rgba(255,61,90,.12); border: 1px solid rgba(255,61,90,.3); color: var(--pink); font-size: 13px; font-weight: 600; }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--red); box-shadow: 0 0 10px var(--red); animation: blink 2.4s infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+  h1 { margin: 22px auto 0; max-width: 17ch; font-size: clamp(40px, 6.6vw, 80px); line-height: 1.03; letter-spacing: -.035em; font-weight: 800; }
+  h1 em { font-style: normal; background: linear-gradient(100deg, #ff5873, #ffb3c1 70%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { margin: 22px auto 0; max-width: 60ch; font-size: clamp(16px, 2vw, 19px); color: var(--muted); }
+  .cta { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+  .sub { margin-top: 16px; font-size: 13px; color: var(--faint); }
+  .sub b { color: var(--muted); font-weight: 600; }
+
+  /* ── maqueta de la app (ilustración propia) ── */
+  .stage { margin-top: 56px; position: relative; }
+  .app { border-radius: 20px; background: #0e080f; border: 1px solid var(--border); box-shadow: 0 40px 100px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.03), 0 0 120px rgba(255,61,90,.12); overflow: hidden; text-align: left; }
+  .bar { display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 16px; background: #150c16; border-bottom: 1px solid var(--border); }
+  .bar i { width: 11px; height: 11px; border-radius: 50%; background: #3a2a30; }
+  .bar i:nth-child(1) { background: #ff5f57; } .bar i:nth-child(2) { background: #febc2e; } .bar i:nth-child(3) { background: #28c840; }
+  .bar span { margin: 0 auto; font-size: 12px; color: var(--faint); transform: translateX(-26px); }
+  .body { display: grid; grid-template-columns: 210px 1fr; min-height: 440px; }
+  .side { padding: 18px 12px; background: linear-gradient(180deg, #1a0c14, #0e080f); border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; }
+  .side .logo { display: flex; align-items: center; gap: 9px; padding: 0 8px 14px; font-weight: 750; font-size: 15px; }
+  .side .logo img { width: 26px; height: 26px; border-radius: 7px; }
+  .side small { padding: 12px 10px 4px; color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  .side div.it { padding: 9px 12px; border-radius: 10px; color: var(--muted); }
+  .side div.it.on { background: rgba(255,61,90,.16); color: var(--text); box-shadow: inset 0 0 0 1px rgba(255,61,90,.25); }
+  .main { padding: 18px 22px 22px; min-width: 0; }
+  .top { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .top b { font-size: 15px; }
+  .search { margin-left: auto; width: min(320px, 55%); height: 34px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; color: var(--faint); font-size: 12.5px; }
+  .feature { position: relative; border-radius: 16px; overflow: hidden; padding: 26px 26px 24px; min-height: 190px; background:
+      radial-gradient(120% 140% at 85% 0%, rgba(255,61,90,.55), transparent 55%),
+      radial-gradient(90% 120% at 0% 100%, rgba(120,40,160,.55), transparent 60%), #1a0c16; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; }
+  .feature::after { content: "影"; position: absolute; right: 22px; top: -30px; font-size: 190px; font-weight: 800; color: rgba(255,255,255,.07); line-height: 1; }
+  .chip { display: inline-flex; width: max-content; height: 22px; align-items: center; padding: 0 10px; border-radius: 999px; font-size: 10.5px; letter-spacing: .1em; font-weight: 700; background: rgba(255,61,90,.9); color: #fff; }
+  .feature h3 { margin: 0; font-size: clamp(22px, 3vw, 32px); letter-spacing: -.02em; }
+  .feature p { margin: 0; color: rgba(255,255,255,.7); font-size: 13px; max-width: 46ch; }
+  .row-title { margin: 18px 0 10px; font-weight: 700; font-size: 14px; }
+  .posters { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .poster { aspect-ratio: 2 / 3; border-radius: 12px; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,.07); }
+  .poster span { position: absolute; z-index: 1; left: 8px; right: 8px; bottom: 8px; font-size: 11px; font-weight: 600; text-shadow: 0 1px 8px rgba(0,0,0,.8); }
+  .poster::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgba(0,0,0,.65)); }
+  .poster:nth-child(1) { background: linear-gradient(160deg, #ff5873, #6b1d4a); }
+  .poster:nth-child(2) { background: linear-gradient(160deg, #8b3caa, #22103a); }
+  .poster:nth-child(3) { background: linear-gradient(160deg, #ff9a6b, #8a2a3a); }
+  .poster:nth-child(4) { background: linear-gradient(160deg, #5b4ad8, #1b1740); }
+  .poster:nth-child(5) { background: linear-gradient(160deg, #ff6b9d, #4a1a40); }
+  .note { margin: 14px 0 0; text-align: center; font-size: 12.5px; color: var(--faint); }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 54px 0 0; }
+  .stat { text-align: center; padding: 20px 10px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); }
+  .stat b { display: block; font-size: 30px; letter-spacing: -.02em; background: linear-gradient(100deg, #ff5873, #ffb3c1); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .stat span { font-size: 13px; color: var(--muted); }
+
+  /* ── secciones ── */
+  section { padding: 96px 0 0; }
+  .kicker { display: block; font-size: 12.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--red-2); margin-bottom: 12px; }
+  h2 { margin: 0; font-size: clamp(30px, 4.4vw, 48px); line-height: 1.08; letter-spacing: -.03em; font-weight: 780; max-width: 20ch; }
+  .intro { margin: 16px 0 0; max-width: 62ch; color: var(--muted); font-size: 17px; }
+  .head-c { text-align: center; } .head-c h2, .head-c .intro { margin-left: auto; margin-right: auto; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 44px; }
+  .card { padding: 26px 24px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); transition: transform .3s var(--ease), border-color .3s, background .3s; }
+  .card:hover { transform: translateY(-4px); border-color: rgba(255,61,90,.35); background: var(--surface-2); }
+  .ico { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; background: rgba(255,61,90,.13); border: 1px solid rgba(255,61,90,.25); margin-bottom: 16px; }
+  .card h3 { margin: 0 0 8px; font-size: 18px; letter-spacing: -.01em; }
+  .card p { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+  /* AniList */
+  .split { display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center; }
+  .steps { list-style: none; margin: 28px 0 0; padding: 0; display: grid; gap: 14px; counter-reset: s; }
+  .steps li { counter-increment: s; display: grid; grid-template-columns: 38px 1fr; gap: 14px; align-items: start; }
+  .steps li::before { content: counter(s); width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 750; background: rgba(255,61,90,.14); border: 1px solid rgba(255,61,90,.35); color: var(--pink); }
+  .steps b { display: block; font-size: 16px; } .steps span { color: var(--muted); font-size: 14.5px; }
+  .ticks { list-style: none; margin: 26px 0 0; padding: 0; display: grid; gap: 10px; }
+  .ticks li { position: relative; padding-left: 28px; color: var(--muted); font-size: 15px; }
+  .ticks li::before { content: "✓"; position: absolute; left: 0; top: 0; color: var(--green); font-weight: 800; }
+  .ticks b { color: var(--text); font-weight: 650; }
+
+  .panel { border-radius: 20px; padding: 18px; background: linear-gradient(180deg, #1a0e18, #0f0910); border: 1px solid var(--border); box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+  .panel .who { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .panel .av { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #ff5873, #8b3caa); display: grid; place-items: center; font-weight: 800; flex: none; }
+  .panel .who b { display: block; font-size: 14.5px; } .panel .who span { font-size: 12px; color: var(--faint); }
+  .panel .who .ok { margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--green); background: rgba(53,230,106,.1); padding: 5px 11px; border-radius: 999px; }
+  .review { margin-top: 14px; border-radius: 14px; padding: 14px; background: rgba(255,61,90,.07); border: 1px solid rgba(255,61,90,.4); }
+  .review h4 { margin: 0 0 4px; font-size: 14.5px; } .review > p { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); }
+  .rows { border-radius: 10px; background: rgba(0,0,0,.28); overflow: hidden; }
+  .rows div { display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: 12.5px; border-top: 1px solid rgba(255,255,255,.05); }
+  .rows div:first-child { border-top: 0; }
+  .rows em { margin-left: auto; font-style: normal; color: var(--faint); }
+  .rows u { text-decoration: none; font-size: 9.5px; font-weight: 800; letter-spacing: .08em; color: var(--red-2); }
+  .acts { display: flex; gap: 8px; margin-top: 12px; }
+  .acts span { height: 34px; padding: 0 16px; border-radius: 999px; display: inline-flex; align-items: center; font-size: 13px; font-weight: 650; }
+  .acts span:first-child { background: linear-gradient(180deg, #ff5873, #f0314f); } .acts span:last-child { background: var(--surface-2); border: 1px solid var(--border); }
+  .toast { margin-top: 14px; display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 14px; background: #1b1019; border: 1px solid var(--border); font-size: 13px; }
+  .toast::before { content: "✓"; width: 26px; height: 26px; border-radius: 50%; background: rgba(53,230,106,.15); color: var(--green); display: grid; place-items: center; font-weight: 800; flex: none; }
+  .toast b { display: block; } .toast span { color: var(--muted); }
+  .cap { margin: 12px 4px 0; font-size: 12px; color: var(--faint); text-align: center; }
+
+  /* privacidad */
+  .sec-list { margin-top: 40px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .sec-list .card { display: grid; grid-template-columns: 44px 1fr; gap: 16px; padding: 22px; }
+  .sec-list .ico { margin: 0; }
+
+  /* descarga */
+  .dl { margin-top: 44px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .dl .card { padding: 30px 28px; text-align: left; }
+  .dl .card:hover { transform: none; }
+  .os { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .os .ico { margin: 0; width: 52px; height: 52px; font-size: 26px; }
+  .os h3 { margin: 0; font-size: 21px; } .os span { color: var(--faint); font-size: 13px; }
+  .dl code, .mac code { font-family: var(--mono); font-size: 12.5px; padding: 2px 8px; border-radius: 6px; background: rgba(255,255,255,.07); color: var(--pink); word-break: break-all; }
+  .dl .btn { margin-top: 18px; }
+  .mac { margin-top: 16px; border-radius: var(--radius); padding: 24px 28px; background: var(--surface); border: 1px solid var(--border); }
+  .mac h3 { margin: 0 0 10px; font-size: 18px; }
+  .mac ol { margin: 0; padding-left: 20px; color: var(--muted); font-size: 14.5px; display: grid; gap: 8px; }
+  .mac li b { color: var(--text); }
+  .mac li span { display: block; margin-top: 4px; }
+  .trust { margin: 18px 0 0; text-align: center; font-size: 13.5px; color: var(--faint); }
+
+  /* novedades */
+  .timeline { margin-top: 44px; display: grid; gap: 14px; }
+  .rel { display: grid; grid-template-columns: 140px 1fr; gap: 24px; padding: 24px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); }
+  .rel .v { font-weight: 800; font-size: 22px; letter-spacing: -.02em; } .rel .v small { display: block; font-size: 12.5px; font-weight: 500; color: var(--faint); letter-spacing: 0; }
+  .rel h3 { margin: 0 0 8px; font-size: 18px; }
+  .rel ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14.5px; display: grid; gap: 6px; }
+  .rel ul b { color: var(--text); font-weight: 650; }
+  .rel.new { border-color: rgba(255,61,90,.4); background: linear-gradient(180deg, rgba(255,61,90,.09), var(--surface)); }
+  .more { margin-top: 20px; text-align: center; }
+
+  /* legal */
+  .legal { margin-top: 36px; border-radius: var(--radius); padding: 30px 32px; background: var(--surface); border: 1px solid var(--border); display: grid; gap: 14px; font-size: 14.5px; color: var(--muted); }
+  .legal p { margin: 0; } .legal b { color: var(--text); font-weight: 650; }
+
+  footer { margin-top: 96px; padding: 36px 0 44px; border-top: 1px solid var(--border); color: var(--faint); font-size: 13.5px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 18px 36px; align-items: center; justify-content: space-between; }
+  footer nav { display: flex; gap: 20px; flex-wrap: wrap; } footer a { text-decoration: none; } footer a:hover { color: var(--text); }
+  footer q { display: block; color: var(--muted); font-style: italic; margin-bottom: 6px; }
+
+  /* aparición */
+  .rv { opacity: 0; transform: translateY(22px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
+  .rv.in { opacity: 1; transform: none; }
+  .no-js .rv { opacity: 1; transform: none; }
+
+  @media (max-width: 960px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+    .split { grid-template-columns: 1fr; gap: 36px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .sec-list, .dl { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 720px) {
+    .links { display: none; }
+    .nav .btn { margin-left: auto; }
+    .hero { padding-top: 60px; }
+    .body { grid-template-columns: 1fr; } .side { display: none; }
+    .posters { grid-template-columns: repeat(3, 1fr); } .poster:nth-child(n+4) { display: none; }
+    .grid { grid-template-columns: 1fr; }
+    .rel { grid-template-columns: 1fr; gap: 10px; }
+    section { padding-top: 72px; }
+    .legal { padding: 24px 20px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .rv { opacity: 1; transform: none; }
+  }
 </style>
-</helmet>
+</head>
+<body class="no-js">
+<script>document.body.classList.remove('no-js');</script>
 
-<div data-screen-label="KageView Landing" style="position: relative; min-height: 100vh; background: radial-gradient(150% 120% at 82% -12%, #18101f 0%, #0a0a0f 52%); color: var(--text); font-family: var(--font-sans); overflow: hidden;">
+<div class="glow" aria-hidden="true"><i></i><i></i><i></i></div>
 
-  <!-- ambient glows -->
-  <div aria-hidden="true" style="position: absolute; inset: 0; pointer-events: none; opacity: var(--kv-glow, 1); z-index: 0;">
-    <div style="position: absolute; top: -180px; left: 8%; width: 620px; height: 620px; border-radius: 50%; background: radial-gradient(circle, rgba(139,92,246,0.42), transparent 66%); filter: blur(40px); animation: kvDrift 17s var(--ease) infinite;"></div>
-    <div style="position: absolute; top: 220px; right: -120px; width: 560px; height: 560px; border-radius: 50%; background: radial-gradient(circle, rgba(246,115,183,0.30), transparent 66%); filter: blur(48px); animation: kvDrift2 21s var(--ease) infinite;"></div>
-    <div style="position: absolute; bottom: -140px; left: 40%; width: 520px; height: 520px; border-radius: 50%; background: radial-gradient(circle, rgba(124,58,237,0.26), transparent 68%); filter: blur(52px); animation: kvFloatSlow 19s var(--ease) infinite;"></div>
-  </div>
-  <!-- grid wash -->
-  <div aria-hidden="true" style="position: absolute; inset: 0; pointer-events: none; z-index: 0; background-image: linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px); background-size: 64px 64px; mask-image: radial-gradient(120% 90% at 50% 0%, #000 30%, transparent 78%);"></div>
-
-  <!-- ============ NAV ============ -->
-  <header style="position: sticky; top: 0; z-index: 50; backdrop-filter: blur(14px); background: rgba(10,10,15,0.72); border-bottom: 1px solid var(--border);">
-    <nav style="max-width: 1200px; margin: 0 auto; padding: 14px 28px; display: flex; align-items: center; gap: 20px;">
-      <a href="#top" style="display: flex; align-items: center; gap: 11px; text-decoration: none;">
-        <img src="assets/icon.png" alt="KageView" width="34" height="34" style="border-radius: 9px; box-shadow: var(--shadow-accent);" />
-        <span style="font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: -0.02em; color: var(--text);">Kage<span style="color: var(--accent-text);">View</span></span>
-      </a>
-      <div style="flex: 1;"></div>
-      <div style="display: flex; align-items: center; gap: 6px;">
-        <a href="#features" style="text-decoration: none;"><span class="nav-item" style="padding: 8px 12px; font-size: 14px;">Features</span></a>
-        <a href="#providers" style="text-decoration: none;"><span class="nav-item" style="padding: 8px 12px; font-size: 14px;">Providers</span></a>
-        <a href="#novedades" style="text-decoration: none;"><span class="nav-item" style="padding: 8px 12px; font-size: 14px;">Novedades</span></a>
-        <a href="https://github.com/pedromoorales9/kageview" target="_blank" rel="noreferrer" style="text-decoration: none;"><span class="nav-item" style="padding: 8px 12px; font-size: 14px;">GitHub</span></a>
-      </div>
-      <a href="https://github.com/pedromoorales9/kageview/releases/latest" target="_blank" rel="noreferrer" class="btn btn--primary btn--md" style="text-decoration: none;">Descargar</a>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/icon.png" alt="" width="34" height="34"><span>Kage<b>View</b></span></a>
+    <nav class="links" aria-label="Principal">
+      <a href="#funciones">Funciones</a>
+      <a href="#anilist">AniList</a>
+      <a href="#privacidad">Privacidad</a>
+      <a href="#descarga">Descarga</a>
+      <a href="#novedades">Novedades</a>
+      <a href="https://github.com/pedromoorales9/kageview" target="_blank" rel="noreferrer">GitHub</a>
     </nav>
-  </header>
+    <a class="btn btn-primary btn-sm" href="#descarga">Descargar</a>
+  </div>
+</header>
 
-  <!-- ============ HERO ============ -->
-  <section id="top" style="position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 96px 28px 40px; text-align: center;">
-    <!-- giant kanji glow -->
-    <div aria-hidden="true" style="position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font-family: var(--font-display); font-weight: 700; font-size: clamp(240px, 34vw, 380px); line-height: 1; color: transparent; background: linear-gradient(180deg, rgba(167,139,250,0.15), rgba(246,115,183,0.03)); -webkit-background-clip: text; background-clip: text; pointer-events: none; user-select: none; filter: blur(2px); opacity: var(--kv-glow, 1); z-index: -1;">影</div>
+<main id="top">
+  <!-- ═════════ HERO ═════════ -->
+  <div class="wrap">
+    <div class="hero">
+      <div class="kanji" aria-hidden="true">影</div>
+      <span class="pill">Versión <span class="ver">1.9.0</span> · Windows y macOS</span>
+      <h1>Tu anime y tu manga, <em>en tu escritorio</em></h1>
+      <p class="lead">KageView es una aplicación gratuita y de código abierto para organizar lo que ves y lo que lees: biblioteca, lector de manga, calendario de emisión, amigos y sincronización opcional con tu cuenta de AniList.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="#descarga">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 20h16"/></svg>
+          Descargar gratis
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/pedromoorales9/kageview" target="_blank" rel="noreferrer">Ver el código</a>
+      </div>
+      <p class="sub"><b>Windows 10 / 11</b> · <b>macOS 11+</b> (Apple Silicon e Intel) · Se actualiza sola</p>
 
-    <div style="display: inline-flex; align-items: center; gap: 8px; animation: kvRise .7s var(--ease) both;">
-      <span class="badge badge--accent badge--pill" style="height: 26px;"><span class="badge__dot"></span> v1.2.4 · Windows 10/11</span>
-      <span class="badge badge--pill ds-mono" style="height: 26px;">GPL-3.0</span>
-    </div>
-
-    <h1 style="margin: 24px auto 0; max-width: 16ch; font-size: clamp(44px, 7vw, 86px); line-height: 1.02; letter-spacing: -0.035em; animation: kvRise .7s var(--ease) .06s both;">
-      Anime y manga.<br><span style="background: linear-gradient(120deg, #c4b1fb, #f673b7 55%, #9a78f3); -webkit-background-clip: text; background-clip: text; color: transparent;">Sin anuncios. Sin cuentas.</span>
-    </h1>
-
-    <p style="margin: 22px auto 0; max-width: 56ch; font-size: clamp(16px, 1.7vw, 20px); line-height: 1.55; color: var(--text-muted); animation: kvRise .7s var(--ease) .12s both;">
-      App de escritorio para hacer streaming de anime y leer manga, en español. Player integrado, skip de intro/outro, sincronización con AniList y un ad-blocker multicapa. Todo en una interfaz cinematográfica.
-    </p>
-
-    <div style="margin: 34px auto 0; display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; animation: kvRise .7s var(--ease) .18s both;">
-      <a href="https://github.com/pedromoorales9/kageview/releases/latest" target="_blank" rel="noreferrer" class="btn btn--primary btn--lg" style="text-decoration: none; height: 52px; font-size: 16px; padding: 0 28px;">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></svg>
-        Descargar para Windows
-      </a>
-      <a href="https://github.com/pedromoorales9/kageview" target="_blank" rel="noreferrer" class="btn btn--outline btn--lg" style="text-decoration: none; height: 52px; font-size: 16px; padding: 0 24px;">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="margin-right: 4px;"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.36 1.09 2.94.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg>
-        Ver en GitHub
-      </a>
-    </div>
-    <p class="ds-mono" style="margin: 16px 0 0; font-size: 12px; color: var(--text-subtle); animation: kvRise .7s var(--ease) .24s both;">Linux / macOS — próximamente · La app se actualiza sola</p>
-  </section>
-
-  <!-- ============ STAT STRIP ============ -->
-  <section style="position: relative; z-index: 1; max-width: 1080px; margin: 18px auto 0; padding: 0 28px;" data-reveal>
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;">
-      <div class="stat-card"><div class="stat-card__head"><span class="stat-card__label">Anuncios</span></div><div class="stat-card__value" style="background: linear-gradient(120deg,#c4b1fb,#f673b7); -webkit-background-clip: text; background-clip: text; color: transparent;">0</div><div class="stat-card__sub">Bloqueador multicapa</div></div>
-      <div class="stat-card"><div class="stat-card__head"><span class="stat-card__label">Fuentes</span></div><div class="stat-card__value ds-mono">7</div><div class="stat-card__sub">3 anime · 4 manga</div></div>
-      <div class="stat-card"><div class="stat-card__head"><span class="stat-card__label">Precio</span></div><div class="stat-card__value">Gratis</div><div class="stat-card__sub">Open source · GPL-3.0</div></div>
-      <div class="stat-card"><div class="stat-card__head"><span class="stat-card__label">Cuenta</span></div><div class="stat-card__value">No</div><div class="stat-card__sub">AniList opcional</div></div>
-    </div>
-  </section>
-
-  <!-- ============ APP MOCKUP ============ -->
-  <section style="position: relative; z-index: 1; max-width: 1180px; margin: 64px auto 0; padding: 0 28px;" data-reveal>
-    <div style="position: relative; animation: kvFloat 9s var(--ease) infinite;">
-      <div aria-hidden="true" style="position: absolute; inset: 8% 14% -6%; background: radial-gradient(60% 60% at 50% 40%, rgba(124,58,237,0.45), transparent 70%); filter: blur(60px); opacity: var(--kv-glow, 1); z-index: 0;"></div>
-
-      <div style="position: relative; z-index: 1; border-radius: 16px; border: 1px solid var(--border-strong); overflow: hidden; box-shadow: var(--shadow-lg); background: var(--surface);">
-        <!-- titlebar -->
-        <div style="display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 14px; background: var(--titlebar); border-bottom: 1px solid var(--border);">
-          <div style="display: flex; gap: 7px;">
-            <span style="width: 11px; height: 11px; border-radius: 50%; background: #f87171;"></span>
-            <span style="width: 11px; height: 11px; border-radius: 50%; background: #fbbf24;"></span>
-            <span style="width: 11px; height: 11px; border-radius: 50%; background: #34d399;"></span>
-          </div>
-          <div style="flex: 1; text-align: center; font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--text-muted); letter-spacing: -0.01em;">影 KageView</div>
-          <div style="display: flex; gap: 14px; color: var(--text-subtle);">
-            <span style="width: 12px; height: 1.5px; background: currentColor; align-self: center;"></span>
-            <span style="width: 11px; height: 11px; border: 1.5px solid currentColor; border-radius: 2px;"></span>
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-          </div>
-        </div>
-        <!-- body -->
-        <div style="display: flex; min-height: 460px;">
-          <!-- sidebar -->
-          <aside style="width: 216px; flex: none; background: var(--sidebar); border-right: 1px solid var(--border); padding: 18px 14px; display: flex; flex-direction: column; gap: 18px;">
-            <div style="display: flex; align-items: center; gap: 10px; padding: 2px 6px;">
-              <img src="assets/icon.png" width="32" height="32" alt="" style="border-radius: 8px;" />
-              <div style="line-height: 1.1;"><div style="font-family: var(--font-display); font-weight: 700; font-size: 15px;">KageView</div><div style="font-size: 11px; color: var(--text-subtle);">影 · v1.2.4</div></div>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 3px;">
-              <div class="nav-item" data-active="true"><svg class="icon" viewBox="0 0 24 24" style="font-size: 18px;"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg><span>Descubrir</span></div>
-              <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" style="font-size: 18px;"><path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a0 0 0 0 1 0 0"/><path d="M8 21V10h8v11"/></svg><span>Biblioteca</span></div>
-              <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" style="font-size: 18px;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><span>Buscar</span></div>
-              <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" style="font-size: 18px;"><path d="M4 5a2 2 0 0 1 2-2h6v18H6a2 2 0 0 0-2 2zM20 5a2 2 0 0 0-2-2h-6v18h6a2 2 0 0 1 2 2z"/></svg><span>Manga</span></div>
-              <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" style="font-size: 18px;"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg><span>Calendario</span></div>
-            </div>
-            <div style="flex: 1;"></div>
-            <div class="nav-item"><svg class="icon" viewBox="0 0 24 24" style="font-size: 18px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8M4.6 9a1.6 1.6 0 0 0-.3-1.8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Ajustes</span></div>
-            <div style="display: flex; align-items: center; gap: 8px; padding: 6px;"><span class="user-pill"><span class="badge__dot"></span> AniList</span></div>
-          </aside>
-          <!-- main -->
-          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
-            <!-- topbar -->
-            <div style="display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--border);">
-              <div class="field__control" style="flex: 1; max-width: 320px; height: 38px; color: var(--text-subtle);"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><span style="font-size: 13px;">Buscar anime o manga…</span></div>
-              <div style="flex: 1;"></div>
-              <span class="badge badge--status-online" style="height: 24px;"><span class="badge__dot"></span> Sin anuncios</span>
-            </div>
-            <!-- featured banner -->
-            <div style="margin: 18px; border-radius: 14px; overflow: hidden; position: relative; min-height: 188px; display: flex; align-items: flex-end; background: linear-gradient(115deg, #2a1248 0%, #4a1d6e 45%, #7c2d5e 100%);">
-              <div aria-hidden="true" style="position: absolute; inset: 0; background: radial-gradient(120% 140% at 85% 10%, rgba(246,115,183,0.5), transparent 55%);"></div>
-              <div aria-hidden="true" style="position: absolute; right: 28px; top: 18px; font-family: var(--font-display); font-size: 110px; font-weight: 700; color: rgba(255,255,255,0.10); line-height: 1;">影</div>
-              <div style="position: relative; padding: 22px; max-width: 70%;">
-                <span class="badge badge--pill" style="background: rgba(0,0,0,0.35); border-color: rgba(255,255,255,0.18); color: #fff; height: 22px;">Continúa viendo · Ep 8</span>
-                <div style="font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: -0.02em; margin-top: 10px; color: #fff;">Yoru no Senshi</div>
-                <div style="display: flex; gap: 10px; margin-top: 14px;">
-                  <span class="btn btn--primary btn--sm" style="height: 34px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5l11 7-11 7z"/></svg> Reanudar</span>
-                  <span class="btn btn--outline btn--sm" style="height: 34px; background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.22); color: #fff;">+ Lista</span>
-                </div>
+      <!-- Ilustración de la interfaz (dibujo propio con títulos de ejemplo) -->
+      <div class="stage rv" role="img" aria-label="Ilustración de la interfaz de KageView: menú lateral, una portada destacada y una fila de títulos de ejemplo">
+        <div class="app">
+          <div class="bar"><i></i><i></i><i></i><span>KageView</span></div>
+          <div class="body">
+            <aside class="side" aria-hidden="true">
+              <div class="logo"><img src="assets/icon.png" alt="" width="26" height="26">KageView</div>
+              <small>Explorar</small>
+              <div class="it on">Descubrir</div><div class="it">Buscar</div><div class="it">Calendario</div>
+              <small>Biblioteca</small>
+              <div class="it">Mi lista</div><div class="it">Manga</div>
+              <small>Comunidad</small>
+              <div class="it">Amigos</div>
+            </aside>
+            <div class="main" aria-hidden="true">
+              <div class="top"><b>Descubrir</b><div class="search">Buscar…</div></div>
+              <div class="feature">
+                <span class="chip">EN EMISIÓN</span>
+                <h3>Título de ejemplo</h3>
+                <p>Aquí aparecería la sinopsis, los géneros y los botones para abrir la ficha.</p>
               </div>
-            </div>
-            <!-- row -->
-            <div style="padding: 4px 18px 22px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                <div style="font-family: var(--font-display); font-weight: 700; font-size: 16px;">Tendencia esta semana</div>
-                <span style="font-size: 12px; color: var(--accent-text);">Ver todo →</span>
-              </div>
-              <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
-                <div class="kv-poster" style="--g: linear-gradient(160deg,#4c1d95,#9d174d);" data-t="Kage no Hikari" data-e="Ep 12 · SUB"></div>
-                <div class="kv-poster" style="--g: linear-gradient(160deg,#1e3a8a,#6d28d9);" data-t="Sora Crónicas" data-e="Ep 4 · DUB"></div>
-                <div class="kv-poster" style="--g: linear-gradient(160deg,#7c2d12,#be185d);" data-t="Ryū Densetsu" data-e="Ep 23 · SUB"></div>
-                <div class="kv-poster" style="--g: linear-gradient(160deg,#0f766e,#5b21b6);" data-t="Hoshi Gakuen" data-e="Ep 9 · SUB"></div>
-                <div class="kv-poster" style="--g: linear-gradient(160deg,#5b21b6,#db2777);" data-t="Yami no Tabi" data-e="Ep 1 · DUB"></div>
+              <div class="row-title">En tendencia</div>
+              <div class="posters">
+                <div class="poster"><span>Título de ejemplo</span></div>
+                <div class="poster"><span>Título de ejemplo</span></div>
+                <div class="poster"><span>Título de ejemplo</span></div>
+                <div class="poster"><span>Título de ejemplo</span></div>
+                <div class="poster"><span>Título de ejemplo</span></div>
               </div>
             </div>
           </div>
         </div>
+        <p class="note">Ilustración de la interfaz con contenido de ejemplo.</p>
+      </div>
+
+      <div class="stats rv">
+        <div class="stat"><b>Gratis</b><span>y de código abierto (MIT)</span></div>
+        <div class="stat"><b>2</b><span>sistemas: Windows y macOS</span></div>
+        <div class="stat"><b>0</b><span>herramientas de seguimiento propias</span></div>
+        <div class="stat"><b>600+</b><span>pruebas automáticas</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════════ FUNCIONES ═════════ -->
+  <section id="funciones">
+    <div class="wrap">
+      <div class="head-c rv">
+        <span class="kicker">Funciones</span>
+        <h2>Todo lo que necesitas, en un solo sitio</h2>
+        <p class="intro">Pensada para el día a día: abrir, retomar donde lo dejaste y olvidarte del resto.</p>
+      </div>
+      <div class="grid">
+        <article class="card rv"><div class="ico">▶</div><h3>Reproductor</h3><p>Velocidad, pantalla completa, salto de intro y outro y siguiente episodio automático con cuenta atrás.</p></article>
+        <article class="card rv"><div class="ico">📖</div><h3>Lector de manga</h3><p>Retoma por capítulo y página, modo cascada, páginas o derecha a izquierda, atajos de teclado, precarga y ahorro de datos.</p></article>
+        <article class="card rv"><div class="ico">🗂</div><h3>Biblioteca</h3><p>Tus listas de anime y manga con estados, aviso de capítulos nuevos y sincronización entre tus dispositivos.</p></article>
+        <article class="card rv"><div class="ico">🔄</div><h3>Sincronización con AniList</h3><p>Opcional y en los dos sentidos, para anime y manga. Revisas lo que se envía antes de que se escriba nada.</p></article>
+        <article class="card rv"><div class="ico">👥</div><h3>Amigos y chat</h3><p>Añade amigos, mira qué están viendo si ellos quieren, comparte fichas y responde a mensajes con cita.</p></article>
+        <article class="card rv"><div class="ico">📅</div><h3>Calendario de emisión</h3><p>Vista semanal de estrenos, con tus series marcadas y aviso del sistema cuando sale un episodio.</p></article>
+        <article class="card rv"><div class="ico">🎮</div><h3>Discord</h3><p>Si quieres, muestra en tu perfil de Discord qué estás viendo o leyendo. Se activa y desactiva desde Ajustes.</p></article>
+        <article class="card rv"><div class="ico">⬆</div><h3>Siempre al día</h3><p>Se actualiza sola en Windows y en Mac: te avisa al abrir y basta un clic para instalar.</p></article>
+        <article class="card rv"><div class="ico">🌙</div><h3>Diseño «Luna de sangre»</h3><p>Interfaz oscura y cuidada, pensada para verse de noche, con animaciones suaves.</p></article>
       </div>
     </div>
   </section>
 
-  <!-- ============ FEATURES ============ -->
-  <section id="features" style="position: relative; z-index: 1; max-width: 1200px; margin: 110px auto 0; padding: 0 28px;">
-    <div style="text-align: center; max-width: 60ch; margin: 0 auto;" data-reveal>
-      <span class="badge badge--accent badge--pill" style="height: 26px;">FEATURES</span>
-      <h2 style="margin: 18px 0 0; font-size: clamp(30px, 4vw, 48px); letter-spacing: -0.03em;">Todo lo que necesitas para ver anime</h2>
-      <p style="margin: 16px 0 0; font-size: 17px; color: var(--text-muted); line-height: 1.55;">Construido para una sola cosa: una experiencia limpia, rápida y sin interrupciones.</p>
-    </div>
-
-    <div style="margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
-
-      <div class="kv-feat panel" data-reveal style="padding: 24px;">
-        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6z"/><path d="M5 5l14 14"/></svg></div>
-        <h3 style="font-size: 18px; margin-top: 16px;">Sin anuncios</h3>
-        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Bloqueador multicapa de popups, overlays y dominios de publicidad a nivel de red.</p>
+  <!-- ═════════ ANILIST ═════════ -->
+  <section id="anilist">
+    <div class="wrap split">
+      <div class="rv">
+        <span class="kicker">Nuevo en 1.9</span>
+        <h2>Tu lista de AniList, siempre sincronizada</h2>
+        <p class="intro">Lee en el móvil, mira en el ordenador: tu progreso va y viene sin que tengas que anotarlo dos veces.</p>
+        <ol class="steps">
+          <li><div><b>Conecta tu cuenta</b><span>Ajustes → AniList → Conectar. Das permiso en la web de AniList y vuelves a la app.</span></div></li>
+          <li><div><b>Revisa y confirma</b><span>La primera vez, KageView te enseña qué va a crear o actualizar y espera tu confirmación.</span></div></li>
+          <li><div><b>Y listo</b><span>Cada episodio o capítulo se refleja al momento, con un aviso discreto que puedes desactivar.</span></div></li>
+        </ol>
+        <ul class="ticks">
+          <li><b>Nunca borra nada</b> por su cuenta, ni en KageView ni en AniList.</li>
+          <li><b>Retoma desde cualquier sitio:</b> «Continuar» usa tu progreso aunque lo empezaras en otro dispositivo.</li>
+          <li><b>Anime y manga</b> se pueden activar por separado; los mangas dudosos los confirmas tú.</li>
+        </ul>
       </div>
-
-      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .05s;">
-        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M10.5 9l4.5 3-4.5 3z"/></svg></div>
-        <h3 style="font-size: 18px; margin-top: 16px;">Player integrado</h3>
-        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">HLS nativo, control de velocidad, pantalla completa y skip de intro/outro automático.</p>
-      </div>
-
-      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .1s;">
-        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M5 5l9 7-9 7z"/><path d="M19 5v14"/></svg></div>
-        <h3 style="font-size: 18px; margin-top: 16px;">Auto-play</h3>
-        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Cuenta atrás de 5 segundos para reproducir el siguiente episodio automáticamente.</p>
-      </div>
-
-      <div class="kv-feat panel" data-reveal style="padding: 24px;">
-        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 12a8 8 0 0 1 14-5l2 2"/><path d="M20 12a8 8 0 0 1-14 5l-2-2"/><path d="M20 4v5h-5M4 20v-5h5"/></svg></div>
-        <h3 style="font-size: 18px; margin-top: 16px;">Fallback automático</h3>
-        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Si un provider falla, el siguiente entra solo sin interrumpir la reproducción.</p>
-      </div>
-
-      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .05s;">
-        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></div>
-        <h3 style="font-size: 18px; margin-top: 16px;">Proveedor favorito</h3>
-        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Marca tu fuente preferida de anime y manga — siempre será la primera en cargar.</p>
-      </div>
-
-      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .1s;">
-        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M9 15l6-6"/><path d="M10 6l1.5-1.5a4 4 0 0 1 5.7 5.7L15.5 12"/><path d="M14 18l-1.5 1.5a4 4 0 0 1-5.7-5.7L8.5 12"/></svg></div>
-        <h3 style="font-size: 18px; margin-top: 16px;">AniList Sync</h3>
-        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Watchlist, progreso de episodios y puntuaciones sincronizados en tiempo real.</p>
-      </div>
-
-      <div class="kv-feat panel" data-reveal style="padding: 24px;">
-        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 5a2 2 0 0 1 2-2h6v16H6a2 2 0 0 0-2 2zM20 5a2 2 0 0 0-2-2h-6v16h6a2 2 0 0 1 2 2z"/></svg></div>
-        <h3 style="font-size: 18px; margin-top: 16px;">Manga integrado</h3>
-        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Lector de manga con múltiples fuentes y tu propia biblioteca personal.</p>
-      </div>
-
-      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .05s;">
-        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg></div>
-        <h3 style="font-size: 18px; margin-top: 16px;">Calendario de emisión</h3>
-        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Vista semanal con cuenta atrás en tiempo real para los nuevos episodios.</p>
-      </div>
-
-      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .1s;">
-        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></div>
-        <h3 style="font-size: 18px; margin-top: 16px;">Notificaciones</h3>
-        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Aviso nativo de Windows cuando sale un episodio nuevo hoy mismo.</p>
-      </div>
-
-      <div class="kv-feat panel" data-reveal style="padding: 24px;">
-        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l1.8 4.7L18.5 9.5 13.8 11.3 12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 14l.7 1.8 1.8.7-1.8.7L19 19l-.7-1.8-1.8-.7 1.8-.7z"/></svg></div>
-        <h3 style="font-size: 18px; margin-top: 16px;">Cinematic Shadow UI</h3>
-        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Interfaz oscura con glows y glassmorphism diseñada para verse de noche.</p>
-      </div>
-
-      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .05s;">
-        <div class="kv-ic"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 9.5a3.5 3.5 0 0 1 .5 6.95"/><path d="M12 11v6M9 14l3 3 3-3"/></svg></div>
-        <h3 style="font-size: 18px; margin-top: 16px;">Auto-updater</h3>
-        <p style="margin: 8px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Actualizaciones silenciosas en segundo plano desde GitHub Releases.</p>
-      </div>
-
-      <div class="kv-feat panel" data-reveal style="padding: 24px; transition-delay: .1s; display: flex; flex-direction: column; justify-content: center; background: var(--grad-brand-soft); border-color: var(--accent-soft-border);">
-        <h3 style="font-size: 20px;">¿Listo para empezar?</h3>
-        <p style="margin: 8px 0 16px; font-size: 14px; color: var(--text-muted); line-height: 1.55;">Descárgalo gratis y empieza a ver en menos de un minuto.</p>
-        <a href="https://github.com/pedromoorales9/kageview/releases/latest" target="_blank" rel="noreferrer" class="btn btn--primary btn--md" style="text-decoration: none; align-self: flex-start;">Descargar ahora</a>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- ============ PROVIDERS ============ -->
-  <section id="providers" style="position: relative; z-index: 1; max-width: 1200px; margin: 110px auto 0; padding: 0 28px;">
-    <div style="text-align: center; max-width: 60ch; margin: 0 auto;" data-reveal>
-      <span class="badge badge--accent badge--pill" style="height: 26px;">PROVIDERS</span>
-      <h2 style="margin: 18px 0 0; font-size: clamp(30px, 4vw, 48px); letter-spacing: -0.03em;">Múltiples fuentes, cero esfuerzo</h2>
-      <p style="margin: 16px 0 0; font-size: 17px; color: var(--text-muted); line-height: 1.55;">KageView conecta varias fuentes y cambia automáticamente si una falla. Marca tu favorita y será siempre la primera.</p>
-    </div>
-
-    <div style="margin-top: 44px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-      <!-- anime -->
-      <div class="panel" data-reveal style="padding: 26px;">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 18px;">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent-text)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M10.5 9l4.5 3-4.5 3z"/></svg>
-          <h3 style="font-size: 19px;">Anime</h3>
-          <span class="badge badge--pill" style="height: 22px;">3 activas</span>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          <div class="kv-prov"><span class="kv-prov-dot"></span><span style="flex:1; font-weight: 600;">AnimeFLV</span><span class="badge" style="height:20px;">🇪🇸 ES</span><span class="badge badge--accent" style="height:20px;">Sub + Dub</span></div>
-          <div class="kv-prov"><span class="kv-prov-dot"></span><span style="flex:1; font-weight: 600;">JKAnime</span><span class="badge" style="height:20px;">🇪🇸 ES</span><span class="badge badge--accent" style="height:20px;">Sub + Dub</span></div>
-          <div class="kv-prov"><span class="kv-prov-dot"></span><span style="flex:1; font-weight: 600;">AnimeAV1</span><span class="badge" style="height:20px;">🇪🇸 ES</span><span class="badge badge--accent" style="height:20px;">Sub + Dub</span></div>
-        </div>
-        <p style="margin: 16px 0 0; font-size: 12px; color: var(--text-subtle); line-height: 1.5;">Las fuentes en inglés (HiAnime, Gogoanime) están desactivadas por ahora.</p>
-      </div>
-      <!-- manga -->
-      <div class="panel" data-reveal style="padding: 26px; transition-delay: .06s;">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 18px;">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--accent-text)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h6v16H6a2 2 0 0 0-2 2zM20 5a2 2 0 0 0-2-2h-6v16h6a2 2 0 0 1 2 2z"/></svg>
-          <h3 style="font-size: 19px;">Manga</h3>
-          <span class="badge badge--pill" style="height: 22px;">4 activas</span>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          <div class="kv-prov"><span class="kv-prov-dot"></span><span style="flex:1; font-weight: 600;">MangaDex</span><span class="badge" style="height:20px;">🌐 Multi</span><span class="badge badge--plugins" style="height:20px;">Manga · Manhwa · Manhua</span></div>
-          <div class="kv-prov"><span class="kv-prov-dot"></span><span style="flex:1; font-weight: 600;">MangaOni</span><span class="badge" style="height:20px;">🇪🇸 ES</span><span class="badge badge--plugins" style="height:20px;">Manga · Manhwa · Manhua</span></div>
-          <div class="kv-prov"><span class="kv-prov-dot"></span><span style="flex:1; font-weight: 600;">InManga</span><span class="badge" style="height:20px;">🇪🇸 ES</span><span class="badge badge--plugins" style="height:20px;">Manga</span></div>
-          <div class="kv-prov"><span class="kv-prov-dot"></span><span style="flex:1; font-weight: 600;">ManhwaWeb</span><span class="badge" style="height:20px;">🇪🇸 ES</span><span class="badge badge--plugins" style="height:20px;">Manhwa</span></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ NOVEDADES / CHANGELOG ============ -->
-  <section id="novedades" style="position: relative; z-index: 1; max-width: 1200px; margin: 110px auto 0; padding: 0 28px;">
-    <div style="display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 40px; align-items: start;">
-      <div data-reveal>
-        <span class="badge badge--accent badge--pill" style="height: 26px;">NOVEDADES</span>
-        <h2 style="margin: 18px 0 0; font-size: clamp(28px, 3.4vw, 42px); letter-spacing: -0.03em;">v1.2.4 — Reproductor nativo, historial y logros</h2>
-        <p style="margin: 16px 0 0; font-size: 16px; color: var(--text-muted); line-height: 1.6;">La serie 1.2 estrena reproducción HLS nativa sin anuncios, fila de "Continuar viendo", historial detallado, logros del Demonio Guardián y Discord Rich Presence.</p>
-        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px;">
-          <span class="badge badge--pill ds-mono" style="height: 24px;">v1.1.0 · MangaOni</span>
-          <span class="badge badge--pill ds-mono" style="height: 24px;">v1.0.9 · Favorito</span>
-          <span class="badge badge--pill ds-mono" style="height: 24px;">v1.0.7 · Auto-play</span>
-          <span class="badge badge--pill ds-mono" style="height: 24px;">v1.0.5 · Calendario</span>
-        </div>
-      </div>
-      <div class="panel" data-reveal style="padding: 12px 26px; transition-delay: .06s;">
-        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Reproductor HLS nativo</b><span>Streaming directo sin embeds ni anuncios, con clic para pausar, skip de intro/outro y auto-siguiente.</span></div></div>
-        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Continuar viendo + historial</b><span>Reanuda cada episodio en el minuto exacto y revisa todo lo que has visto.</span></div></div>
-        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Logros del Demonio Guardián</b><span>Maratones, rachas y hitos de anime y manga, celebrados con toasts.</span></div></div>
-        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Fallback de servidores</b><span>Si un servidor falla, la app salta sola al siguiente — o cámbialo tú con un botón.</span></div></div>
-        <div class="kv-log"><span class="kv-log-dot"></span><div><b>Discord Rich Presence</b><span>Muestra en Discord el anime y episodio que estás viendo.</span></div></div>
-        <div class="kv-log" style="border-bottom: none;"><span class="kv-log-dot"></span><div><b>Resiliencia y rendimiento</b><span>Catálogo guardado cuando AniList cae, menos escrituras a disco y animaciones por GPU.</span></div></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ TECH STACK ============ -->
-  <section style="position: relative; z-index: 1; max-width: 1200px; margin: 96px auto 0; padding: 0 28px;" data-reveal>
-    <div style="text-align: center; margin-bottom: 30px;">
-      <span class="badge badge--pill ds-mono" style="height: 24px;">TECH STACK</span>
-      <h2 style="margin: 14px 0 0; font-size: clamp(24px, 3vw, 36px); letter-spacing: -0.03em;">Construido sobre tecnología sólida</h2>
-    </div>
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
-      <div class="kv-tech"><b>Electron 28</b><span>Runtime de escritorio + IPC</span></div>
-      <div class="kv-tech"><b>React 18</b><span>UI framework</span></div>
-      <div class="kv-tech"><b>TypeScript 5</b><span>Tipado estático</span></div>
-      <div class="kv-tech"><b>Tailwind 3</b><span>Estilos con tokens</span></div>
-      <div class="kv-tech"><b>Zustand 4</b><span>Estado global</span></div>
-      <div class="kv-tech"><b>HLS.js</b><span>Streaming HLS nativo</span></div>
-      <div class="kv-tech"><b>electron-store 8</b><span>Persistencia cifrada</span></div>
-      <div class="kv-tech"><b>electron-updater 6</b><span>Auto-actualizaciones</span></div>
-      <div class="kv-tech"><b>AniList GraphQL v2</b><span>Metadatos + OAuth + sync</span></div>
-      <div class="kv-tech"><b>AniSkip API v2</b><span>Timestamps intro/outro</span></div>
-      <div class="kv-tech"><b>fastest-levenshtein</b><span>Title matching fuzzy</span></div>
-      <div class="kv-tech"><b>discord-rpc 4</b><span>Discord Rich Presence</span></div>
-    </div>
-  </section>
-
-  <!-- ============ DOWNLOAD ============ -->
-  <section style="position: relative; z-index: 1; max-width: 1080px; margin: 110px auto 0; padding: 0 28px;" data-reveal>
-    <div style="position: relative; border-radius: 24px; overflow: hidden; border: 1px solid var(--border-strong); background: linear-gradient(135deg, #15101f, #0d0d13); padding: 56px 40px; text-align: center;">
-      <div aria-hidden="true" style="position: absolute; inset: -40% 20% auto; height: 380px; background: radial-gradient(60% 70% at 50% 0%, rgba(124,58,237,0.4), transparent 70%); filter: blur(50px); opacity: var(--kv-glow, 1);"></div>
-      <div aria-hidden="true" style="position: absolute; right: 40px; bottom: -30px; font-family: var(--font-display); font-size: 200px; font-weight: 700; color: rgba(255,255,255,0.035); line-height: 1;">影</div>
-      <div style="position: relative;">
-        <h2 style="font-size: clamp(32px, 4.5vw, 52px); letter-spacing: -0.035em;">Descarga KageView</h2>
-        <p style="margin: 16px auto 0; max-width: 50ch; font-size: 17px; color: var(--text-muted); line-height: 1.55;">Gratis, open source y sin cuentas. Si ya lo tienes instalado, se actualiza solo en cuanto detecta una nueva versión.</p>
-        <div style="margin: 32px auto 0; display: flex; flex-wrap: wrap; gap: 14px; justify-content: center;">
-          <a href="https://github.com/pedromoorales9/kageview/releases/latest" target="_blank" rel="noreferrer" class="btn btn--primary btn--lg" style="text-decoration: none; height: 54px; font-size: 16px; padding: 0 30px;">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="margin-right:4px;"><path d="M3 5.5L10.5 4.4v7.1H3zM11.5 4.2L21 3v8.5h-9.5zM3 12.5h7.5v7.1L3 18.5zM11.5 12.5H21V21l-9.5-1.3z"/></svg>
-            Windows 10/11 · Setup .exe
-          </a>
-          <span class="btn btn--outline btn--lg" style="height: 54px; font-size: 16px; padding: 0 26px; opacity: .7; cursor: default;">Linux / macOS — próximamente</span>
-        </div>
-        <p class="ds-mono" style="margin: 18px 0 0; font-size: 12px; color: var(--text-subtle);">KageView-Setup-1.2.4.exe</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ AVISO LEGAL ============ -->
-  <section style="position: relative; z-index: 1; max-width: 1080px; margin: 96px auto 0; padding: 0 28px;" data-reveal>
-    <div class="panel" style="padding: 34px; border-color: var(--border-strong);">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <div class="kv-ic" style="width: 44px; height: 44px;"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg></div>
-        <div>
-          <span class="badge badge--pill" style="height: 22px;">AVISO LEGAL</span>
-          <h2 style="font-size: clamp(22px, 2.6vw, 30px); letter-spacing: -0.02em; margin-top: 8px;">KageView no aloja contenido — solo enlaza</h2>
-        </div>
-      </div>
-      <p style="margin: 18px 0 0; font-size: 15px; color: var(--text-muted); line-height: 1.65; max-width: 80ch;">KageView es <b style="color: var(--text);">únicamente un cliente</b> que localiza y enlaza contenido ya disponible públicamente en webs de terceros. <b style="color: var(--text);">No almacena, no aloja y no distribuye ningún archivo</b> de vídeo, manga ni multimedia en sus servidores — de hecho, no tiene servidores de contenido.</p>
-
-      <div style="margin-top: 26px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
-        <div style="padding: 18px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border);">
-          <div style="display: flex; align-items: center; gap: 9px; color: var(--accent-text);">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/><path d="M8 21h8"/></svg>
-            <span style="font-family: var(--font-display); font-weight: 700; font-size: 15px;">No guarda nada</span>
+      <div class="rv">
+        <div class="panel" role="img" aria-label="Ilustración de la tarjeta de AniList en Ajustes con el resumen previo al primer envío">
+          <div class="who"><div class="av">A</div><div><b>Tu cuenta de AniList</b><span>Acceso guardado cifrado en este equipo</span></div><span class="ok">CONECTADO</span></div>
+          <div class="review">
+            <h4>Revisa esto antes de enviarlo a tu AniList</h4>
+            <p>KageView añadiría o actualizaría 3 entradas. No se ha escrito nada todavía.</p>
+            <div class="rows">
+              <div>▶ Serie de ejemplo <em>Viendo · ep. 5</em><u>NUEVA</u></div>
+              <div>▶ Otra serie de ejemplo <em>Completado</em></div>
+              <div>📖 Manga de ejemplo <em>Leyendo · cap. 65</em><u>NUEVA</u></div>
+            </div>
+            <div class="acts"><span>Enviar a AniList</span><span>Ahora no</span></div>
           </div>
-          <p style="margin: 9px 0 0; font-size: 13px; color: var(--text-muted); line-height: 1.55;">La app no descarga ni almacena contenido. Solo hace de scraper: lee enlaces de las webs fuente y los reproduce en tu equipo.</p>
+          <div class="toast"><div><b>AniList · Serie de ejemplo</b><span>Episodio 5 marcado como visto en AniList</span></div></div>
         </div>
-        <div style="padding: 18px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border);">
-          <div style="display: flex; align-items: center; gap: 9px; color: var(--accent-text);">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>
-            <span style="font-family: var(--font-display); font-weight: 700; font-size: 15px;">Las webs son responsables</span>
-          </div>
-          <p style="margin: 9px 0 0; font-size: 13px; color: var(--text-muted); line-height: 1.55;">Todo el contenido pertenece y es responsabilidad exclusiva de los sitios de terceros enlazados (AnimeFLV, MangaDex, etc.), no de KageView.</p>
-        </div>
-        <div style="padding: 18px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border);">
-          <div style="display: flex; align-items: center; gap: 9px; color: var(--accent-text);">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M16 7a4 4 0 0 0-4-2.5C9.8 4.5 8 5.8 8 7.5S9.8 10 12 10.5s4 1.3 4 3-1.8 3-4 3a4 4 0 0 1-4-2.5"/><path d="M5 5l14 14"/></svg>
-            <span style="font-family: var(--font-display); font-weight: 700; font-size: 15px;">Sin ánimo de lucro</span>
-          </div>
-          <p style="margin: 9px 0 0; font-size: 13px; color: var(--text-muted); line-height: 1.55;">Proyecto personal, gratuito y open source bajo GPL-3.0. No genera ingresos: ni anuncios, ni suscripciones, ni venta de datos.</p>
-        </div>
+        <p class="cap">Ilustración con datos de ejemplo.</p>
       </div>
-
-      <p style="margin: 22px 0 0; font-size: 12px; color: var(--text-subtle); line-height: 1.6; max-width: 80ch;">El desarrollador no se hace responsable del uso que se haga del contenido enlazado. Si eres titular de derechos sobre algún contenido, la reclamación debe dirigirse al sitio de terceros que lo aloja, no a esta aplicación.</p>
     </div>
   </section>
 
-  <!-- ============ FOOTER ============ -->
-  <footer style="position: relative; z-index: 1; max-width: 1200px; margin: 72px auto 0; padding: 40px 28px 56px; border-top: 1px solid var(--border);">
-    <div style="display: flex; flex-wrap: wrap; gap: 30px; align-items: flex-start; justify-content: space-between;">
-      <div style="max-width: 42ch;">
-        <div style="display: flex; align-items: center; gap: 11px;">
-          <img src="assets/icon.png" width="36" height="36" alt="KageView" style="border-radius: 9px;" />
-          <span style="font-family: var(--font-display); font-weight: 700; font-size: 18px;">影 KageView</span>
-        </div>
-        <p style="margin: 14px 0 0; font-size: 14px; color: var(--text-muted); line-height: 1.6; font-style: italic;">"Mientras otros veían anime, yo construí el lugar donde verlo."</p>
-        <p style="margin: 14px 0 0; font-size: 12px; color: var(--text-subtle); line-height: 1.6;">Proyecto sin ánimo de lucro. KageView no aloja ni almacena contenido: solo enlaza a webs de terceros, que son las únicas responsables del mismo.</p>
+  <!-- ═════════ PRIVACIDAD ═════════ -->
+  <section id="privacidad">
+    <div class="wrap">
+      <div class="rv">
+        <span class="kicker">Privacidad y seguridad</span>
+        <h2>Tus datos son tuyos</h2>
+        <p class="intro">Sin cuenta, KageView funciona en local. Con cuenta, solo guardas lo imprescindible, y tú decides qué ven tus amigos.</p>
       </div>
-      <div style="display: flex; gap: 56px; flex-wrap: wrap;">
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-subtle);">Proyecto</span>
-          <a href="https://github.com/pedromoorales9/kageview" target="_blank" rel="noreferrer" style="font-size: 14px; color: var(--text-muted); text-decoration: none;">GitHub</a>
-          <a href="https://github.com/pedromoorales9/kageview/releases/latest" target="_blank" rel="noreferrer" style="font-size: 14px; color: var(--text-muted); text-decoration: none;">Releases</a>
-          <a href="https://github.com/pedromoorales9/kageview/issues" target="_blank" rel="noreferrer" style="font-size: 14px; color: var(--text-muted); text-decoration: none;">Issues</a>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-          <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-subtle);">Recursos</span>
-          <a href="#features" style="font-size: 14px; color: var(--text-muted); text-decoration: none;">Features</a>
-          <a href="#providers" style="font-size: 14px; color: var(--text-muted); text-decoration: none;">Providers</a>
-          <a href="https://anilist.co/settings/developer" target="_blank" rel="noreferrer" style="font-size: 14px; color: var(--text-muted); text-decoration: none;">AniList API</a>
-        </div>
+      <div class="sec-list">
+        <div class="card rv"><div class="ico">🚫</div><div><h3>Sin telemetría</h3><p>KageView no incluye herramientas propias de seguimiento ni de analítica de uso.</p></div></div>
+        <div class="card rv"><div class="ico">🔐</div><div><h3>Acceso a AniList cifrado</h3><p>Se guarda con el llavero del sistema y solo lo usa el proceso principal de la app. Solo puede leer tu lista y crear o actualizar entradas, nunca borrarlas. Puedes revocarlo cuando quieras.</p></div></div>
+        <div class="card rv"><div class="ico">👁</div><div><h3>Tú controlas la visibilidad</h3><p>Oculta tu actividad y tus listas desde el perfil. Solo los amigos aceptados pueden ver algo.</p></div></div>
+        <div class="card rv"><div class="ico">🛡</div><div><h3>Permisos verificados</h3><p>La base de datos aplica políticas de seguridad por filas comprobadas con pruebas automáticas, no la interfaz.</p></div></div>
+        <div class="card rv"><div class="ico">🗑</div><div><h3>Eliminar tu cuenta</h3><p>Desde Perfil → Eliminar cuenta se borran tus datos. Los mensajes no van cifrados de extremo a extremo: no compartas nada sensible.</p></div></div>
+        <div class="card rv"><div class="ico">🔞</div><div><h3>Contenido para adultos</h3><p>Está oculto por defecto y hay que activarlo expresamente, solo si eres mayor de edad en tu país.</p></div></div>
       </div>
     </div>
-    <div style="margin-top: 36px; padding-top: 22px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;">
-      <span style="font-size: 12px; color: var(--text-subtle);">GPL-3.0 © 2026 Sh4Dow · Hecho con ♥ y demasiadas horas de madrugada.</span>
-      <div style="display: flex; gap: 8px;">
-        <span class="badge ds-mono" style="height: 22px;">Electron 28</span>
-        <span class="badge ds-mono" style="height: 22px;">React 18</span>
-        <span class="badge ds-mono" style="height: 22px;">v1.2.4</span>
-      </div>
-    </div>
-  </footer>
+  </section>
 
-  <!-- component-scoped styles for the few repeated landing patterns -->
-  <style>
-    .kv-poster { position: relative; aspect-ratio: 2 / 3; border-radius: 10px; background: var(--g); overflow: hidden; border: 1px solid var(--border); transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
-    .kv-poster::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.78)); }
-    .kv-poster::after { content: attr(data-t) ' \A ' attr(data-e); white-space: pre-wrap; position: absolute; left: 9px; right: 9px; bottom: 9px; font-family: var(--font-display); font-weight: 700; font-size: 12px; line-height: 1.3; color: #fff; }
-    .kv-poster:hover { transform: translateY(-4px); box-shadow: var(--shadow-accent); }
-    .kv-feat { transition: opacity .7s var(--ease), transform .7s var(--ease), border-color var(--dur) var(--ease); }
-    .kv-feat:hover { border-color: var(--border-accent); }
-    .kv-ic { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 12px; background: var(--accent-soft); border: 1px solid var(--accent-soft-border); color: var(--accent-text); }
-    .kv-ic svg { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
-    .kv-prov { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); font-size: 14px; transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease); }
-    .kv-prov:hover { border-color: var(--border-strong); transform: translateX(3px); }
-    .kv-prov-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green-500); box-shadow: 0 0 10px var(--green-500); animation: kvBlink 2.4s var(--ease) infinite; }
-    .kv-log { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--border); }
-    .kv-log-dot { flex: none; width: 9px; height: 9px; margin-top: 5px; border-radius: 50%; background: var(--grad-brand); box-shadow: var(--shadow-accent); }
-    .kv-log b { font-family: var(--font-display); font-size: 15px; display: block; }
-    .kv-log span { font-size: 13px; color: var(--text-muted); line-height: 1.5; display: block; margin-top: 3px; }
-    .kv-tech { padding: 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease); }
-    .kv-tech:hover { border-color: var(--border-accent); transform: translateY(-3px); }
-    .kv-tech b { font-family: var(--font-mono); font-size: 14px; color: var(--accent-text); display: block; }
-    .kv-tech span { font-size: 12px; color: var(--text-subtle); display: block; margin-top: 4px; line-height: 1.4; }
-    [data-reveal] { opacity: 0; transform: translateY(26px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
-    [data-reveal].kv-in { opacity: 1; transform: none; }
-    @media (max-width: 900px) {
-      nav > div:nth-child(2) { display: none !important; }
-      #features > div:nth-child(2) { grid-template-columns: 1fr 1fr !important; }
-      #providers div[style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
-      #novedades > div { grid-template-columns: 1fr !important; }
-      section div[style*="repeat(4, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
-      section div[style*="repeat(5, 1fr)"] { grid-template-columns: repeat(3, 1fr) !important; }
-    }
-  </style>
-</div>
-</x-dc>
-<script type="text/x-dc" data-dc-script data-props="{
-  &quot;accent&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#8b5cf6&quot;, &quot;options&quot;: [&quot;#8b5cf6&quot;, &quot;#f673b7&quot;, &quot;#47c4ff&quot;] },
-  &quot;glow&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;Cinematic&quot;, &quot;options&quot;: [&quot;Sutil&quot;, &quot;Cinematic&quot;, &quot;Intenso&quot;] }
-}">
-class Component extends DCLogic {
-  componentDidMount() {
-    const root = document.documentElement;
-    root.setAttribute('data-theme', 'dark');
-    this.applyVars();
-    this._io = new IntersectionObserver((entries) => {
-      entries.forEach((e) => {
-        if (e.isIntersecting) {
-          e.target.classList.add('kv-in');
-          this._io.unobserve(e.target);
-        }
-      });
-    }, { threshold: 0.1, rootMargin: '0px 0px -7% 0px' });
-    requestAnimationFrame(() => {
-      document.querySelectorAll('[data-reveal]').forEach((el) => this._io.observe(el));
-    });
-  }
-  componentDidUpdate() { this.applyVars(); }
-  componentWillUnmount() { if (this._io) this._io.disconnect(); }
-  applyVars() {
-    const root = document.documentElement;
-    const accent = this.props.accent || '#8b5cf6';
-    root.style.setProperty('--kv-accent', accent);
-    const glowMap = { 'Sutil': '0.5', 'Cinematic': '1', 'Intenso': '1.45' };
-    root.style.setProperty('--kv-glow', glowMap[this.props.glow] || '1');
-  }
-  renderVals() { return {}; }
-}
+  <!-- ═════════ DESCARGA ═════════ -->
+  <section id="descarga">
+    <div class="wrap">
+      <div class="head-c rv">
+        <span class="kicker">Descarga</span>
+        <h2>Gratis y sin registro para empezar</h2>
+        <p class="intro">Versión <span class="ver">1.9.0</span>. Si ya la tienes instalada, se actualiza sola.</p>
+      </div>
+      <div class="dl">
+        <article class="card rv">
+          <div class="os"><div class="ico">🪟</div><div><h3>Windows</h3><span>Windows 10 / 11</span></div></div>
+          <p>Instalador: <code id="winName">KageView-Setup-1.9.0.exe</code></p>
+          <a id="winLink" class="btn btn-primary" href="https://github.com/pedromoorales9/kageview/releases/latest" target="_blank" rel="noreferrer">Descargar para Windows</a>
+        </article>
+        <article class="card rv">
+          <div class="os"><div class="ico">🍎</div><div><h3>macOS</h3><span>macOS 11+ · Apple Silicon e Intel</span></div></div>
+          <p>Imagen de disco: <code id="macName">KageView-1.9.0-mac.dmg</code></p>
+          <a id="macLink" class="btn btn-primary" href="https://github.com/pedromoorales9/kageview/releases/latest" target="_blank" rel="noreferrer">Descargar para Mac</a>
+        </article>
+      </div>
+      <div class="mac rv">
+        <h3>Primera vez en macOS</h3>
+        <ol>
+          <li>Abre el <code>.dmg</code> y <b>arrastra KageView a Aplicaciones</b>.</li>
+          <li>macOS avisará la primera vez porque la app aún no está firmada con un Developer ID de Apple. Es normal y se autoriza una sola vez:
+            <span><b>macOS 15 o posterior:</b> intenta abrirla → <i>Ajustes del Sistema → Privacidad y seguridad</i> → <b>Abrir igualmente</b>.</span>
+            <span><b>macOS 14 o anterior:</b> clic derecho sobre KageView → <b>Abrir</b> → <b>Abrir</b>.</span></li>
+          <li>Si dijera que la app «está dañada», ejecuta en la Terminal: <code>xattr -dr com.apple.quarantine /Applications/KageView.app</code></li>
+        </ol>
+      </div>
+      <p class="trust rv">Descarga siempre desde la <a href="https://github.com/pedromoorales9/kageview/releases" target="_blank" rel="noreferrer"><b>página oficial de Releases</b></a>. Cualquier otro sitio que ofrezca KageView no está bajo control del autor.</p>
+    </div>
+  </section>
+
+  <!-- ═════════ NOVEDADES ═════════ -->
+  <section id="novedades">
+    <div class="wrap">
+      <div class="rv">
+        <span class="kicker">Novedades</span>
+        <h2>Lo último en KageView</h2>
+      </div>
+      <div class="timeline">
+        <article class="rel new rv">
+          <div class="v">1.9.0<small>Octubre 2026</small></div>
+          <div>
+            <h3>Sincronización con AniList</h3>
+            <ul>
+              <li><b>Conecta tu cuenta</b> y mantén anime y manga al día en los dos sitios.</li>
+              <li><b>Revisas antes de enviar:</b> la primera vez no se escribe nada hasta que confirmas.</li>
+              <li><b>Al instante:</b> cada episodio visto se envía enseguida, con un aviso discreto y desactivable.</li>
+              <li><b>«Continuar»</b> retoma desde tu progreso aunque lo empezaras en otro dispositivo.</li>
+              <li><b>Nunca se borra nada</b> automáticamente.</li>
+            </ul>
+          </div>
+        </article>
+        <article class="rel rv">
+          <div class="v">1.8.x<small>Octubre 2026</small></div>
+          <div>
+            <h3>Más manga y cierre correcto en macOS</h3>
+            <ul>
+              <li><b>Siete fuentes nuevas de manga</b> con búsqueda, populares, recientes y géneros.</li>
+              <li><b>En macOS, la X cierra la app por completo</b>, igual que en Windows.</li>
+              <li>Las fichas de obras solo en inglés ya no muestran opciones de español.</li>
+            </ul>
+          </div>
+        </article>
+        <article class="rel rv">
+          <div class="v">1.7.0<small>Octubre 2026</small></div>
+          <div>
+            <h3>Copiar y pegar, y responder en el chat</h3>
+            <ul>
+              <li><b>Copiar y pegar</b> funcionan en toda la app, con menú de clic derecho en los campos de texto.</li>
+              <li><b>Responder con cita:</b> arrastra el mensaje hacia la derecha o pulsa ↩.</li>
+            </ul>
+          </div>
+        </article>
+      </div>
+      <p class="more rv"><a class="btn btn-ghost btn-sm" href="https://github.com/pedromoorales9/kageview/releases" target="_blank" rel="noreferrer">Ver todas las versiones</a></p>
+    </div>
+  </section>
+
+  <!-- ═════════ AVISO LEGAL ═════════ -->
+  <section id="legal">
+    <div class="wrap">
+      <div class="rv">
+        <span class="kicker">Aviso legal</span>
+        <h2>Qué es (y qué no es) KageView</h2>
+      </div>
+      <div class="legal rv">
+        <p><b>Naturaleza del software.</b> KageView es un cliente de escritorio de código abierto y de uso general. <b>No aloja, almacena, sube, transmite ni distribuye</b> vídeos, imágenes, capítulos ni ningún otro contenido protegido, y no dispone de servidores de contenido. Solo muestra información y enlaces procedentes de servicios web de terceros cuando el usuario lo solicita, directamente desde su equipo.</p>
+        <p><b>Derechos de autor y marcas.</b> Todas las obras, imágenes, nombres y marcas mencionados o mostrados pertenecen a sus respectivos titulares. KageView <b>no está afiliado, patrocinado ni respaldado</b> por ellos ni por ninguno de los servicios de terceros a los que pueda conectarse. Las ilustraciones de este sitio usan contenido de ejemplo.</p>
+        <p><b>Servicios de terceros.</b> El desarrollador no controla, revisa ni garantiza el contenido, la disponibilidad ni la licitud de esos servicios y no asume responsabilidad por ellos. Sus condiciones de uso son responsabilidad de quien los utiliza.</p>
+        <p><b>Responsabilidad del usuario.</b> Cada usuario es el único responsable del uso que haga del software y de los contenidos a los que acceda con él, y debe cumplir la legislación de propiedad intelectual y las condiciones aplicables en su país. Si una obra está disponible en un servicio oficial en tu región, te animamos a usarlo y a <b>apoyar a sus creadores</b>.</p>
+        <p><b>Retirada de contenidos y reclamaciones.</b> KageView no aloja contenido, por lo que no puede retirarlo. Si eres titular de derechos y crees que una referencia incluida en el repositorio infringe tus derechos, abre un <a href="https://github.com/pedromoorales9/kageview/issues" target="_blank" rel="noreferrer">Issue</a> indicando cuál es y cómo acreditar la titularidad; se atenderá con diligencia y, cuando proceda, se retirará la referencia.</p>
+        <p><b>Sin garantía.</b> El software se ofrece «tal cual», sin garantía de ningún tipo. El autor no responde de daños derivados de su uso, de la indisponibilidad de servicios externos ni de la pérdida de datos.</p>
+        <p><b>Licencia.</b> El código se publica bajo licencia <a href="https://github.com/pedromoorales9/kageview/blob/master/LICENSE" target="_blank" rel="noreferrer">MIT</a>. La licencia cubre el código de KageView, no los contenidos de terceros.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <q>Mientras otros veían anime, yo construí el lugar donde verlo.</q>
+      MIT © 2026 Sh4d0w · Proyecto personal sin ánimo de lucro.
+    </div>
+    <nav aria-label="Pie">
+      <a href="https://github.com/pedromoorales9/kageview" target="_blank" rel="noreferrer">GitHub</a>
+      <a href="https://github.com/pedromoorales9/kageview/releases" target="_blank" rel="noreferrer">Versiones</a>
+      <a href="https://github.com/pedromoorales9/kageview/issues" target="_blank" rel="noreferrer">Incidencias</a>
+      <a href="#legal">Aviso legal</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  // Aparición suave al hacer scroll
+  (function () {
+    var els = document.querySelectorAll('.rv');
+    if (!('IntersectionObserver' in window)) { els.forEach(function (e) { e.classList.add('in'); }); return; }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    els.forEach(function (e) { io.observe(e); });
+  })();
+
+  // Pone la última versión y los enlaces directos de descarga (si GitHub no responde, quedan los de «Releases»)
+  (function () {
+    fetch('https://api.github.com/repos/pedromoorales9/kageview/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (rel) {
+        var v = String(rel.tag_name || '').replace(/^v/, '');
+        if (!/^\d+\.\d+\.\d+$/.test(v)) return;
+        document.querySelectorAll('.ver').forEach(function (e) { e.textContent = v; });
+        (rel.assets || []).forEach(function (a) {
+          var url = a.browser_download_url;
+          if (!/^https:\/\/github\.com\/pedromoorales9\/kageview\/releases\/download\//.test(url)) return;
+          if (/^KageView-Setup-.*\.exe$/.test(a.name)) { document.getElementById('winLink').href = url; document.getElementById('winName').textContent = a.name; }
+          if (/^KageView-.*-mac\.dmg$/.test(a.name)) { document.getElementById('macLink').href = url; document.getElementById('macName').textContent = a.name; }
+        });
+      })
+      .catch(function () {});
+  })();
 </script>
 </body>
 </html>
