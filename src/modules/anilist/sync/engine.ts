@@ -433,7 +433,7 @@ function announce(items: readonly PushedItem[]): void {
   if (m) notify('success', m.message, m.title ? `AniList · ${m.title}` : 'AniList');
 }
 
-async function runOnce(reason: SyncReason): Promise<void> {
+async function runOnce(reason: SyncReason, nothingToSend = false): Promise<void> {
   await initSyncState();
   const status = await api.getStatus();
   patchSync({ status });
@@ -445,7 +445,8 @@ async function runOnce(reason: SyncReason): Promise<void> {
   if (getSync().viewerId !== status.user.id) patchSync({ viewerId: status.user.id, plan: null, anime: {}, manga: {}, noMatch: {} });
 
   // La primera vez con esta cuenta NO se escribe nada sin que el usuario lo confirme
-  const dryRun = getSync().confirmedViewerId !== status.user.id;
+  // (`nothingToSend`: la pasada de revisión ya vio que no hay nada que enviar, así que esta solo trae)
+  const dryRun = !nothingToSend && getSync().confirmedViewerId !== status.user.id;
 
   patchSync({ phase: 'syncing', error: null, detail: 'Conectando con AniList…', plan: null });
   const counts: Counts = { ...EMPTY_COUNTS };
@@ -473,9 +474,12 @@ async function runOnce(reason: SyncReason): Promise<void> {
     }
     if (dryRun) {
       if (plan.length === 0) {
-        // Nada que enviar: no hay nada que confirmar; se sincroniza (solo traer) como siempre
-        patchSync({ confirmedViewerId: status.user.id });
-        return runOnce(reason);
+        // Nada que enviar: no hay nada que confirmar; se sincroniza (solo traer) como siempre.
+        // La cuenta solo queda confirmada si se revisaron TODAS las secciones: con el anime omitido
+        // (sin sesión en KageView) lo que llegue después aún tiene que pasar por la revisión.
+        const reviewedAll = !settings.anime || useAppStore.getState().account.status === 'signedIn';
+        if (reviewedAll) patchSync({ confirmedViewerId: status.user.id });
+        return runOnce(reason, true);
       }
       patchSync({ phase: 'idle', detail: null, plan: { items: plan } });
       return;

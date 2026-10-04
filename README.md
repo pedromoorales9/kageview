@@ -57,8 +57,8 @@ Velocidad, pantalla completa, salto de intro y outro, y **siguiente episodio aut
 </td>
 <td width="33%" valign="top">
 
-### 🗂️ Biblioteca
-Tus listas de anime y manga con estados, **aviso de capítulos nuevos** y sincronización entre tus dispositivos.
+### 🗂️ Biblioteca y AniList
+Tus listas de anime y manga con estados, **aviso de capítulos nuevos**, sincronización entre tus dispositivos y, si quieres, **con tu cuenta de AniList** en los dos sentidos (primero te enseña lo que va a enviar y espera tu confirmación).
 
 </td>
 </tr>
@@ -150,6 +150,7 @@ KageView **no tiene servidores de contenido**: las consultas a servicios de terc
 - **Tú controlas lo que ven tus amigos:** puedes ocultar tu actividad («viendo/leyendo ahora») y tus listas desde tu perfil. Solo los amigos aceptados pueden ver algo.
 - **Seguridad en la base de datos:** los permisos los imponen políticas de seguridad por filas (*RLS*) verificadas con tests automáticos (`npm test`), no la interfaz.
 - **Los mensajes no están cifrados de extremo a extremo.** No compartas información sensible por el chat.
+- **AniList (opcional).** Si conectas tu cuenta, el acceso se guarda **cifrado con el llavero del sistema** y solo lo usa el proceso principal de la app (la interfaz nunca ve el token). Solo puede leer tu lista y crear o actualizar entradas: la app no tiene forma de borrar nada de tu AniList, la sincronización nunca borra automáticamente y la primera vez **no escribe nada hasta que revisas y confirmas** lo que va a enviar. Puedes desconectarte desde Ajustes y revocar el acceso en AniList → Settings → Apps.
 - **Eliminar tu cuenta** (*Perfil → Eliminar cuenta*) borra tus datos de la base de datos.
 - **Conexiones a terceros:** cuando consultas un servicio web de terceros, ese servicio ve tu dirección IP, como en cualquier navegador.
 - **Contenido para mayores de edad:** los listados de manga lo ocultan por defecto; hay que activar expresamente la opción «Contenido +18», y solo si eres mayor de edad en tu país.
@@ -204,7 +205,7 @@ Para que la compilación pueda conectar cuentas de AniList hace falta un *Client
 2. **Name:** KageView · **Redirect URL:** `kageview://anilist-auth`
 3. Copia el número **ID** al `.env` (`ANILIST_CLIENT_ID=…`). El *Secret* no se usa.
 
-Sin él, la sección de AniList no aparece en Ajustes. Para probar la interfaz sin cuenta: `KAGEVIEW_ANILIST=mock npm start` (AniList de mentira con listas de ejemplo).
+Sin él, la sección de AniList no aparece en Ajustes (las compilaciones oficiales ya lo incluyen). Para probar la interfaz sin cuenta: `KAGEVIEW_ANILIST=mock npm start` (AniList de mentira con listas de ejemplo).
 
 ### Discord Rich Presence (opcional)
 
@@ -294,6 +295,14 @@ docs/                      # Recursos del README
 ---
 
 ## 📋 Novedades
+
+### v1.9.0 — Sincronización con AniList
+- **Conecta tu cuenta de AniList** (Ajustes → AniList) y mantén **anime y manga** al día en los dos sitios. Lo que ves y lees en KageView se refleja en AniList, y lo que ya tenías en AniList aparece en KageView
+- **Revisas antes de enviar:** la primera vez, KageView te enseña qué entradas va a crear o actualizar y **no escribe nada hasta que confirmas**
+- **Al instante:** un episodio visto se envía enseguida, con un aviso discreto («Episodio 5 marcado como visto en AniList») que puedes desactivar. «Continuar» retoma desde tu progreso aunque lo empezaras en otro dispositivo
+- **Nunca se borra nada automáticamente**, ni en KageView ni en AniList. Si cambias algo en los dos lados, gana el mayor progreso y, para el estado, el cambio más reciente
+- **Manga:** cada manga se vincula con su ficha de AniList por el título. Los claros se vinculan solos; los dudosos se te ofrecen para que **confirmes**. Lo que solo existe en AniList se importa como ficha «sin fuente de lectura» y se fusiona cuando eliges dónde leerlo
+- **Seguridad:** el acceso a AniList va cifrado con el llavero del sistema y nunca llega a la interfaz; el proceso principal solo admite leer tu lista y crear o actualizar entradas
 
 ### v1.8.1 — Cierre en macOS
 - **Corregido:** en macOS, al pulsar la X (el botón rojo) la app seguía abierta y había que usar clic derecho → *Salir* en el Dock. Ahora **se cierra por completo**, igual que en Windows

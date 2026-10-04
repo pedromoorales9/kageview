@@ -288,6 +288,19 @@ describe('primera sincronización: nada se escribe sin confirmar', () => {
     expect((await f.backend.listLibrary('anime')).map((x) => x.mediaId)).toEqual([2]);
   });
 
+  it('con el anime omitido (sin sesión en KageView) no se da la cuenta por confirmada: al iniciar sesión se revisa', async () => {
+    const f = await boot(false);
+    f.useAppStore.getState().setAccount({ status: 'signedOut', user: null } as never);
+    await f.engine.syncNow();                                             // nada que enviar: solo trae
+    expect(f.engine.isConfirmed()).toBe(false);
+    f.useAppStore.getState().setAccount({ status: 'signedIn', user: (await f.backend.getSession())! });
+    f.fake.addMedia({ id: 1, type: 'ANIME', format: 'TV', title: { romaji: 'Frieren' }, episodes: 28 });
+    await f.backend.upsertLibraryEntry({ mediaType: 'anime', mediaId: 1, status: 'CURRENT', progress: 3, score: 0, media: snap(1, 'Frieren') });
+    await f.engine.syncNow();
+    expect(f.fake.saves).toHaveLength(0);                                 // sigue sin escribir
+    expect(f.state.getSync().plan?.items.map((i) => i.title)).toEqual(['Frieren']);
+  });
+
   it('otra cuenta de AniList vuelve a pedir confirmación', async () => {
     await e.engine.syncNow();
     await e.engine.confirmPlan();
